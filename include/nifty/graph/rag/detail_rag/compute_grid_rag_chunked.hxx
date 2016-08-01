@@ -52,56 +52,53 @@ struct ComputeRag< GridRagSliced<ChunkedLabels<3, LABEL_TYPE>> > {
         const auto & labelsProxy = rag.labelsProxy();
         const auto numberOfLabels = labelsProxy.numberOfLabels();
         const auto & labels = labelsProxy.labels(); 
+        const auto & shape = labels.shape();
 
         rag.assign(numberOfLabels);
 
-        size_t z_max = labels.shape(0);
-        size_t y_max = labels.shape(1);
-        size_t x_max = labels.shape(2);
+        size_t sliceShape[] = {shape[0], shape[1], 1};
 
-        vigra::Shape3 slice_shape(1, y_max, x_max);
-
-        vigra::MultiArray<3,LABEL_TYPE> this_slice(slice_shape);
-        vigra::MultiArray<3,LABEL_TYPE> next_slice(slice_shape);
+        marray::Marray<LABEL_TYPE> currentSlice(sliceShape, sliceShape + 3);
+        marray::Marray<LABEL_TYPE> nextSlice(sliceShape, sliceShape + 3);
 
         // TODO parallel versions of the code
 
-        for(size_t z = 0; z < z_max; z++) {
-            
-            // checkout this slice
-            vigra::Shape3 slice_begin(z, 0, 0);
-            labels.checkoutSubarray(slice_begin, this_slice);
+        for(size_t z = 0; z < shape[2]; z++) {
 
-            if(z < z_max - 1) {
+            // checkout this slice
+            size_t sliceStart[] = {0, 0, z};
+            labels.readSubarray(sliceStart, currentSlice);
+
+            if(z < shape[2] - 1) {
                 // checkout next slice
-                vigra::Shape3 next_begin(z+1, 0, 0);
-                labels.checkoutSubarray(next_begin, next_slice);
+                size_t nextStart[] = {0, 0, z+1};
+                labels.readSubarray(nextStart, nextSlice);
             }
 
             // single core
             if(pOpts.getActualNumThreads()<=1){
             
-                for(size_t y = 0; y < y_max; y++) {
-                    for(size_t x = 0; x < x_max; x++) {
+                for(size_t x = 0; x < shape[0]; x++) {
+                    for(size_t y = 0; y < shape[1]; y++) {
                         
-                        const auto lu = this_slice(0,y,x);
+                        const auto lu = currentSlice(x,y,0);
                         
-                        if(x < x_max-1) {
-                            const auto lv = this_slice(0,y,x+1);
+                        if(x < shape[0]-1) {
+                            const auto lv = currentSlice(x+1,y,0);
                             if(lu != lv)
                                 rag.insertEdge(lu,lv);
                         }
                         
-                        if(y < y_max-1) {
-                            const auto lv = this_slice(0,y+1,x);
+                        if(y < shape[1]-1) {
+                            const auto lv = currentSlice(x,y+1,0);
                             if(lu != lv)
                                 rag.insertEdge(lu,lv);
                         }
 
-                        if(z < z_max-1) {
-                            const auto lv = next_slice(0,y,x);
-                            if(lu != lv)
-                                rag.insertEdge(lu,lv);
+                        if(z < shape[2]-1) {
+                        // we don't need to check if the labels are different, due to the sliced labels
+                            const auto lv = nextSlice(x,y,0);
+                            rag.insertEdge(lu,lv);
                         }
                     }
                 }

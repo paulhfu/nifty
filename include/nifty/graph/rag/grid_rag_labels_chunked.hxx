@@ -9,36 +9,46 @@
 #include "nifty/tools/runtime_check.hxx"
 //#include "nifty/graph/detail/contiguous_indices.hxx"
 //
-#include "vigra/multi_array_chunked_hdf5.hxx"
+#include "nifty/hdf5/hdf5_array.hxx"
 
 namespace nifty{
 namespace graph{
 
 
+// TODO Chunked labels and chunked labels sliced
 template<size_t DIM, class LABEL_TYPE>
 class ChunkedLabels{
 public:
 
-    // TODO try to use ChunkedArray here instead, s. t. we can use all the classes derived from it
-    typedef vigra::ChunkedArrayHDF5<DIM, LABEL_TYPE> ViewType;
+    typedef nifty::hdf5::Hdf5Array<LABEL_TYPE> ViewType;
 
     // enable setting the chunk size by overloading the constuctor
-    ChunkedLabels(const std::string & label_file, const std::string & label_key )
-    : labels_(vigra::HDF5File(label_file, vigra::HDF5File::ReadOnly), label_key ),
-      shape_(), label_file_(label_file), label_key_(label_key)
-    {
+    ChunkedLabels(const ViewType & labels )
+    : labels_( labels ), shape_() {
         for(size_t i=0; i<DIM; ++i)
             shape_[i] = labels_.shape(i);
     }
 
     
     // part of the API
-    // TODO iterate over the chunks in parellel !
+    // TODO only calculate this once -> move to constructor and introduce new variable
     uint64_t numberOfLabels() const {
-        return *std::max_element(labels_.cbegin(), labels_.cend())+1;
-        //for(auto it = _labels.chunk_begin(); it != _labels.chunk_end; ++it ) P
-        //  
-        //}
+    
+        size_t sliceShape[] = {size_t(shape_[0]), size_t(shape_[1]), 1};
+        marray::Marray<LABEL_TYPE> currentSlice(sliceShape, sliceShape + 3);
+        
+        LABEL_TYPE maxLabel = 0;
+        
+        // TODO we can do all kind of checks here (being sliced, being consecutive, etc.)
+        // TODO iterate over the slices in parellel !
+        for(size_t z = 0; z < shape_[2]; z++) {
+            size_t sliceStart[] = {0, 0, z};
+            labels_.readSubarray(sliceStart, currentSlice);
+            LABEL_TYPE maxSlice = *std::max_element(currentSlice.begin(), currentSlice.end());
+            maxLabel = std::max(maxLabel, maxSlice ); 
+        }
+        
+        return uint64_t(maxLabel) + 1;
     }
 
     // not part of the general API

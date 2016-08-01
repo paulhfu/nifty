@@ -6,8 +6,7 @@
 #include "nifty/graph/rag/grid_rag_features.hxx"
 
 
-#ifdef WITH_HDF52
-#include "vigra/multi_array_chunked_hdf5.hxx"
+#ifdef WITH_HDF5
 #include "nifty/graph/rag/grid_rag_features_chunked.hxx"
 #endif
 
@@ -63,7 +62,7 @@ namespace graph{
     }
 
     // export only if we have HDF5 support
-    #ifdef WITH_HDF52
+    #ifdef WITH_HDF5
     template<class RAG,class T, class EDGE_MAP, class NODE_MAP>
     void exportGridRagSlicedAccumulateFeaturesT(py::module & ragModule){
 
@@ -90,20 +89,17 @@ namespace graph{
         ragModule.def("gridRagSlicedAccumulateLabels",
             [](
                 const RAG & rag,
-                const std::string & labels_file,
-                const std::string & labels_key
+                const nifty::hdf5::Hdf5Array<T> labels
             ){  
                 nifty::marray::PyView<T> nodeLabels({rag.numberOfNodes()});
                 {
-                    vigra::HDF5File h5_file(labels_file, vigra::HDF5File::ReadOnly);
-                    vigra::ChunkedArrayHDF5<3,T> labels(h5_file, labels_key);
                     py::gil_scoped_release allowThreads;
                     gridRagAccumulateLabels(rag, labels, nodeLabels);
                 }
                 return nodeLabels;
 
             },
-            py::arg("graph"),py::arg("labels_file"),py::arg("labels_key")
+            py::arg("graph"),py::arg("labels")
         );
     }
     #endif

@@ -5,7 +5,8 @@
 
 #include "nifty/graph/rag/grid_rag.hxx"
 
-#ifdef WITH_HDF52
+#ifdef WITH_HDF5
+#include "nifty/hdf5/hdf5_array.hxx"
 #include "nifty/graph/rag/grid_rag_chunked.hxx"
 #endif
 
@@ -87,7 +88,7 @@ namespace graph{
         }
     
         // export ChunkedLabelsGridRagSliced
-        #ifdef WITH_HDF52
+        #ifdef WITH_HDF5
         {
             py::object undirectedGraph = graphModule.attr("UndirectedGraph");
             typedef ChunkedLabelsGridRagSliced<uint32_t> ChunkedLabelsGridRagSliced;
@@ -103,25 +104,19 @@ namespace graph{
             ;
             
             ragModule.def("chunkedLabelsGridRagSliced",
-                [](const std::string & label_file,
-                   const std::string & label_key,
-                   const int numberOfThreads,
-                   const bool lockFreeAlg 
+                [](nifty::hdf5::Hdf5Array<uint32_t> chunkedLabels,
+                   const int numberOfThreads
                 ){
                     auto s = typename  ChunkedLabelsGridRagSliced::Settings();
                     s.numberOfThreads = numberOfThreads;
-                    s.lockFreeAlg = lockFreeAlg;
 
-                    ChunkedLabels<3,uint32_t> chunkedLabels(label_file, label_key);
                     auto ptr = new ChunkedLabelsGridRagSliced(chunkedLabels, s);
                     return ptr;
                 },
                 py::return_value_policy::take_ownership,
                 py::keep_alive<0, 1>(),
-                py::arg("label_file"),
-                py::arg("label_key"),
-                py::arg_t< int >("numberOfThreads", 1 ),
-                py::arg_t< bool >("lockFreeAlg", false )
+                py::arg("chunkedLabels"),
+                py::arg_t< int >("numberOfThreads", 1 )
             );
         }
         #endif

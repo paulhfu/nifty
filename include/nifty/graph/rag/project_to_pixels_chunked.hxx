@@ -9,7 +9,7 @@
 #include "nifty/tools/for_each_coordinate.hxx"
 //#include "nifty/graph/detail/contiguous_indices.hxx"
 //
-#include "vigra/multi_array_chunked.hxx"
+#include "nifty/hdf5/hdf5_array.hxx"
 
 
 namespace nifty{
@@ -23,7 +23,7 @@ template<
 void projectScalarNodeDataToPixels(
     const ChunkedLabelsGridRagSliced<LABELS_TYPE> & graph,
     NODE_MAP & nodeData,
-    vigra::ChunkedArray<3,SCALAR_TYPE> & pixelData,
+    nifty::hdf5::Hdf5Array<SCALAR_TYPE> & pixelData,
     const int numberOfThreads = -1
 ){
     typedef std::array<int64_t, 2> Coord;
@@ -32,28 +32,28 @@ void projectScalarNodeDataToPixels(
     const auto & shape = labelsProxy.shape();
     const auto & labels = labelsProxy.labels(); 
         
-    vigra::Shape3 slice_shape(1, shape[1], shape[2]);
+    size_t sliceShape[] = {shape[0], shape[1], 0};
 
-    vigra::MultiArray<3,LABELS_TYPE> this_labels(slice_shape);
+    marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
+    marray::Marray<SCALAR_TYPE> currentData(sliceShape, sliceShape+3);
 
     auto pOpt = nifty::parallel::ParallelOptions(numberOfThreads);
+    //TODO proper parallelization
     for(size_t z = 0; z < shape[0]; z++) {
         
-        vigra::MultiArray<3,SCALAR_TYPE> this_data(slice_shape);
-        
         // checkout this slice
-        vigra::Shape3 slice_begin(z, 0, 0);
-        labels.checkoutSubarray(slice_begin, this_labels);
+        size_t sliceStart[] = {0,0,z};
+        labels.readSubarray(sliceStart, currentLabels);
 
         nifty::parallel::ThreadPool threadpool(pOpt);
         nifty::tools::parallelForEachCoordinate(threadpool,std::array<int64_t,2>({(int64_t)shape[2],(int64_t)shape[1]}) ,
         [&](int tid, const Coord & coord){
             const auto x = coord[0];
             const auto y = coord[1];
-            const auto node = this_labels(0,y,x);
-            this_data(0,y,x) = nodeData[node];
+            const auto node = currentLabels(x,y,0);
+            currentData(x,y,0) = nodeData[node];
         });
-        pixelData.commitSubarray(slice_begin,this_data);
+        pixelData.writeSubarray(sliceStart,currentData);
     }
 
 }

@@ -43,16 +43,15 @@ public:
     
     // TODO find the meaningful settings for the gridrag
     struct Settings{
-        int numberOfThreads{-1};
-        bool lockFreeAlg{false};
+        int numberOfThreads{1};
     };
     
     GridRagSliced(const LabelsProxy & labelsProxy, const Settings & settings = Settings())
     :   settings_(settings),
-        labelsProxy_(labelsProxy) // FIXME can we do this w/o invoking the copt constructor
+        labelsProxy_(labelsProxy) // FIXME can we do this w/o invoking the copy constructor
     {
-        // make sure that we have chunks of shape (1,Y,X)
-        NIFTY_CHECK_OP(labelsProxy.labels().chunkShape(0),==,1,"Z chunks have to be of size 1 for sliced rag")
+        // make sure that we have chunks of shape (1,Y,X) TODO check the chunk shape again, but only give a warning if it doesn't fit
+        //NIFTY_CHECK_OP(labelsProxy.labels().chunkShape(0),==,1,"Z chunks have to be of size 1 for sliced rag")
         detail_rag::ComputeRag< SelfType >::computeRag(*this, settings_);
     }
     

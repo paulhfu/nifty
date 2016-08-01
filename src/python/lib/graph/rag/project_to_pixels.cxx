@@ -6,7 +6,7 @@
 #include "nifty/graph/rag/grid_rag.hxx"
 #include "nifty/graph/rag/project_to_pixels.hxx"
 
-#ifdef WITH_HDF52
+#ifdef WITH_HDF5
 #include "nifty/graph/rag/grid_rag_chunked.hxx"
 #include "nifty/graph/rag/project_to_pixels_chunked.hxx"
 #endif
@@ -47,7 +47,7 @@ namespace graph{
     }
 
     
-    #ifdef WITH_HDF52
+    #ifdef WITH_HDF5
     template<class RAG,class T>
     void exportProjectScalarNodeDataToPixelsSlicedT(py::module & ragModule){
 
@@ -55,26 +55,20 @@ namespace graph{
            [](
                 const RAG & rag,
                 nifty::marray::PyView<T, 1> nodeData,
-                const std::string & outputFile,
-                const std::string & key,
+                nifty::hdf5::Hdf5Array<T> & pixelData,
                 const int numberOfThreads
            ){  
                 const auto labelsProxy = rag.labelsProxy();
                 const auto & labels = labelsProxy.labels(); 
                 const auto shape = labels.shape();
 
-                vigra::HDF5File h5_file(outputFile, vigra::HDF5File::ReadWrite);
-                typename vigra::ChunkedArrayHDF5<3, T>::shape_type chunk_shape(labels.file_.getChunkShape(key).begin());
-                vigra::ChunkedArrayHDF5<3, T> pixelData(h5_file, key, 
-                    vigra::HDF5File::ReadWrite, shape, chunk_shape);
                 {
                     py::gil_scoped_release allowThreads;
-                    projectScalarNodeDataToPixels(rag, nodeData, pixelData, numberOfThreads);
+                    projectScalarNodeDataToPixels(rag, nodeData, numberOfThreads, pixelData);
                 }
-                // For now, we don't return it, because there are no proper pythonbindings for the chunked array yet
-                //return pixelData;
-           },
-           py::arg("graph"),py::arg("nodeData"),py::arg("outputFile"),py::arg("key"),py::arg("numberOfThreads")
+           
+            },
+           py::arg("graph"),py::arg("nodeData"),py::arg("pixelData"),py::arg("numberOfThreads")
         );
     }
     #endif
