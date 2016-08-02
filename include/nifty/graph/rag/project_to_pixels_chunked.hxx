@@ -32,21 +32,24 @@ void projectScalarNodeDataToPixels(
     const auto & shape = labelsProxy.shape();
     const auto & labels = labelsProxy.labels(); 
         
-    size_t sliceShape[] = { size_t(shape[0]), size_t(shape[1]), 0};
-
-    marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
-    marray::Marray<SCALAR_TYPE> currentData(sliceShape, sliceShape+3);
+    size_t sliceShape[] = { size_t(shape[0]), size_t(shape[1]), 1};
 
     auto pOpt = nifty::parallel::ParallelOptions(numberOfThreads);
-    //TODO proper parallelization
-    for(size_t z = 0; z < shape[0]; z++) {
+    nifty::parallel::ThreadPool threadpool(pOpt);
+    
+    // TODO better to parallelize inside slice or over the slices ?!
+    //if(pOpts.getActualNumThreads()<=1){
+    
+    marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
+    marray::Marray<SCALAR_TYPE> currentData(sliceShape, sliceShape+3);
+    
+    for(size_t z = 0; z < shape[2]; z++) {
         
         // checkout this slice
         size_t sliceStart[] = {0,0,z};
         labels.readSubarray(sliceStart, currentLabels);
 
-        nifty::parallel::ThreadPool threadpool(pOpt);
-        nifty::tools::parallelForEachCoordinate(threadpool,std::array<int64_t,2>({(int64_t)shape[2],(int64_t)shape[1]}) ,
+        nifty::tools::parallelForEachCoordinate(threadpool,std::array<int64_t,2>({ int64_t(shape[0]), int64_t(shape[1]) }) ,
         [&](int tid, const Coord & coord){
             const auto x = coord[0];
             const auto y = coord[1];
@@ -55,6 +58,27 @@ void projectScalarNodeDataToPixels(
         });
         pixelData.writeSubarray(sliceStart,currentData);
     }
+    //else {
+    //    
+    //    nifty::parallel::parallel_foreach(threadpool, shape[2], [&](int tid, int z) {
+    //    
+    //        marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
+    //        marray::Marray<SCALAR_TYPE> currentData(sliceShape, sliceShape+3);
+    //        
+    //        // checkout this slice
+    //        size_t sliceStart[] = {0,0,z};
+    //        labels.readSubarray(sliceStart, currentLabels);
+    //        
+    //        for(size_t x = 0; x < shape[0]; x++ ) {
+    //            for(size_t y = 0; y < shape[1]; y++ ) {
+    //                const auto node = currentLabels(x,y,0);
+    //                currentData(x,y,0) = nodeData[node];
+    //            }
+    //        }
+    //    
+    //        pixelData.writeSubarray(sliceStart,currentData);
+    //    });
+    //}
 
 }
 
