@@ -101,6 +101,8 @@ namespace graph{
                 .def("insertEdges",[](ChunkedLabelsGridRagSliced * self, py::array_t<uint64_t> pyArray) {
                     throw std::runtime_error("cannot insert edges into 'ChunkedLabelsGridRagSliced'");
                 })
+                .def("getTransitionEdge",&ChunkedLabelsGridRagSliced::getTransitionEdge)
+                .def("isInnerSliceEdge",&ChunkedLabelsGridRagSliced::isInnerSliceEdge)
             ;
             
             ragModule.def("chunkedLabelsGridRagSliced",
@@ -110,14 +112,14 @@ namespace graph{
                 ){
                     auto s = typename  ChunkedLabelsGridRagSliced::Settings();
                     s.numberOfThreads = numberOfThreads;
-                    auto ptr = new ChunkedLabelsGridRagSliced(labelFile, labelKey);
+                    auto ptr = new ChunkedLabelsGridRagSliced(labelFile, labelKey, s);
                     return ptr;
                 },
                 py::return_value_policy::take_ownership,
                 py::keep_alive<0, 1>(),
                 py::arg("labelFile"),
                 py::arg("labelKey"),
-                py::arg_t< int >("numberOfThreads", 1 )
+                py::arg_t< int >("numberOfThreads", -1 )
             );
         }
         #endif
