@@ -21,7 +21,6 @@ namespace graph{
             sumVal_(0.0),
             countVal_(0.0)
         {
-
         }
         void accumulate(const T & val){
             minVal_ = std::min(val, minVal_);
@@ -42,6 +41,12 @@ namespace graph{
             featuresOut[3] = sumVal_/static_cast<T>(countVal_);
             featuresOut[4] = static_cast<T>(countVal_);
         }
+        void reset() {
+            minVal_ = std::numeric_limits<T>::infinity();
+            maxVal_ = -1.0*std::numeric_limits<T>::infinity();
+            sumVal_ = 0.0;
+            countVal_ = 0.0;
+        }
     private:
         T minVal_,maxVal_,sumVal_;
         uint64_t countVal_;
@@ -53,6 +58,7 @@ namespace graph{
     {
     public:
         typedef GRAPH Graph;
+    
         DefaultAccMapBase(const Graph & graph, const T globalMinVal = std::numeric_limits<T>::infinity(), const T globalMaxVal=-1.0*std::numeric_limits<T>::infinity())
         :   graph_(graph),
             currentPass_(0),
@@ -90,6 +96,10 @@ namespace graph{
             globalMinVal_ = other.globalMaxVal_;
             currentPass_ = other.currentPass_;
         }
+        void reset() {
+            for(auto &acc : accs_)
+                acc.reset();
+        }
     private:
         const GRAPH & graph_;
         size_t currentPass_;
@@ -109,6 +119,9 @@ namespace graph{
         //typedef typename Graph:: template EdgeMap<DefaultAcc<T, NBINS> > BasesBaseType;
         typedef DefaultAccMapBase<Graph, T, NBINS, Graph:: template EdgeMap >  BaseType;
         using BaseType::BaseType;
+        void reset() {
+            BaseType::reset();
+        }
     };
 
     template<class GRAPH, class T, unsigned int NBINS=40>
@@ -120,6 +133,9 @@ namespace graph{
         //typedef typename Graph:: template NodeMap<DefaultAcc<T, NBINS> > BasesBaseType;
         typedef DefaultAccMapBase<Graph, T, NBINS, Graph:: template NodeMap >  BaseType;
         using BaseType::BaseType;
+        void reset() {
+            BaseType::reset();
+        }
     };
 
 

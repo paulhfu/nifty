@@ -134,6 +134,7 @@ namespace graph{
                             }
                             return featMat;
                         })
+                    .def("reset",&EdgeMapType::reset)
 
                 ;
                 ragModule.def("defaultAccEdgeMap", [](const Graph & graph, const double minVal, const double maxVal){
@@ -167,6 +168,7 @@ namespace graph{
                             }
                             return featMat;
                         })
+                    .def("reset",&NodeMapType::reset)
                 ;
                 ragModule.def("defaultAccNodeMap", [](const Graph & graph, const double minVal, const double maxVal){
                     NodeMapType * ptr = nullptr;
@@ -197,7 +199,7 @@ namespace graph{
             exportGridRagAccumulateLabelsT<ExplicitLabelsGridRag3D, uint32_t, 3>(ragModule);
             
             // export sliced rag (only if we have hdf5 support)
-            #ifdef WITH_HDF52
+            #ifdef WITH_HDF5
             typedef ChunkedLabelsGridRagSliced<uint32_t> ChunkedLabelsGridRagSliced;
             exportGridRagSlicedAccumulateFeaturesT<ChunkedLabelsGridRagSliced, float, EdgeMapType, NodeMapType>(ragModule);
             exportGridRagSlicedAccumulateLabelsT<ChunkedLabelsGridRagSliced, uint32_t>(ragModule);

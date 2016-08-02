@@ -64,7 +64,7 @@ namespace graph{
 
                 {
                     py::gil_scoped_release allowThreads;
-                    projectScalarNodeDataToPixels(rag, nodeData, numberOfThreads, pixelData);
+                    projectScalarNodeDataToPixels(rag, nodeData, pixelData, numberOfThreads);
                 }
            
             },
@@ -95,7 +95,7 @@ namespace graph{
 
         
         // export sliced rag (only if we have hdf5 support)
-        #ifdef WITH_HDF52s
+        #ifdef WITH_HDF5
         typedef ChunkedLabelsGridRagSliced<uint32_t> ChunkedLabelsGridRag;
         exportProjectScalarNodeDataToPixelsSlicedT<ChunkedLabelsGridRag, float>(ragModule);
         exportProjectScalarNodeDataToPixelsSlicedT<ChunkedLabelsGridRag, uint32_t>(ragModule);

@@ -104,18 +104,19 @@ namespace graph{
             ;
             
             ragModule.def("chunkedLabelsGridRagSliced",
-                [](nifty::hdf5::Hdf5Array<uint32_t> chunkedLabels,
+                [](const std::string & labelFile,
+                   const std::string & labelKey,
                    const int numberOfThreads
                 ){
                     auto s = typename  ChunkedLabelsGridRagSliced::Settings();
                     s.numberOfThreads = numberOfThreads;
-
-                    auto ptr = new ChunkedLabelsGridRagSliced(chunkedLabels, s);
+                    auto ptr = new ChunkedLabelsGridRagSliced(labelFile, labelKey);
                     return ptr;
                 },
                 py::return_value_policy::take_ownership,
                 py::keep_alive<0, 1>(),
-                py::arg("chunkedLabels"),
+                py::arg("labelFile"),
+                py::arg("labelKey"),
                 py::arg_t< int >("numberOfThreads", 1 )
             );
         }

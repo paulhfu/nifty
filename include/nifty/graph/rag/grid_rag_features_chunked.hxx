@@ -26,7 +26,7 @@ namespace graph{
         NIFTY_CHECK_OP(data.shape(1),==,shape[1], "Shape along y does not agree")
         NIFTY_CHECK_OP(z0+data.shape(2),<=,shape[2], "Z offset is too large")
 
-        size_t sliceShape[] = {shape[0],shape[1],1};
+        size_t sliceShape[] = {size_t(shape[0]), size_t(shape[1]), 1};
         marray::Marray<LABELS_TYPE> currentSlice(sliceShape, sliceShape+3);
         marray::Marray<LABELS_TYPE> nextSlice(sliceShape, sliceShape+3);
         
@@ -108,7 +108,7 @@ namespace graph{
         NIFTY_CHECK_OP(data.shape(1),==,shape[1], "Shape along y does not agree")
         NIFTY_CHECK_OP(data.shape(2),==,shape[2], "Shape along z does not agree")
 
-        size_t sliceShape[] = {shape[0], shape[1], 1};
+        size_t sliceShape[] = { size_t(shape[0]), size_t(shape[1]), 1};
 
         marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
         marray::Marray<LABELS> currentData(sliceShape, sliceShape+3);

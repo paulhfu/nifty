@@ -46,9 +46,9 @@ public:
         int numberOfThreads{1};
     };
     
-    GridRagSliced(const LabelsProxy & labelsProxy, const Settings & settings = Settings())
+    GridRagSliced(const std::string & labelFile, const std::string & labelKey, const Settings & settings = Settings())
     :   settings_(settings),
-        labelsProxy_(labelsProxy) // FIXME can we do this w/o invoking the copy constructor
+        labelsProxy_(labelFile, labelKey)
     {
         // make sure that we have chunks of shape (1,Y,X) TODO check the chunk shape again, but only give a warning if it doesn't fit
         //NIFTY_CHECK_OP(labelsProxy.labels().chunkShape(0),==,1,"Z chunks have to be of size 1 for sliced rag")

@@ -32,7 +32,7 @@ void projectScalarNodeDataToPixels(
     const auto & shape = labelsProxy.shape();
     const auto & labels = labelsProxy.labels(); 
         
-    size_t sliceShape[] = {shape[0], shape[1], 0};
+    size_t sliceShape[] = { size_t(shape[0]), size_t(shape[1]), 0};
 
     marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
     marray::Marray<SCALAR_TYPE> currentData(sliceShape, sliceShape+3);

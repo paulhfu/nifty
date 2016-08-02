@@ -15,16 +15,23 @@ namespace nifty{
 namespace graph{
 
 
-// TODO Chunked labels and chunked labels sliced
+// TODO make chunked labels and then inherit wiht chunked labels sliced or make base class
 template<size_t DIM, class LABEL_TYPE>
 class ChunkedLabels{
 public:
 
     typedef nifty::hdf5::Hdf5Array<LABEL_TYPE> ViewType;
 
-    // enable setting the chunk size by overloading the constuctor
+    // construct from view type
     ChunkedLabels(const ViewType & labels )
     : labels_( labels ), shape_() {
+        for(size_t i=0; i<DIM; ++i)
+            shape_[i] = labels_.shape(i);
+    }
+
+    // construct from path to file and key
+    ChunkedLabels(const std::string & labelFile, const std::string & labelKey)
+    : labels_(H5Fopen(labelFile.c_str(),H5F_ACC_RDONLY, H5P_DEFAULT),labelKey), shape_() {
         for(size_t i=0; i<DIM; ++i)
             shape_[i] = labels_.shape(i);
     }
