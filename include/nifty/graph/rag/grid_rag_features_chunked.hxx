@@ -7,7 +7,9 @@
 
 namespace nifty{
 namespace graph{
-    
+
+    // TODO: this logic only works for a one-pass accumulator. Right now I don't see any way of enabling more passes that is not horribly expensive
+    // but maybe I am overlooking something
     template< class LABELS_TYPE, class T, class EDGE_MAP, class NODE_MAP>
     void gridRagAccumulateFeatures(
         const ChunkedLabelsGridRagSliced<LABELS_TYPE> & graph,
@@ -20,6 +22,9 @@ namespace graph{
         const auto & shape = labelsProxy.shape();
         const auto & labels = labelsProxy.labels();
 
+        const auto numberOfPasses =  std::max(edgeMap.numberOfPasses(),nodeMap.numberOfPasses());
+        NIFTY_CHECK_OP(numberOfPasses,==,1, "Accumulating features for chunked RAG can only be done in a single pass")
+
         // check that the data covers a whole slice in xy
         // need to take care of different axis ordering...
         NIFTY_CHECK_OP(data.shape(0),==,shape[0], "Shape along x does not agree")
@@ -30,60 +35,54 @@ namespace graph{
         marray::Marray<LABELS_TYPE> currentSlice(sliceShape, sliceShape+3);
         marray::Marray<LABELS_TYPE> nextSlice(sliceShape, sliceShape+3);
         
-        const auto numberOfPasses =  std::max(edgeMap.numberOfPasses(),nodeMap.numberOfPasses());
-        for(size_t p=0; p<numberOfPasses; ++p){
+        edgeMap.startPass(0);
+        nodeMap.startPass(0);
 
-            // start pass p
-            //std::cout << "Pass " << p << " / " << numberOfPasses << std::endl;
-            edgeMap.startPass(p);
-            nodeMap.startPass(p);
+        for( size_t z = 0; z < data.shape(2); z++ )
+        {
+            size_t sliceStart[] = {0,0,z+z0};
+            labels.readSubarray(sliceStart, currentSlice);
 
-            for( size_t z = 0; z < data.shape(2); z++ )
-            {
-                size_t sliceStart[] = {0,0,z+z0};
-                labels.readSubarray(sliceStart, currentSlice);
+            if( z < data.shape(2) - 1) {
+                size_t nextStart[] = {0,0,z+z0+1};
+                labels.readSubarray(nextStart, nextSlice);
+            }
 
-                if( z < data.shape(2) - 1) {
-                    size_t nextStart[] = {0,0,z+z0+1};
-                    labels.readSubarray(nextStart, nextSlice);
-                }
+            // TODO parallelize
+            for(size_t x = 0; x < shape[0]; x++) {
+                for(size_t y = 0; y < shape[1]; y++) {
 
-                // TODO parallelize
-                for(size_t x = 0; x < shape[0]; x++) {
-                    for(size_t y = 0; y < shape[1]; y++) {
-                        
-                        const auto lU = currentSlice(x,y,0);
-                        const auto dU = data(x,y,z);
-                        nodeMap.accumulate(lU, dU);
-                        
-                        if( x + 1 < shape[0] ) {
-                            const auto lV = currentSlice(x+1,y,0);
-                            const auto dV = data(x+1,y,z);
-                            if( lU != lV) {
-                                const auto e = graph.findEdge(lU, lV);
-                                edgeMap.accumulate(e, dU);
-                                edgeMap.accumulate(e, dV);
-                            }
-                        }
-                        
-                        if( y + 1 < shape[1] ) {
-                            const auto lV = currentSlice(x,y+1,0);
-                            const auto dV = data(x,y+1,z);
-                            if( lU != lV) {
-                                const auto e = graph.findEdge(lU, lV);
-                                edgeMap.accumulate(e, dU);
-                                edgeMap.accumulate(e, dV);
-                            }
-                        }
-                        
-                        if( z + 1 < data.shape(2)) {
-                            const auto lV = nextSlice(x,y,0);
-                            const auto dV = data(x,y,z+1);
-                            // we don't need to check if the labels are different, due to the sliced labels
+                    const auto lU = currentSlice(x,y,0);
+                    const auto dU = data(x,y,z);
+                    nodeMap.accumulate(lU, dU);
+
+                    if( x + 1 < shape[0] ) {
+                        const auto lV = currentSlice(x+1,y,0);
+                        const auto dV = data(x+1,y,z);
+                        if( lU != lV) {
                             const auto e = graph.findEdge(lU, lV);
                             edgeMap.accumulate(e, dU);
                             edgeMap.accumulate(e, dV);
                         }
+                    }
+
+                    if( y + 1 < shape[1] ) {
+                        const auto lV = currentSlice(x,y+1,0);
+                        const auto dV = data(x,y+1,z);
+                        if( lU != lV) {
+                            const auto e = graph.findEdge(lU, lV);
+                            edgeMap.accumulate(e, dU);
+                            edgeMap.accumulate(e, dV);
+                        }
+                    }
+
+                    if( z + 1 < data.shape(2)) {
+                        const auto lV = nextSlice(x,y,0);
+                        const auto dV = data(x,y,z+1);
+                        // we don't need to check if the labels are different, due to the sliced labels
+                        const auto e = graph.findEdge(lU, lV);
+                        edgeMap.accumulate(e, dU);
+                        edgeMap.accumulate(e, dV);
                     }
                 }
             }
@@ -105,7 +104,6 @@ namespace graph{
         const auto & labels = labelsProxy.labels(); 
 
         // check that the data covers a whole slice in xy
-        // need to take care of different axis ordering...
         NIFTY_CHECK_OP(data.shape(0),==,shape[0], "Shape along x does not agree")
         NIFTY_CHECK_OP(data.shape(1),==,shape[1], "Shape along y does not agree")
         NIFTY_CHECK_OP(data.shape(2),==,shape[2], "Shape along z does not agree")

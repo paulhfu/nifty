@@ -4,6 +4,7 @@
 #include "nifty/python/converter.hxx"
 
 #include "nifty/graph/rag/grid_rag_features.hxx"
+#include "nifty/graph/rag/vigra_accumulator.hxx"
 
 
 #ifdef WITH_HDF5
@@ -105,6 +106,82 @@ namespace graph{
     #endif
 
 
+    template<class Graph,class T>
+    void exportVigraAccumulatorsT(py::module & ragModule){
+        
+        typedef VigraAccEdgeMap<Graph, T> VigraEdgeMap; 
+        typedef VigraAccNodeMap<Graph, T> VigraNodeMap;
+
+        // vigra edge map
+        {
+            py::class_<VigraEdgeMap>(ragModule, "VigraAccEdgeMapUndirectedGraph")
+
+                .def("getFeatureMatrix",[](VigraEdgeMap * self){
+                        size_t shape[] = {size_t(self->graph().edgeIdUpperBound()+1),size_t(self->numberOfFeatures())};
+                        marray::PyView<double> featMat(shape,shape+2);
+                        for(size_t e = 0; e < size_t(self->graph().edgeIdUpperBound()+1); e++) {
+                            double feats[self->numberOfFeatures()];
+                            self->getFeatures(e, feats);
+                            // TODO acces row of the view instead 
+                            for(size_t f = 0; f < self->numberOfFeatures(); f++) {
+                                 featMat(e,f) = feats[f];
+                            }
+                        }
+                        return featMat;
+                    })
+                .def("reset",&VigraEdgeMap::reset)
+                .def("setMinMax",&VigraEdgeMap::setMinMax)
+                ;
+                
+            ragModule.def("vigraAccEdgeMap", [](const Graph & graph){
+                VigraEdgeMap * ptr = nullptr;
+                {
+                    py::gil_scoped_release allowThreads;
+                    ptr = new VigraEdgeMap(graph);
+                }
+                    return ptr;
+            },
+                py::return_value_policy::take_ownership,
+                py::keep_alive<0, 1>(),
+                py::arg("graph") );
+        }
+        // vigra node map
+        {
+            
+            py::class_<VigraNodeMap>(ragModule, "VigraAccNodeMapUndirectedGraph")
+                // move implementation to grid_rag_features.hxx instead?
+                .def("getFeatureMatrix",[](VigraNodeMap * self){
+                        size_t shape[] = {size_t(self->graph().nodeIdUpperBound()+1),size_t(self->numberOfFeatures())};
+                        marray::PyView<double> featMat(shape, shape+2);
+                        for(size_t n = 0; n < self->graph().nodeIdUpperBound()+1; n++) {
+                            double feats[self->numberOfFeatures()];
+                            self->getFeatures(n, feats);
+                            // TODO acces row of the view instead 
+                            for(size_t f = 0; f < self->numberOfFeatures(); f++) {
+                                 featMat(n,f) = feats[f];
+                            }
+                        }
+                        return featMat;
+                    })
+                .def("reset",&VigraNodeMap::reset)
+                .def("setMinMax",&VigraNodeMap::setMinMax)
+            ;
+            ragModule.def("vigraAccNodeMap", [](const Graph & graph){
+                VigraNodeMap * ptr = nullptr;
+                {
+                    py::gil_scoped_release allowThreads;
+                    ptr = new VigraNodeMap(graph);
+                }
+                return ptr;
+            },
+                py::return_value_policy::take_ownership,
+                py::keep_alive<0, 1>(),
+                py::arg("graph")
+            );
+        }
+    }
+
+
 
     void exportGraphAccumulator(py::module & ragModule, py::module & graphModule) {
 
@@ -135,7 +212,6 @@ namespace graph{
                             return featMat;
                         })
                     .def("reset",&EdgeMapType::reset)
-
                 ;
                 ragModule.def("defaultAccEdgeMap", [](const Graph & graph, const double minVal, const double maxVal){
                     EdgeMapType * ptr = nullptr;
@@ -201,6 +277,13 @@ namespace graph{
             // export sliced rag (only if we have hdf5 support)
             #ifdef WITH_HDF5
             typedef ChunkedLabelsGridRagSliced<uint32_t> ChunkedLabelsGridRagSliced;
+            
+            // export vigra feature accumulation
+            exportVigraAccumulatorsT<Graph, double>(ragModule);
+            typedef VigraAccEdgeMap<Graph, double> VigraEdgeMap; 
+            typedef VigraAccNodeMap<Graph, double> VigraNodeMap;
+            exportGridRagSlicedAccumulateFeaturesT<ChunkedLabelsGridRagSliced, float, VigraEdgeMap, VigraNodeMap>(ragModule);
+
             exportGridRagSlicedAccumulateFeaturesT<ChunkedLabelsGridRagSliced, float, EdgeMapType, NodeMapType>(ragModule);
             exportGridRagSlicedAccumulateLabelsT<ChunkedLabelsGridRagSliced, uint32_t>(ragModule);
             #endif
