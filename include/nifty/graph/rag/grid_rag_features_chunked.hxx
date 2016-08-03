@@ -32,7 +32,9 @@ namespace graph{
         
         const auto numberOfPasses =  std::max(edgeMap.numberOfPasses(),nodeMap.numberOfPasses());
         for(size_t p=0; p<numberOfPasses; ++p){
+
             // start pass p
+            //std::cout << "Pass " << p << " / " << numberOfPasses << std::endl;
             edgeMap.startPass(p);
             nodeMap.startPass(p);
 
@@ -45,7 +47,7 @@ namespace graph{
                     size_t nextStart[] = {0,0,z+z0+1};
                     labels.readSubarray(nextStart, nextSlice);
                 }
-                
+
                 // TODO parallelize
                 for(size_t x = 0; x < shape[0]; x++) {
                     for(size_t y = 0; y < shape[1]; y++) {
@@ -75,7 +77,7 @@ namespace graph{
                         }
                         
                         if( z + 1 < data.shape(2)) {
-                            const auto lV = nextSlice(0,y,x);
+                            const auto lV = nextSlice(x,y,0);
                             const auto dV = data(x,y,z+1);
                             // we don't need to check if the labels are different, due to the sliced labels
                             const auto e = graph.findEdge(lU, lV);
@@ -93,7 +95,7 @@ namespace graph{
     template<class LABELS_TYPE, class LABELS, class NODE_MAP>
     void gridRagAccumulateLabels(
         const ChunkedLabelsGridRagSliced<LABELS_TYPE> & graph,
-        const nifty::hdf5::Hdf5Array<LABELS> & data, // template for the chunked data (expected to be a chunked vigra type)
+        const nifty::hdf5::Hdf5Array<LABELS> & data,
         NODE_MAP &  nodeMap
     ){
         typedef std::array<int64_t, 2> Coord;
@@ -115,14 +117,13 @@ namespace graph{
         
         std::vector<  std::unordered_map<uint64_t, uint64_t> > overlaps(graph.numberOfNodes());
 
+        // TODO parallel versions of the code
         for(size_t z = 0; z < shape[2]; z++) {
 
             // checkout this slice
             size_t sliceStart[] = {0, 0, z};
             labels.readSubarray(sliceStart, currentLabels);
             data.readSubarray(sliceStart, currentData);
-            
-            // TODO parallel versions of the code
             
             nifty::tools::forEachCoordinate(std::array<int64_t,2>({(int64_t)shape[0],(int64_t)shape[1]}),[&](const Coord & coord){
                 const auto x = coord[0];
