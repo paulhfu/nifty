@@ -73,7 +73,7 @@ namespace graph{
                 nifty::marray::PyView<T, 3> data,
                 EDGE_MAP & edgeMap,
                 NODE_MAP & nodeMap,
-                size_t z0
+                const size_t z0
             ){  
                 {
                     py::gil_scoped_release allowThreads;

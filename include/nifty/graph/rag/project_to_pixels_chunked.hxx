@@ -31,18 +31,16 @@ void projectScalarNodeDataToPixels(
     const auto & labelsProxy = graph.labelsProxy();
     const auto & shape = labelsProxy.shape();
     const auto & labels = labelsProxy.labels(); 
-        
+ 
     size_t sliceShape[] = { size_t(shape[0]), size_t(shape[1]), 1};
 
+    // TODO better to parallelize inside slice or over the slices ?!
     auto pOpt = nifty::parallel::ParallelOptions(numberOfThreads);
     nifty::parallel::ThreadPool threadpool(pOpt);
-    
-    // TODO better to parallelize inside slice or over the slices ?!
-    //if(pOpts.getActualNumThreads()<=1){
-    
+ 
     marray::Marray<LABELS_TYPE> currentLabels(sliceShape, sliceShape+3);
     marray::Marray<SCALAR_TYPE> currentData(sliceShape, sliceShape+3);
-    
+ 
     for(size_t z = 0; z < shape[2]; z++) {
         
         // checkout this slice

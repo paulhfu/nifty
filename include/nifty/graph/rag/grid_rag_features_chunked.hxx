@@ -18,6 +18,9 @@ namespace graph{
         NODE_MAP &  nodeMap,
         const size_t z0
     ){
+
+        typedef std::array<int64_t, 2> Coord;
+
         const auto & labelsProxy = graph.labelsProxy();
         const auto & shape = labelsProxy.shape();
         const auto & labels = labelsProxy.labels();
@@ -34,10 +37,8 @@ namespace graph{
         size_t sliceShape[] = {size_t(shape[0]), size_t(shape[1]), 1};
         marray::Marray<LABELS_TYPE> currentSlice(sliceShape, sliceShape+3);
         marray::Marray<LABELS_TYPE> nextSlice(sliceShape, sliceShape+3);
-        
-        edgeMap.startPass(0);
-        nodeMap.startPass(0);
-
+ 
+        // TODO parallelize -> either over the slices (from the outside?!), or over coordinates (dunno if this is threadsafe)
         for( size_t z = 0; z < data.shape(2); z++ )
         {
             size_t sliceStart[] = {0,0,z+z0};
@@ -48,7 +49,6 @@ namespace graph{
                 labels.readSubarray(nextStart, nextSlice);
             }
 
-            // TODO parallelize
             for(size_t x = 0; x < shape[0]; x++) {
                 for(size_t y = 0; y < shape[1]; y++) {
 
