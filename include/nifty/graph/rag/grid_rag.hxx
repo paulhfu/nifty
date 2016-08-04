@@ -21,6 +21,7 @@
 //#include <parallel/algorithm>
 #include <unordered_set>
 
+#include "nifty/array/arithmetic_array.hxx"
 #include "nifty/graph/rag/grid_rag_labels.hxx"
 #include "nifty/graph/rag/detail_rag/compute_grid_rag.hxx"
 #include "nifty/marray/marray.hxx"
@@ -43,7 +44,15 @@ class GridRag : public UndirectedGraph<>{
 public:
     typedef LABELS_PROXY LabelsProxy;
     struct Settings{
-        int numberOfThreads{-1};
+        Settings()
+        :   numberOfThreads(-1),
+            blockShape()
+        {
+            for(auto d=0; d<DIM; ++d)
+                blockShape[d] = 100;
+        }
+        int numberOfThreads;
+        array::StaticArray<int64_t, DIM> blockShape;
     };
 
     typedef GridRag<DIM, LABELS_PROXY> SelfType;
