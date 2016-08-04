@@ -55,20 +55,26 @@ namespace graph{
            [](
                 const RAG & rag,
                 nifty::marray::PyView<T, 1> nodeData,
-                nifty::hdf5::Hdf5Array<T> & pixelData,
+                const std::string & dataPath,
+                const std::string & dataKey,
                 const int numberOfThreads
            ){  
                 const auto labelsProxy = rag.labelsProxy();
                 const auto & labels = labelsProxy.labels(); 
                 const auto shape = labels.shape();
 
+                // create the pixel data
+                hid_t dataFile = nifty::hdf5::createFile(dataPath);
+                nifty::hdf5::Hdf5Array<T> pixelData(dataFile, dataKey, shape.begin(), shape.end(), labels.chunkShape().begin());
+
                 {
                     py::gil_scoped_release allowThreads;
                     projectScalarNodeDataToPixels(rag, nodeData, pixelData, numberOfThreads);
                 }
+                return pixelData;
            
             },
-           py::arg("graph"),py::arg("nodeData"),py::arg("pixelData"),py::arg("numberOfThreads")
+           py::arg("graph"),py::arg("nodeData"),py::arg("dataPath"),py::arg("dataKey"),py::arg_t< int >("numberOfThreads", -1)
         );
     }
     #endif

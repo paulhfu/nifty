@@ -189,7 +189,8 @@ namespace graph{
             ragModule.def("chunkedLabelsGridRagSliced",
                 [](const std::string & labelFile,
                    const std::string & labelKey,
-                   const int numberOfThreads
+                   const int numberOfThreads,
+                   const bool forDeserialization
                 ){
                     auto s = typename  ChunkedLabelsGridRagSliced::Settings();
                     s.numberOfThreads = numberOfThreads;
@@ -200,7 +201,8 @@ namespace graph{
                 py::keep_alive<0, 1>(),
                 py::arg("labelFile"),
                 py::arg("labelKey"),
-                py::arg_t< int >("numberOfThreads", -1 )
+                py::arg_t< int >("numberOfThreads", -1 ),
+                py::arg_t< bool >("forDeserialization", false)
             );
         }
         #endif

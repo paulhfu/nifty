@@ -123,7 +123,7 @@ namespace graph{
             labels.readSubarray(sliceStart, currentLabels);
             data.readSubarray(sliceStart, currentData);
             
-            nifty::tools::forEachCoordinate(std::array<int64_t,2>({(int64_t)shape[0],(int64_t)shape[1]}),[&](const Coord & coord){
+            nifty::tools::forEachCoordinate(array::StaticArray<int64_t,2>({int64_t(shape[0]),int64_t(shape[1])}),[&](const Coord & coord){
                 const auto x = coord[0];
                 const auto y = coord[1];
                 const auto node = currentLabels(x,y,0);            

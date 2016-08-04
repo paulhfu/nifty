@@ -47,7 +47,7 @@ void projectScalarNodeDataToPixels(
         size_t sliceStart[] = {0,0,z};
         labels.readSubarray(sliceStart, currentLabels);
 
-        nifty::tools::parallelForEachCoordinate(threadpool,std::array<int64_t,2>({ int64_t(shape[0]), int64_t(shape[1]) }) ,
+        nifty::tools::parallelForEachCoordinate(threadpool,array::StaticArray<int64_t,2>({ int64_t(shape[0]), int64_t(shape[1]) }) ,
         [&](int tid, const Coord & coord){
             const auto x = coord[0];
             const auto y = coord[1];
