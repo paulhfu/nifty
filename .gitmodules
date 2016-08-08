@@ -9,3 +9,9 @@
 [submodule "externals/vigra"]
 	path = externals/vigra
 	url = https://github.com/DerThorsten/vigra
+[submodule "include/nifty/graph/rag/fastfilters"]
+	path = include/nifty/graph/rag/fastfilters
+	url = https://github.com/constantinpape/fastfilters.git
+[submodule "externals/fastfilters"]
+	path = externals/fastfilters
+	url = https://github.com/constantinpape/fastfilters.git
