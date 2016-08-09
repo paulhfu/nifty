@@ -3,11 +3,13 @@
 #define NIFTY_GRAPH_RAG_GRID_RAG_FEATURES_HDF5_HXX
 
 #include "nifty/graph/rag/grid_rag_hdf5.hxx"
+//#include "nifty/graph/rag/feature_functors.hxx"
 
 
 namespace nifty{
 namespace graph{
     
+    /*
     // TODO clear API definition + implementing the functor
     template< size_t DIM, class LABELS_TYPE, class T, class EDGE_MAP, class FEATURE_FUNCTOR>
     void gridRagAccumulateFeatures(
@@ -94,19 +96,20 @@ namespace graph{
         }
 
     }
+    */
 
     
     template<class LABELS_TYPE, class LABELS, class NODE_MAP>
     void gridRagAccumulateLabels(
-        const GridRagStacked2d<DIM, LABELS_TYPE> & graph, // the stacked rag
-        const Hdf5Array<T> & data,  // the raw data
+        const GridRagStacked2D<LABELS_TYPE> & graph, // the stacked rag
+        const nifty::hdf5::Hdf5Array<LABELS> & data,  // the raw data
         NODE_MAP &  nodeMap,
         const int numberOfThreads = -1
     ){
         typedef array::StaticArray<int64_t, 3> Coord;
         typedef array::StaticArray<int64_t, 2> Coord2;
 
-        const auto & labelsProxy = rag.labelsProxy();
+        const auto & labelsProxy = graph.labelsProxy();
         const auto & shape = labelsProxy.shape();
         
         nifty::parallel::ParallelOptions pOpts(numberOfThreads);
@@ -124,14 +127,12 @@ namespace graph{
         NIFTY_CHECK_OP(data.shape(2),==,shape[2], "Shape along z does not agree")
         */
 
-        size_t sliceShape[] = { size_t(shape[0]), size_t(shape[1]), 1};
-
         std::vector<  std::unordered_map<uint64_t, uint64_t> > overlaps(graph.numberOfNodes());
         
         { 
             // allocate / create data for each thread
             struct PerThreadData{
-                marray::Marray<LABEL_TYPE> sliceLabels;
+                marray::Marray<LABELS_TYPE> sliceLabels;
                 marray::Marray<LABELS> sliceData;
             };
             
@@ -153,14 +154,14 @@ namespace graph{
                 labelsProxy.readSubarray(blockBegin, blockEnd, sliceLabelsFlat3D);
                 auto sliceLabels = sliceLabelsFlat3D.squeezedView();
                 
-                data.readSubarray(blockBegin, blockEnd, sliceDataFlat3d);
+                data.readSubarray(blockBegin, blockEnd, sliceDataFlat3D);
                 auto sliceData = sliceDataFlat3D.squeezedView();
                 
                 nifty::tools::forEachCoordinate(sliceShape2,[&](const Coord2 & coord){
                     const auto node = sliceLabels( coord.asStdArray() );            
                     const auto l    = sliceData( coord.asStdArray() );
                     overlaps[node][l] += 1;
-                }
+                });
 
             });
         }

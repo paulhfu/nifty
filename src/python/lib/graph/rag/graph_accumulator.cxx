@@ -6,9 +6,9 @@
 #include "nifty/graph/rag/grid_rag_features.hxx"
 
 
-#ifdef WITH_HDF52
-#include "vigra/multi_array_chunked_hdf5.hxx"
-#include "nifty/graph/rag/grid_rag_features_chunked.hxx"
+#ifdef WITH_HDF5
+#include "nifty/graph/rag/grid_rag_hdf5.hxx"
+#include "nifty/graph/rag/grid_rag_features_hdf5.hxx"
 #endif
 
 
@@ -63,7 +63,8 @@ namespace graph{
     }
 
     // export only if we have HDF5 support
-    #ifdef WITH_HDF52
+    #ifdef WITH_HDF5
+    /*
     template<class RAG,class T, class EDGE_MAP, class NODE_MAP>
     void exportGridRagSlicedAccumulateFeaturesT(py::module & ragModule){
 
@@ -83,27 +84,26 @@ namespace graph{
             py::arg("graph"),py::arg("data"),py::arg("edgeMap"),py::arg("nodeMap"),py::arg("z0")
         );
     }
+    */
 
     template<class RAG,class T>
-    void exportGridRagSlicedAccumulateLabelsT(py::module & ragModule){
+    void exportGridRagStackedAccumulateLabelsT(py::module & ragModule){
 
         ragModule.def("gridRagSlicedAccumulateLabels",
             [](
                 const RAG & rag,
-                const std::string & labels_file,
-                const std::string & labels_key
+                const hdf5::Hdf5Array<T> labels,
+                const int numberOfThreads
             ){  
                 nifty::marray::PyView<T> nodeLabels({rag.numberOfNodes()});
                 {
-                    vigra::HDF5File h5_file(labels_file, vigra::HDF5File::ReadOnly);
-                    vigra::ChunkedArrayHDF5<3,T> labels(h5_file, labels_key);
-                    py::gil_scoped_release allowThreads;
-                    gridRagAccumulateLabels(rag, labels, nodeLabels);
+                    //py::gil_scoped_release allowThreads;
+                    gridRagAccumulateLabels(rag, labels, nodeLabels, numberOfThreads);
                 }
                 return nodeLabels;
 
             },
-            py::arg("graph"),py::arg("labels_file"),py::arg("labels_key")
+            py::arg("graph"),py::arg("labels_file"),py::arg("labels_key"),py::arg_t< int >("numberOfThreads",-1)
         );
     }
     #endif
@@ -200,11 +200,11 @@ namespace graph{
             exportGridRagAccumulateLabelsT<ExplicitLabelsGridRag2D, uint32_t, 2>(ragModule);
             exportGridRagAccumulateLabelsT<ExplicitLabelsGridRag3D, uint32_t, 3>(ragModule);
             
-            // export sliced rag (only if we have hdf5 support)
-            #ifdef WITH_HDF52
-            typedef ChunkedLabelsGridRagSliced<uint32_t> ChunkedLabelsGridRagSliced;
-            exportGridRagSlicedAccumulateFeaturesT<ChunkedLabelsGridRagSliced, float, EdgeMapType, NodeMapType>(ragModule);
-            exportGridRagSlicedAccumulateLabelsT<ChunkedLabelsGridRagSliced, uint32_t>(ragModule);
+            // export stacked rag (only if we have hdf5 support)
+            #ifdef WITH_HDF5
+            typedef GridRagStacked2D<uint32_t> GridRagStacked2D;
+            //exportGridRagStackedAccumulateFeaturesT<GridRagStacked2D, float, EdgeMapType, NodeMapType>(ragModule);
+            exportGridRagStackedAccumulateLabelsT<GridRagStacked2D, uint32_t>(ragModule);
             #endif
         }
     }
