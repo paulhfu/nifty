@@ -15,7 +15,8 @@ namespace graph{
 template<size_t DIM, class LABEL_TYPE>
 class Hdf5Labels{
 public:
-
+    typedef tools::BlockStorage<DIM, LABEL_TYPE> BlockStorageType;
+    typedef LABEL_TYPE LabelType;
     typedef const hdf5::Hdf5Array<LABEL_TYPE> Hdf5ArrayType;
 
     Hdf5Labels(const Hdf5ArrayType & labels, const uint64_t numberOfLabels)
