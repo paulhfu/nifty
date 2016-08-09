@@ -12,6 +12,7 @@ option(WITH_GUROBI OFF)
 option(WITH_CPLEX OFF)
 option(WITH_GLPK OFF)
 option(WITH_HDF5 OFF)
+option(WITH_FASTFILTERS OFF)
 
 
 
@@ -147,6 +148,15 @@ if(WITH_GLPK)
     find_package(GLPK REQUIRED)
     include_directories(${GLPK_INCLUDE_DIR})
     add_definitions(-DWITH_GLPK)
+endif()
+
+#-------------------------------------------------------------------------------------------------------------------
+# find fastfilters
+#-------------------------------------------------------------------------------------------------------------------
+if(WITH_FASTFILTERS)
+    find_package(FASTFILTERS REQUIRED)
+    include_directories(${FASTFILTERS_INCLUDE_DIR})
+    add_definitions(-DWITH_FASTFILTERS)
 endif()
 
 

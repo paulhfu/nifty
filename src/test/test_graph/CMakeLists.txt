@@ -24,7 +24,6 @@ add_test(test_edge_weighted_watersheds test_edge_weighted_watersheds)
 
 
 
-
 if(WITH_GUROBI OR WITH_CPLEX OR WITH_GLPK)
     add_executable(test_multicut test_multicut.cxx )
     target_link_libraries(test_multicut ${TEST_LIBS})
@@ -42,4 +41,9 @@ if(WITH_GUROBI OR WITH_CPLEX OR WITH_GLPK)
     endif()
 
     add_test(test_multicut test_multicut)
+endif()
+
+# TODO this should be moved accoroding to the filter functor header...
+if(WITH_FASTFILTERS)
+    add_subdirectory(test_rag)
 endif()
