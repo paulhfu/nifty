@@ -7,7 +7,7 @@
 
 
 #ifdef WITH_HDF5
-#include "nifty/graph/rag/grid_rag_hdf5.hxx"
+#include "nifty/graph/rag/grid_rag_stacked_2d_hdf5.hxx"
 #include "nifty/graph/rag/grid_rag_features_hdf5.hxx"
 #endif
 
@@ -66,22 +66,20 @@ namespace graph{
     #ifdef WITH_HDF5
     /*
     template<class RAG,class T, class EDGE_MAP, class NODE_MAP>
-    void exportGridRagSlicedAccumulateFeaturesT(py::module & ragModule){
+    void exportGridRagAccumulateFeaturesT(py::module & ragModule){
 
         ragModule.def("gridRagSlicedAccumulateFeatures",
             [](
                 const RAG & rag,
-                nifty::marray::PyView<T, 3> data,
-                EDGE_MAP & edgeMap,
-                NODE_MAP & nodeMap,
-                size_t z0
+                const hdf5::Hdf5Array<T> data,
+                EDGE_MAP & edgeMap
             ){  
                 {
-                    py::gil_scoped_release allowThreads;
-                    gridRagAccumulateFeatures(rag, data, edgeMap, nodeMap, z0);
+                    //py::gil_scoped_release allowThreads;
+                    gridRagAccumulateFeatures(rag, data, edgeMap);
                 }
             },
-            py::arg("graph"),py::arg("data"),py::arg("edgeMap"),py::arg("nodeMap"),py::arg("z0")
+            py::arg("graph"),py::arg("data"),py::arg("edgeMap")
         );
     }
     */
@@ -89,7 +87,7 @@ namespace graph{
     template<class RAG,class T>
     void exportGridRagStackedAccumulateLabelsT(py::module & ragModule){
 
-        ragModule.def("gridRagSlicedAccumulateLabels",
+        ragModule.def("gridRagAccumulateLabels",
             [](
                 const RAG & rag,
                 const hdf5::Hdf5Array<T> labels,
@@ -103,7 +101,7 @@ namespace graph{
                 return nodeLabels;
 
             },
-            py::arg("graph"),py::arg("labels_file"),py::arg("labels_key"),py::arg_t< int >("numberOfThreads",-1)
+            py::arg("graph"),py::arg("labels"),py::arg_t< int >("numberOfThreads",-1)
         );
     }
     #endif
@@ -202,7 +200,8 @@ namespace graph{
             
             // export stacked rag (only if we have hdf5 support)
             #ifdef WITH_HDF5
-            typedef GridRagStacked2D<uint32_t> GridRagStacked2D;
+            typedef Hdf5Labels<3, uint32_t> LabelsProxyType;
+            typedef GridRagStacked2D<LabelsProxyType> GridRagStacked2D;
             //exportGridRagStackedAccumulateFeaturesT<GridRagStacked2D, float, EdgeMapType, NodeMapType>(ragModule);
             exportGridRagStackedAccumulateLabelsT<GridRagStacked2D, uint32_t>(ragModule);
             #endif

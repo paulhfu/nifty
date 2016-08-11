@@ -55,6 +55,9 @@ public:
         detail_rag::ComputeRag< SelfType >::computeRag(*this, this->settings_);
     }
 
+    // avoid name hiding
+    using BaseType::numberOfNodes;
+
     // additional api
     std::pair<uint64_t, uint64_t> minMaxNode(const uint64_t sliceIndex) const{
         const auto & sliceData = perSliceDataVec_[sliceIndex];
