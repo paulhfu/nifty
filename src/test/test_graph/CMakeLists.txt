@@ -43,7 +43,3 @@ if(WITH_GUROBI OR WITH_CPLEX OR WITH_GLPK)
     add_test(test_multicut test_multicut)
 endif()
 
-# TODO this should be moved accoroding to the filter functor header...
-if(WITH_FASTFILTERS)
-    add_subdirectory(test_rag)
-endif()

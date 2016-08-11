@@ -1,4 +1,0 @@
-add_executable(test_feature_functor test_feature_functor.cxx )
-target_link_libraries(test_feature_functor ${TEST_LIBS})
-target_link_libraries(test_feature_functor ${FASTFILTERS_LIBRARY})
-add_test(test_feature_functor test_feature_functor)

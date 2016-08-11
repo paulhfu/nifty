@@ -3,7 +3,7 @@
 #define NIFTY_GRAPH_RAG_GRID_RAG_FEATURES_HDF5_HXX
 
 #include "nifty/graph/rag/grid_rag_stacked_2d_hdf5.hxx"
-#include "nifty/graph/rag/feature_functors.hxx"
+#include "nifty/features/fastfilters_wrapper.hxx"
 
 
 namespace nifty{
@@ -43,11 +43,11 @@ namespace graph{
         array::StaticArray<int64_t, 2> sliceShape2({shape[1], shape[2]});
 
         std::vector<double> sigmas({1.6,4.2,8.4});
-        GaussianSmoothing gs;
-        LaplacianOfGaussian log;
-        HessianOfGaussianEigenvalues hog;
-        std::vector<FilterBase*> filts(&gs, &log, &hog);
-        ApplyFilters<2> filters(sigmas, filts);
+        features::GaussianSmoothing gs;
+        features::LaplacianOfGaussian log;
+        features::HessianOfGaussianEigenvalues hog;
+        std::vector<features::FilterBase*> filts(&gs, &log, &hog);
+        features::ApplyFilters<2> filters(sigmas, filts);
         
         Coord sliceShape3({int64_t(filters.numberOfChannels()), shape[1], shape[2]});
 

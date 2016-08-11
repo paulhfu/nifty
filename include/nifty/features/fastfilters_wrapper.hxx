@@ -1,16 +1,14 @@
 #pragma once
-#ifndef NIFTY_GRAPH_RAG_GRID_RAG_FEATURE_FUNCTOR_HXX
-#define NIFTY_GRAPH_RAG_GRID_RAG_FEATURE_FUNCTOR_HXX
+#ifndef NIFTY_FEATURES_FASTFILTERS_WRAPPER_HXX
+#define NIFTY_FEATURES_FASTFILTERS_WRAPPER_HXX
 
 #include "nifty/marray/marray.hxx"
 #include "fastfilters.h"
 
-// TODO move somewhere else, maybe tools ?
-
 namespace nifty{
-namespace graph{
+namespace features{
 
-namespace detail_functor {
+namespace detail_fastfilters {
     
     // copied from fastfilters/python/core.hxx
     template <typename fastfilters_array_t> struct ff_ndim_t {
@@ -75,7 +73,7 @@ namespace detail_functor {
         }
     }
 
-} //namespace detail_functor
+} //namespace detail_fastfilters
 
     //
     // Functors for the individual filters
@@ -109,14 +107,14 @@ namespace detail_functor {
         
         void operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma) const {
             fastfilters_array2d_t ff_out;
-            detail_functor::convert_marray2ff(out, ff_out);
+            detail_fastfilters::convert_marray2ff(out, ff_out);
             if( !fastfilters_fir_gaussian2d(&ff, 0, sigma, &ff_out, &opt_) )
                 throw std::logic_error("GaussianSmoothing 2d failed.");
         }
 
         void operator()(const fastfilters_array3d_t & ff, marray::View<float> & out, const  double sigma) const {
             fastfilters_array3d_t ff_out;
-            detail_functor::convert_marray2ff(out, ff_out);
+            detail_fastfilters::convert_marray2ff(out, ff_out);
             if( !fastfilters_fir_gaussian3d(&ff, 0, sigma, &ff_out, &opt_) )
                 throw std::logic_error("GaussianSmoothing 3d failed.");
         }
@@ -131,14 +129,14 @@ namespace detail_functor {
         
         void operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma) const {
             fastfilters_array2d_t ff_out;
-            detail_functor::convert_marray2ff(out, ff_out);
+            detail_fastfilters::convert_marray2ff(out, ff_out);
             if( !fastfilters_fir_laplacian2d(&ff, sigma, &ff_out, &opt_) )
                 throw std::logic_error("LaplacianOfGaussian 2d failed!");
         }
 
         void operator()(const fastfilters_array3d_t & ff, marray::View<float> & out, const  double sigma)  const {
             fastfilters_array3d_t ff_out;
-            detail_functor::convert_marray2ff(out, ff_out);
+            detail_fastfilters::convert_marray2ff(out, ff_out);
             if( !fastfilters_fir_laplacian3d(&ff, sigma, &ff_out, &opt_) )
                 throw std::logic_error("LaplacianOfGaussian 3d failed!");
         }
@@ -154,14 +152,14 @@ namespace detail_functor {
         
         void operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma)  const {
             fastfilters_array2d_t ff_out;
-            detail_functor::convert_marray2ff(out, ff_out);
+            detail_fastfilters::convert_marray2ff(out, ff_out);
             if( !fastfilters_fir_gradmag2d(&ff, sigma, &ff_out, &opt_) )
                 throw std::logic_error("GaussianGradientMagnitude 2d failed!");
         }
 
         void operator()(const fastfilters_array3d_t & ff, marray::View<float> & out, const  double sigma)  const {
             fastfilters_array3d_t ff_out;
-            detail_functor::convert_marray2ff(out, ff_out);
+            detail_fastfilters::convert_marray2ff(out, ff_out);
             if( !fastfilters_fir_gradmag3d(&ff, sigma, &ff_out, &opt_) )
                 throw std::logic_error("GaussianGradientMagnitude 3d failed!");
         }
@@ -254,7 +252,7 @@ namespace detail_functor {
             const size_t shapeMultiChannel[]  = {2, out.shape(0), out.shape(1)};
             
             FastfiltersArrayType ff;
-            detail_functor::convert_marray2ff(in, ff);
+            detail_fastfilters::convert_marray2ff(in, ff);
 
             size_t base[] = {0,0,0};
             
@@ -304,7 +302,7 @@ namespace detail_functor {
             const size_t shapeMultiChannel[]  = {3, out.shape(0), out.shape(1), out.shape(3)};
             
             FastfiltersArrayType ff;
-            detail_functor::convert_marray2ff(in, ff);
+            detail_fastfilters::convert_marray2ff(in, ff);
 
             size_t base[] = {0,0,0,0};
             
@@ -335,8 +333,8 @@ namespace detail_functor {
     
     
 
-} // end namespace graph
+} // end namespace features
 } // end namespace nifty
 
 
-#endif /* NIFTY_GRAPH_RAG_GRID_RAG_FEATURES_HDF5_HXX */
+#endif /* NIFTY_FEATURES_FASTFILTERS_WRAPPER_HXX */

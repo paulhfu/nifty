@@ -5,10 +5,10 @@
 #include <iostream> 
 
 #include "nifty/tools/runtime_check.hxx"
-#include "nifty/graph/rag/feature_functors.hxx"
+#include "nifty/features/fastfilters_wrapper.hxx"
 
 
-BOOST_AUTO_TEST_CASE(FeatureFunctorTest2D)
+BOOST_AUTO_TEST_CASE(FastfiltersWrapperTest2D)
 {
     // test data generated with ff pybindings
     
@@ -49,7 +49,7 @@ BOOST_AUTO_TEST_CASE(FeatureFunctorTest2D)
     std::fill(in.begin(), in.end(), 0.);
     in(2,2) = 1.;
 
-    using namespace nifty::graph;
+    using namespace nifty::features;
 
     // fastfilters segfault for larger sigmas for a 5x5 array
     std::vector<double> sigmas({1.});
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(FeatureFunctorTest2D)
 }
 
 
-BOOST_AUTO_TEST_CASE(FeatureFunctorTest3D)
+BOOST_AUTO_TEST_CASE(FastfiltersWrapperTest3D)
 {
 
     // test data generated with ff pybindings
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(FeatureFunctorTest3D)
     std::fill(in.begin(), in.end(), 0.);
     in(2,2,2) = 1.;
 
-    using namespace nifty::graph;
+    using namespace nifty::features;
 
     // fastfilters segfault for larger sigmas for a 5x5 array
     std::vector<double> sigmas({1.});
