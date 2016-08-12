@@ -384,7 +384,7 @@ namespace tools{
 
     template<class T, class COORD>
     inline void readSubarray(
-        const hdf5::Hdf5Array<T> array,
+        const hdf5::Hdf5Array<T> & array, // this needs to be call by reference, otherwise I get strange hdf5 behaviour!
         const COORD & beginCoord,
         const COORD & endCoord,
         marray::View<T> & subarray
@@ -394,7 +394,7 @@ namespace tools{
     
     template<class T, class COORD>
     inline void writeSubarray(
-        hdf5::Hdf5Array<T> array,
+        hdf5::Hdf5Array<T> & array, // this needs to be call by reference, otherwise I get strange hdf5 behaviour!
         const COORD & beginCoord,
         const COORD & endCoord,
         const marray::View<T> & subarray

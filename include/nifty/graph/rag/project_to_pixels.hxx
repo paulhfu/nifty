@@ -61,7 +61,7 @@ template<
 >
 void projectScalarNodeDataToPixels(
     const GridRagStacked2D<LABELS_PROXY> & graph,
-    NODE_MAP & nodeData,
+    NODE_MAP & nodeData, // why is this not const?
     PIXEL_ARRAY & pixelData,
     const int numberOfThreads = -1
 ){
@@ -86,7 +86,7 @@ void projectScalarNodeDataToPixels(
         
     LabelsBlockStorage sliceLabelsStorage(threadpool, sliceShape3, nThreads);
     DataBlockStorage   sliceDataStorage(threadpool, sliceShape3, nThreads);
-        
+
     parallel::parallel_foreach(threadpool, numberOfSlices, [&](const int tid, const int64_t sliceIndex){
 
         // fetch the data for the slice

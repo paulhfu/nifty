@@ -87,7 +87,7 @@ namespace graph{
         ragModule.def("gridRagAccumulateLabels",
             [](
                 const RAG & rag,
-                const LABELS labels,
+                const LABELS & labels, // TODO this needs to be call by reference, otherwise this yields strange hdf5 behaviout, but is this ok, if we give it a PyView ?
                 const int numberOfThreads
             ){  
                 typedef typename LABELS::DataType LabelsType;

@@ -15,7 +15,7 @@ namespace tools{
 
     template<class T, class COORD>
     inline void readSubarray(
-        const marray::View<T> array,
+        const marray::View<T> array, // TODO why not call by reference ?
         const COORD & beginCoord,
         const COORD & endCoord,
         marray::View<T> & subarray
@@ -31,7 +31,7 @@ namespace tools{
     
     template<class T, class COORD>
     inline void writeSubarray(
-        const marray::View<T> array,
+        const marray::View<T> & array,
         const COORD & beginCoord,
         const COORD & endCoord,
         marray::View<T> & subarray

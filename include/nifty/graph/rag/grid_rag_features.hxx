@@ -221,6 +221,7 @@ namespace graph{
         NODE_MAP &  nodeMap,
         const int numberOfThreads = -1
     ){
+        
         typedef LABELS_PROXY LabelsProxyType;
         typedef typename LABELS_PROXY::LabelType LabelType;
         typedef typename LabelsProxyType::BlockStorageType LabelsBlockStorage;

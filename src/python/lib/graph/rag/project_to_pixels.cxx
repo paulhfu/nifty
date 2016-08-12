@@ -53,14 +53,13 @@ namespace graph{
            [](
                 const RAG & rag,
                 nifty::marray::PyView<T, 1> nodeData,
-                nifty::hdf5::Hdf5Array<T> pixelData,
+                nifty::hdf5::Hdf5Array<T> & pixelData,
                 const int numberOfThreads
            ){  
                 {
                     py::gil_scoped_release allowThreads;
                     projectScalarNodeDataToPixels(rag, nodeData, pixelData, numberOfThreads);
                 }
-                return pixelData;
            },
            py::arg("graph"),py::arg("nodeData"),py::arg("pixelData"),py::arg("numberOfThreads")=-1
         );
