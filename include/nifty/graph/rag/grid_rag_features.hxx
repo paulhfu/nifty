@@ -241,16 +241,14 @@ namespace graph{
         const auto nThreads = pOpts.getActualNumThreads();
         
         uint64_t numberOfSlices = shape[0];
-        array::StaticArray<int64_t, 2> sliceShape2({shape[1], shape[2]});
+        Coord2 sliceShape2({shape[1], shape[2]});
         Coord sliceShape3({int64_t(1),shape[1], shape[2]});
-
 
         std::vector<  std::unordered_map<uint64_t, uint64_t> > overlaps(graph.numberOfNodes());
         
         LabelsBlockStorage sliceLabelsStorage(threadpool, sliceShape3, nThreads);
         DataBlockStorage   sliceDataStorage(threadpool, sliceShape3, nThreads);
 
-        // TODO could probably use for forEachBlock instead
         parallel::parallel_foreach(threadpool, numberOfSlices, [&](const int tid, const int64_t sliceIndex){
 
             // fetch the data for the slice

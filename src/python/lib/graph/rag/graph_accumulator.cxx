@@ -93,6 +93,7 @@ namespace graph{
                 typedef typename LABELS::DataType LabelsType;
                 nifty::marray::PyView<LabelsType> nodeLabels({rag.numberOfNodes()});
                 {
+                    py::gil_scoped_release allowThreads;
                     gridRagAccumulateLabels(rag, labels, nodeLabels, numberOfThreads);
                 }
                 return nodeLabels;
