@@ -95,6 +95,8 @@ namespace marray
         pybind11::array_t<Type> py_array;
 
       public:
+        typedef Type DataType;         
+
         template <class ShapeIterator>
         PyView(pybind11::array_t<Type> array, Type *data, ShapeIterator begin, ShapeIterator end)
             : View<Type, false>(begin, end, data, FirstMajorOrder, FirstMajorOrder), py_array(array)
