@@ -7,6 +7,14 @@
 #include "nifty/graph/rag/grid_rag_labels.hxx"
 #include "nifty/graph/rag/grid_rag_accumulate.hxx"
 
+#ifdef WITH_FASTFILTERS
+#include "nifty/graph/rag/grid_rag_accumulate_filters.hxx"
+#endif
+
+#ifdef WITH_HDF5
+#include "nifty/graph/rag/grid_rag_stacked_2d_hdf5.hxx"
+#endif
+
 namespace py = pybind11;
 
 
@@ -69,6 +77,35 @@ namespace graph{
         py::arg("numberOfThreads")= -1
         );
     }
+    
+    #ifdef WITH_FASTFILTERS
+    template<size_t DIM, class RAG, class DATA>
+    void exportAccumulateEdgeStatisticsFromFilters(
+        py::module & ragModule
+    ){
+        ragModule.def("accumulateEdgeStatisticsFromFilters",
+        [](
+            const RAG & rag,
+            DATA & data,
+            const int numberOfThreads
+        ){
+            typedef typename DATA::DataType DataType;
+            
+            // it is: NSigma (3) * NFilter (4/5) * NStatistics (10) = 120 / 150
+            // TODO get this magic number from somewhere reliably
+            // or if poss. resize in function
+            // TODO condition on type of rag and dimension
+            uint64_t numberOfChannels = 120; // 150 for 3d normal gridrag
+            nifty::marray::PyView<DataType> out({uint64_t(rag.edgeIdUpperBound()+1),numberOfChannels});
+            accumulateEdgeStatisticsFromFilters<DIM>(rag, data, out, numberOfThreads);
+            return out;
+        },
+        py::arg("rag"),
+        py::arg("data"),
+        py::arg("numberOfThreads")= -1
+        );
+    }
+    #endif
 
 
 
@@ -84,6 +121,16 @@ namespace graph{
             exportAccumulateMeanAndLength<2, Rag2d, float>(ragModule);
             exportAccumulateMeanAndLength<3, Rag3d, float>(ragModule);
         }
+            
+        // stacked hdf5 rag
+        #ifdef WITH_HDF5
+        {
+            typedef GridRagStacked2D<Hdf5Labels<3,uint32_t>> Hdf5GridRagStacked2D;
+            #ifdef WITH_FASTFILTERS
+            exportAccumulateEdgeStatisticsFromFilters<3, Hdf5GridRagStacked2D, hdf5::Hdf5Array<float>>(ragModule);
+            #endif
+        }
+        #endif
     }
 
 } // end namespace graph

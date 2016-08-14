@@ -140,7 +140,7 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
         const auto nThreads = pOpts.getActualNumThreads();
 
         uint64_t numberOfSlices = shape[0];
-        array::StaticArray<int64_t, 2> sliceShape2({shape[1], shape[2]});
+        Coord2 sliceShape2({shape[1], shape[2]});
         Coord sliceShape3({int64_t(1),shape[1], shape[2]});
 
         auto & perSliceDataVec = rag.perSliceDataVec_;

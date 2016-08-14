@@ -96,7 +96,7 @@ namespace graph{
         // ***********************    
 
         typedef GridRagStacked2D<ExplicitLabels<3,uint32_t>> ExplicitGridRagStacked2D;
-        exportProjectScalarNodeDataToPixelsT<ExplicitGridRagStacked2D, uint32_t, 3>(ragModule);
+        exportProjectScalarNodeDataToPixelsT<ExplicitGridRagStacked2D, uint32_t, 3, false>(ragModule);
         
         #ifdef WITH_HDF5
         typedef GridRagStacked2D<Hdf5Labels<3,uint32_t>> Hdf5GridRagStacked2D;

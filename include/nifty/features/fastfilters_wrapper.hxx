@@ -98,6 +98,9 @@ namespace detail_fastfilters {
         virtual void inline operator()(const fastfilters_array3d_t &, marray::View<float> &, const  double) const = 0; 
 
         virtual bool inline isMultiChannel() const = 0;
+        
+        virtual float inline getMin() const = 0;
+        virtual float inline getMax() const = 0;
 
         void set_window_ratio(const double ratio) {
             opt_.window_ratio = ratio;
@@ -123,12 +126,23 @@ namespace detail_fastfilters {
                 throw std::logic_error("GaussianSmoothing 3d failed.");
         }
 
-        bool isMultiChannel() const {
+        bool inline isMultiChannel() const {
             return false;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMin() const {
+            return 0.;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMax() const {
+            return 1.;
         }
 
     };
     
+    // TODO minmax
     struct LaplacianOfGaussian : FilterBase {
         
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma) const {
@@ -148,10 +162,21 @@ namespace detail_fastfilters {
         bool inline isMultiChannel() const {
             return false;
         }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMin() const {
+            return 0.;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMax() const {
+            return 1.;
+        }
 
     };
     
 
+    // TODO minmax
     struct GaussianGradientMagnitude : FilterBase {
         
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma)  const {
@@ -172,9 +197,21 @@ namespace detail_fastfilters {
             return false;
         }
         
+        // TODO return min val for data in range [0,1]
+        float inline getMin() const {
+            return 0.;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMax() const {
+            return 1.;
+        }
+        
 
     };
     
+    
+    // TODO minmax
     struct HessianOfGaussianEigenvalues : FilterBase {
         
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma)  const {
@@ -230,10 +267,21 @@ namespace detail_fastfilters {
         bool inline isMultiChannel() const {
             return true;
         }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMin() const {
+            return 0.;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMax() const {
+            return 1.;
+        }
 
     };
     
 
+    // TODO minmax
     // outer scale has to be set as member variable to keep consistency w/ the operator()
     struct StructureTensorEigenvalues : FilterBase {
 
@@ -301,6 +349,16 @@ namespace detail_fastfilters {
 
         void inline setOuterScale(const double sigmaOuter) {
             sigmaOuter_ = sigmaOuter;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMin() const {
+            return 0.;
+        }
+        
+        // TODO return min val for data in range [0,1]
+        float inline getMax() const {
+            return 1.;
         }
 
     private:

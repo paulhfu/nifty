@@ -93,7 +93,7 @@ namespace marray
         pybind11::array_t<VALUE_TYPE> py_array;
 
       public:
-        typedef Type DataType;         
+        typedef VALUE_TYPE DataType;         
 
         template <class ShapeIterator>
         PyView(pybind11::array_t<VALUE_TYPE> array, VALUE_TYPE *data, ShapeIterator begin, ShapeIterator end)
