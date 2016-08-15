@@ -95,10 +95,13 @@ namespace detail_fastfilters {
 
         virtual void inline operator()(const fastfilters_array2d_t &, marray::View<float> &, const double) const = 0;
 
-        virtual void inline operator()(const fastfilters_array3d_t &, marray::View<float> &, const  double) const = 0; 
+        virtual void inline operator()(const fastfilters_array3d_t &, marray::View<float> &, const double) const = 0; 
 
         virtual bool inline isMultiChannel() const = 0;
         
+        // return the min and max value for data in the range [0,1] for the corresponding filter
+        // dunno if this can be done reliably / meaningfully. 
+        // For now all the values are just mere upper boundaries of empirically observed values TODO
         virtual float inline getMin() const = 0;
         virtual float inline getMax() const = 0;
 
@@ -130,19 +133,18 @@ namespace detail_fastfilters {
             return false;
         }
         
-        // TODO return min val for data in range [0,1]
+        // return min val for data in range [0,1]
         float inline getMin() const {
             return 0.;
         }
         
-        // TODO return min val for data in range [0,1]
+        // return min val for data in range [0,1]
         float inline getMax() const {
             return 1.;
         }
 
     };
     
-    // TODO minmax
     struct LaplacianOfGaussian : FilterBase {
         
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma) const {
@@ -163,12 +165,12 @@ namespace detail_fastfilters {
             return false;
         }
         
-        // TODO return min val for data in range [0,1]
+        // return min val for data in range [0,1]
         float inline getMin() const {
-            return 0.;
+            return -1.;
         }
         
-        // TODO return min val for data in range [0,1]
+        // return min val for data in range [0,1]
         float inline getMax() const {
             return 1.;
         }
@@ -176,7 +178,6 @@ namespace detail_fastfilters {
     };
     
 
-    // TODO minmax
     struct GaussianGradientMagnitude : FilterBase {
         
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma)  const {
@@ -197,12 +198,12 @@ namespace detail_fastfilters {
             return false;
         }
         
-        // TODO return min val for data in range [0,1]
+        // return min val for data in range [0,1]
         float inline getMin() const {
             return 0.;
         }
         
-        // TODO return min val for data in range [0,1]
+        // return min val for data in range [0,1]
         float inline getMax() const {
             return 1.;
         }
@@ -211,7 +212,6 @@ namespace detail_fastfilters {
     };
     
     
-    // TODO minmax
     struct HessianOfGaussianEigenvalues : FilterBase {
         
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma)  const {
@@ -270,7 +270,7 @@ namespace detail_fastfilters {
         
         // TODO return min val for data in range [0,1]
         float inline getMin() const {
-            return 0.;
+            return -1.;
         }
         
         // TODO return min val for data in range [0,1]

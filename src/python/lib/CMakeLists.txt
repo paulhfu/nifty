@@ -99,6 +99,10 @@ if(WITH_GLPK)
     target_link_libraries(_nifty ${GLPK_LIBRARY})
 endif()
 
+if(WITH_FASTFILTERS)
+    target_link_libraries(_nifty ${FASTFILTERS_LIBRARY})
+endif()
+
 
 # Don't add a 'lib' prefix to the shared library
 set_target_properties(_nifty PROPERTIES PREFIX "")

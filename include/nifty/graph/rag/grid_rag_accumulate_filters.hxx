@@ -76,18 +76,21 @@ namespace graph{
         std::vector< AccChainVectorType > accChainVector( rag.edgeIdUpperBound()+1, 
             AccChainVectorType(applyFilters.numberOfChannels()) );
 
-        // TODO set minmax for the histogram if necessary -> implement in filters
-        // TODO this needs still to be implemented!!!
+        // set minmax for the histogram if necessary -> implement in filters
+        // FIXME this is pretty hacky...
         if(userRangeHistogram) {
             parallel::parallel_foreach(threadpool, accChainVector.size(),[&](
                 const int tid, const int64_t edge
             ){
+                size_t offset = 0;
                 for(auto f : filters) {
                     auto min = f->getMin();
                     auto max = f->getMax();
                     size_t nChannels = sigmas.size() * (f->isMultiChannel() ? 2 : 1);
-                    for(size_t c = 0; c < nChannels; ++c)
-                        accChainVector[edge][c].setHistogramOptions(vigra::HistogramOptions().setMinMax(min,max));
+                    for(size_t c = 0; c < nChannels; ++c) {
+                        accChainVector[edge][c+offset].setHistogramOptions(vigra::HistogramOptions().setMinMax(min,max));
+                    }
+                    offset += nChannels;
                 }
             });
         }
@@ -104,8 +107,8 @@ namespace graph{
             // TODO is there any more efficient way where we don't apply the filters multiple times?
             
             LabelBlockStorage sliceABStorage(threadpool, sliceABShape, actualNumberOfThreads);
-            DataBlockStorage sliceADataStorage(threadpool, sliceShape2, actualNumberOfThreads);
-            DataBlockStorage sliceBDataStorage(threadpool, sliceShape2, actualNumberOfThreads);
+            DataBlockStorage sliceADataStorage(threadpool, sliceShape3, actualNumberOfThreads);
+            DataBlockStorage sliceBDataStorage(threadpool, sliceShape3, actualNumberOfThreads);
 
             for(auto startIndex : {0,1}){
             

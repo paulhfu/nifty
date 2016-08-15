@@ -46,6 +46,7 @@ namespace graph{
     }
 
 
+    #ifdef WITH_HDF5
     template<class RAG,class T>
     void exportProjectScalarNodeDataToPixelsHdf5(py::module & ragModule){
         
@@ -63,9 +64,8 @@ namespace graph{
            },
            py::arg("graph"),py::arg("nodeData"),py::arg("pixelData"),py::arg("numberOfThreads")=-1
         );
-
-
     }
+    #endif
 
 
 
