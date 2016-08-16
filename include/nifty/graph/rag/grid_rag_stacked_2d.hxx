@@ -42,9 +42,10 @@ class GridRagStacked2D
 public:
     typedef typename BaseType::LabelsProxy LabelsProxy;
     typedef typename BaseType::Settings Settings;
+    typedef typename BaseType::DontComputeRag DontComputeRag;
     
     GridRagStacked2D(const LabelsProxy & labelsProxy, const Settings & settings = Settings())
-    :   BaseType(labelsProxy, settings, typename BaseType::DontComputeRag()),
+    :   BaseType(labelsProxy, settings, DontComputeRag() ),
         perSliceDataVec_(
             labelsProxy.shape()[0], 
             PerSliceData(labelsProxy.numberOfLabels()) 
@@ -53,6 +54,17 @@ public:
         numberOfInBetweenSliceEdges_(0)
     {
         detail_rag::ComputeRag< SelfType >::computeRag(*this, this->settings_);
+    }
+   
+    // need to expose this for deserializing the rag
+    GridRagStacked2D(const LabelsProxy & labelsProxy, const Settings & settings, const DontComputeRag)
+    :   BaseType(labelsProxy, settings, DontComputeRag() ),
+        perSliceDataVec_(
+            labelsProxy.shape()[0], 
+            PerSliceData(labelsProxy.numberOfLabels()) 
+        ),
+        numberOfInSliceEdges_(0),
+        numberOfInBetweenSliceEdges_(0) {
     }
 
     using BaseType::numberOfNodes;
@@ -82,6 +94,66 @@ public:
         const auto & sliceData = perSliceDataVec_[sliceIndex];
         return sliceData.toNextSliceEdgeOffset;
     }
+    
+    // reimplement serialization due to the perSliceData
+    uint64_t serializationSize() const{
+        uint64_t size = BaseType::serializationSize();
+        size += 2;
+        size += perSliceDataVec_.size() * 6;
+        return size;
+    }
+
+    template<class ITER>
+    void serialize(ITER iter) const {
+        BaseType::serialize(iter);
+        // i dont get why we have to manually move the iterator here, but it doesn't work otherwise
+        iter += BaseType::serializationSize();
+        *iter = numberOfInSliceEdges_;  
+        iter++;
+        *iter = numberOfInBetweenSliceEdges_;  
+        iter++;
+        for(const auto perSliceData : perSliceDataVec_) {
+            *iter = perSliceData.numberOfInSliceEdges;  
+            iter++;
+            *iter = perSliceData.numberOfToNextSliceEdges;  
+            iter++;
+            *iter = perSliceData.inSliceEdgeOffset;  
+            iter++;
+            *iter = perSliceData.toNextSliceEdgeOffset;  
+            iter++;
+            *iter = perSliceData.minInSliceNode;  
+            iter++;
+            *iter = perSliceData.maxInSliceNode;  
+            iter++;
+        }
+    }
+
+    template<class ITER>
+    void deserialize(ITER iter) {
+        BaseType::deserialize(iter);
+        // i dont get why we have to manually move the iterator here, but it doesn't work otherwise
+        iter += BaseType::serializationSize();
+        numberOfInSliceEdges_ = *iter;
+        iter++;
+        numberOfInBetweenSliceEdges_ = *iter;
+        iter++;
+        for(auto & perSliceData : perSliceDataVec_) {
+            perSliceData.numberOfInSliceEdges = *iter;  
+            iter++;
+            perSliceData.numberOfToNextSliceEdges = *iter;  
+            iter++;
+            perSliceData.inSliceEdgeOffset = *iter;  
+            iter++;
+            perSliceData.toNextSliceEdgeOffset = *iter;  
+            iter++;
+            perSliceData.minInSliceNode = *iter;  
+            iter++;
+            perSliceData.maxInSliceNode = *iter;  
+            iter++;
+        }
+    }
+
+
 private:
 
     std::vector<PerSliceData> perSliceDataVec_;

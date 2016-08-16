@@ -32,6 +32,9 @@ namespace graph{
             .def("insertEdges",[](CLS * self, py::array_t<uint64_t> pyArray) {
                 throw std::runtime_error("cannot insert edges into 'GridRag'");
             })
+            .def("deserialize", [](CLS * self, nifty::marray::PyView<uint64_t,1> serialization) {
+                throw std::runtime_error("deserialize not implemented for 'GridRag', call the corresponding function (deserializeRag) instead");
+            })
         ;
     }
 
@@ -214,6 +217,15 @@ namespace graph{
                 }
                 return out;
             })
+            // serialization is overloaded for the stacked rag
+            .def("serialize",
+                [](const GridRagType & self) {
+                    nifty::marray::PyView<uint64_t> out({self.serializationSize()});
+                    auto ptr = &out(0);
+                    self.serialize(ptr);
+                    return out;
+                }
+            )
 
         ;
 
@@ -308,7 +320,15 @@ namespace graph{
                 }
                 return out;
             })
-
+            // serialization is overloaded for the stacked rag
+            .def("serialize",
+                [](const GridRagType & self) {
+                    nifty::marray::PyView<uint64_t> out({self.serializationSize()});
+                    auto ptr = &out(0);
+                    self.serialize(ptr);
+                    return out;
+                }
+            )
         ;
 
         removeFunctions<GridRagType>(clsT);

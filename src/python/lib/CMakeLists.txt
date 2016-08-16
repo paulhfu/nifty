@@ -49,6 +49,7 @@ add_library(_nifty SHARED
     graph/rag/graph_accumulator.cxx
     graph/rag/project_to_pixels.cxx
     graph/rag/accumulate.cxx
+    graph/rag/deserialize_rag.cxx
     # agglo
     graph/agglo/agglo.cxx
     graph/agglo/agglomerative_clustering.cxx
