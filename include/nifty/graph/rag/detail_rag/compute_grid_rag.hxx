@@ -148,6 +148,7 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
 
         auto & perSliceDataVec = rag.perSliceDataVec_;
         // we are lucky that the different threads never have same u v pairs, so this should be thread safe
+        // TODO map seems to be not that efficient here... could try an unordered map
         std::map<EdgeStorage,uint64_t> edgeLengthsUnordered;
 
         /////////////////////////////////////////////////////

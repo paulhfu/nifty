@@ -87,30 +87,52 @@ namespace graph{
         // checkout the first slice instead... TODO this is still pretty hacky... 
         // we could also condition on the number of passes insted of an extra bool...
         if(userRangeHistogram) {
+            
             Coord slice0Begin({int64_t(0),int64_t(0),int64_t(0)});
             Coord slice0End({int64_t(1),shape[1],shape[2]});
+            
             marray::Marray<DataType> data0(sliceShape3.begin(), sliceShape3.end());
             tools::readSubarray(data,slice0Begin,slice0End,data0);
             auto data0View = data0.squeezedView();
             fastfilters_array2d_t data0ff;
             features::detail_fastfilters::convertMarray2ff(data0View, data0ff);
+            
             Coord2 filtShapeSingle({  shape[1], shape[2] } );
             Coord filtShapeMulti({ int64_t(2), shape[1], shape[2] } );
+
+            std::vector<std::pair<features::FilterBase*,double>> filtersAndSigmas;
+            for(auto f : filters) {
+                for( auto sigma : sigmas )
+                    filtersAndSigmas.push_back(std::make_pair(f,sigma));
+            }
+
+            std::vector<float> filtersMin(filtersAndSigmas.size());
+            std::vector<float> filtersMax(filtersAndSigmas.size());
+            
+            parallel::parallel_foreach(threadpool, filtersAndSigmas.size(),[&](
+                const int tid, const int64_t f_id
+            ){
+                auto f = filtersAndSigmas[f_id].first;
+                auto sigma = filtersAndSigmas[f_id].second;
+                    
+                marray::Marray<DataType> filt0 = f->isMultiChannel() ? marray::Marray<DataType>( filtShapeMulti.begin(), filtShapeMulti.end() ) : marray::Marray<DataType>( filtShapeSingle.begin(), filtShapeSingle.end() ) ;
+                (*f)(data0ff, filt0, sigma);
+                 auto minMax = std::minmax_element( filt0.begin(), filt0.end()  );
+                 filtersMin[f_id] = *(minMax.first);
+                 filtersMax[f_id] = *(minMax.second);
+            });
+            
             parallel::parallel_foreach(threadpool, accChainVector.size(),[&](
                 const int tid, const int64_t edge
             ){
                 size_t offset = 0;
-                for(auto f : filters) {
-                    //auto min = f->getMin();
-                    //auto max = f->getMax();
-                    // calc filter only for the first sigma for now, could also do it for all ... 
+                for(size_t f_id = 0; f_id < filtersAndSigmas.size(); f_id++) {
+                    auto f = filtersAndSigmas[f_id].first;
+                    auto min = filtersMin[f_id];
+                    auto max = filtersMax[f_id];
                     
-                    marray::Marray<DataType> filt0 = f->isMultiChannel() ? marray::Marray<DataType>( filtShapeMulti.begin(), filtShapeMulti.end() ) : marray::Marray<DataType>( filtShapeSingle.begin(), filtShapeSingle.end() ) ;
-                    (*f)(data0ff, filt0, sigmas[0]);
-                    auto minMax = std::minmax_element( filt0.begin(), filt0.end()  );
-                    auto min = *(minMax.first);
-                    auto max = *(minMax.second);
-                    size_t nChannels = sigmas.size() * (f->isMultiChannel() ? 2 : 1);
+                    size_t nChannels = f->isMultiChannel() ? 2 : 1;
+                    
                     for(size_t c = 0; c < nChannels; ++c) {
                         accChainVector[edge][c+offset].setHistogramOptions(vigra::HistogramOptions().setMinMax(min,max));
                     }
