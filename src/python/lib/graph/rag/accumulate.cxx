@@ -93,10 +93,12 @@ namespace graph{
             
             // it is: NSigma (3) * NFilter (4/5) * NStatistics (10) = 120 / 150
             // TODO get this magic number from somewhere reliably
-            // or if poss. resize in function
+            // or resize in function
             // TODO condition on type of rag and dimension
             uint64_t numberOfChannels = 120; // 150 for 3d normal gridrag
+            //uint64_t numberOfChannels = 144; // 150 for 3d normal gridrag
             nifty::marray::PyView<DataType> out({uint64_t(rag.edgeIdUpperBound()+1),numberOfChannels});
+            //accumulateEdgeStatisticsFromFiltersTwoPass<DIM>(rag, data, out, numberOfThreads);
             accumulateEdgeStatisticsFromFilters<DIM>(rag, data, out, numberOfThreads);
             return out;
         },
