@@ -161,6 +161,7 @@ public:
             perSliceData.maxInSliceNode = *iter;  
             iter++;
         }
+        edgeLengths_.resize(this->numberOfEdges());
         for(auto & len : edgeLengths_) {
             len = *iter;
             iter++;
