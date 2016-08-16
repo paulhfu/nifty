@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <algorithm>
+#include <map>
 
 #include "nifty/container/boost_flat_set.hxx"
 #include "nifty/array/arithmetic_array.hxx"
@@ -129,6 +130,8 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
         typedef array::StaticArray<int64_t, 3> Coord;
         typedef array::StaticArray<int64_t, 2> Coord2;
 
+        typedef typename RagType::EdgeStorage EdgeStorage;
+
         const auto & labelsProxy = rag.labelsProxy();
         const auto & shape = labelsProxy.shape();
         const LabelType numberOfLabels = labelsProxy.numberOfLabels();
@@ -144,6 +147,8 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
         Coord sliceShape3({int64_t(1),shape[1], shape[2]});
 
         auto & perSliceDataVec = rag.perSliceDataVec_;
+        // we are lucky that the different threads never have same u v pairs, so this should be thread safe
+        std::map<EdgeStorage,uint64_t> edgeLengthsUnordered;
 
         /////////////////////////////////////////////////////
         // Phase 1 : In slice node adjacency and edge count
@@ -179,6 +184,12 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
                             if(lU != lV){
                                 sliceData.minInSliceNode = std::min(sliceData.minInSliceNode, lV);
                                 sliceData.maxInSliceNode = std::max(sliceData.maxInSliceNode, lV);
+                                auto e = EdgeStorage(std::min(lU,lV),std::max(lU,lV));
+                                auto findEdge = edgeLengthsUnordered.find(e);
+                                if( findEdge == edgeLengthsUnordered.end())
+                                   edgeLengthsUnordered.insert(std::make_pair(e,1)); 
+                                else
+                                    findEdge->second++;
                                 if(rag.insertEdgeOnlyInNodeAdj(lU, lV)){
                                     ++perSliceDataVec[sliceIndex].numberOfInSliceEdges;
                                 }
@@ -214,6 +225,8 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
             // temp. resize the edge vec
             auto & edges = rag.edges_;
             edges.resize(rag.numberOfInSliceEdges_);
+            auto & edgeLengths = rag.edgeLengths_;
+            edgeLengths.resize(rag.numberOfInSliceEdges_);
 
             parallel::parallel_foreach(threadpool, numberOfSlices, [&](const int tid, const int64_t sliceIndex){
                 auto & sliceData  = perSliceDataVec[sliceIndex];
@@ -226,7 +239,9 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
                     for(auto & vAdj :  rag.nodes_[u]){
                         const auto v = vAdj.node();
                         if(u < v){
-                            edges[edgeIndex] = typename RagType::EdgeStorage(u, v);
+                            auto e = EdgeStorage(u, v);
+                            edges[edgeIndex] = e;
+                            edgeLengths[edgeIndex] = edgeLengthsUnordered[e];
                             vAdj.changeEdgeIndex(edgeIndex);
                             auto fres =  rag.nodes_[v].find(typename RagType::NodeAdjacency(u));
                             fres->changeEdgeIndex(edgeIndex);
@@ -238,6 +253,7 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
             });
         }
 
+        edgeLengthsUnordered.clear();
         std::cout<<"phase 4\n";
         /////////////////////////////////////////////////////
         // Phase 4 : between slice edges
@@ -274,6 +290,14 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
                         nifty::tools::forEachCoordinate(sliceShape2,[&](const Coord2 & coord){
                             const auto lU = sliceALabels(coord.asStdArray());
                             const auto lV = sliceBLabels(coord.asStdArray());
+                            
+                            auto e = EdgeStorage(std::min(lU,lV),std::max(lU,lV));
+                            auto findEdge = edgeLengthsUnordered.find(e);
+                            if( findEdge == edgeLengthsUnordered.end())
+                               edgeLengthsUnordered.insert(std::make_pair(e,1)); 
+                            else
+                                findEdge->second++;
+                            
                             if(rag.insertEdgeOnlyInNodeAdj(lU, lV)){
                                 ++perSliceDataVec[sliceAIndex].numberOfToNextSliceEdges;
                             }                      
@@ -308,6 +332,8 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
             // temp. resize the edge vec
             auto & edges = rag.edges_;
             edges.resize(rag.numberOfInSliceEdges_ + rag.numberOfInBetweenSliceEdges_);
+            auto & edgeLengths = rag.edgeLengths_;
+            edgeLengths.resize(rag.numberOfInSliceEdges_ + rag.numberOfInBetweenSliceEdges_);
 
             parallel::parallel_foreach(threadpool, numberOfSlices, [&](const int tid, const int64_t sliceIndex){
                 auto & sliceData  = perSliceDataVec[sliceIndex];
@@ -320,7 +346,9 @@ struct ComputeRag< GridRagStacked2D< LABELS_PROXY > > {
                     for(auto & vAdj :  rag.nodes_[u]){
                         const auto v = vAdj.node();
                         if(u < v && v >= endNode){
-                            edges[edgeIndex] = typename RagType::EdgeStorage(u, v);
+                            auto e = EdgeStorage(u, v);
+                            edges[edgeIndex] = e;
+                            edgeLengths[edgeIndex] = edgeLengthsUnordered[e];
                             vAdj.changeEdgeIndex(edgeIndex);
                             auto fres =  rag.nodes_[v].find(typename RagType::NodeAdjacency(u));
                             fres->changeEdgeIndex(edgeIndex);

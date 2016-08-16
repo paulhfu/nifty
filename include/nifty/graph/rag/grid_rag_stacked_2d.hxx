@@ -51,7 +51,8 @@ public:
             PerSliceData(labelsProxy.numberOfLabels()) 
         ),
         numberOfInSliceEdges_(0),
-        numberOfInBetweenSliceEdges_(0)
+        numberOfInBetweenSliceEdges_(0),
+        edgeLengths_()
     {
         detail_rag::ComputeRag< SelfType >::computeRag(*this, this->settings_);
     }
@@ -64,7 +65,8 @@ public:
             PerSliceData(labelsProxy.numberOfLabels()) 
         ),
         numberOfInSliceEdges_(0),
-        numberOfInBetweenSliceEdges_(0) {
+        numberOfInBetweenSliceEdges_(0),
+        edgeLengths_() {
     }
 
     using BaseType::numberOfNodes;
@@ -94,12 +96,16 @@ public:
         const auto & sliceData = perSliceDataVec_[sliceIndex];
         return sliceData.toNextSliceEdgeOffset;
     }
+    const std::vector<uint64_t> & edgeLengths() const {
+        return edgeLengths_;
+    }
     
     // reimplement serialization due to the perSliceData
     uint64_t serializationSize() const{
         uint64_t size = BaseType::serializationSize();
         size += 2;
         size += perSliceDataVec_.size() * 6;
+        size += this->numberOfEdges();
         return size;
     }
 
@@ -124,6 +130,10 @@ public:
             *iter = perSliceData.minInSliceNode;  
             iter++;
             *iter = perSliceData.maxInSliceNode;  
+            iter++;
+        }
+        for(const auto len : edgeLengths_) {
+            *iter = len;
             iter++;
         }
     }
@@ -151,6 +161,10 @@ public:
             perSliceData.maxInSliceNode = *iter;  
             iter++;
         }
+        for(auto & len : edgeLengths_) {
+            len = *iter;
+            iter++;
+        }
     }
 
 
@@ -159,6 +173,7 @@ private:
     std::vector<PerSliceData> perSliceDataVec_;
     uint64_t numberOfInSliceEdges_;
     uint64_t numberOfInBetweenSliceEdges_;
+    std::vector<uint64_t> edgeLengths_;
 };
 
 

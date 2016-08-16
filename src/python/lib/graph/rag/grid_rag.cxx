@@ -217,6 +217,9 @@ namespace graph{
                 }
                 return out;
             })
+            .def_property_readonly("edgeLengths", [](const GridRagType & self){
+                return self.edgeLengths();
+            })
             // serialization is overloaded for the stacked rag
             .def("serialize",
                 [](const GridRagType & self) {
