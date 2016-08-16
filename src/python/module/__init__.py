@@ -173,9 +173,9 @@ def __extendObj(objectiveCls, objectiveName):
     O.perturbAndMap = staticmethod(perturbAndMap)
 
 
-__extendObj(graph.multicut.MulticutObjectiveUndirectedGraph, 
+__extendObj(graph.multicut.MulticutObjectiveUndirectedGraph,
     "MulticutObjectiveUndirectedGraph")
-__extendObj(graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph, 
+__extendObj(graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph,
     "MulticutObjectiveEdgeContractionGraphUndirectedGraph")
 del __extendObj
 
@@ -203,27 +203,27 @@ def __extendEdgeContractionGraph():
         def __init__(self):
             super(EdgeContractionGraphCallback, self).__init__()
 
-            
-            try:
-                self.contractEdgeCallback = types.MethodType(self.contractEdge, self, 
-                                                EdgeContractionGraphCallback)
-            except AttributeError:
-                pass
 
-            try:    
-                self.mergeEdgesCallback = types.MethodType(self.mergeEdges, self, 
+            try:
+                self.contractEdgeCallback = types.MethodType(self.contractEdge, self,
                                                 EdgeContractionGraphCallback)
             except AttributeError:
                 pass
 
             try:
-                self.mergeNodesCallback = types.MethodType(self.mergeNodes, self, 
+                self.mergeEdgesCallback = types.MethodType(self.mergeEdges, self,
+                                                EdgeContractionGraphCallback)
+            except AttributeError:
+                pass
+
+            try:
+                self.mergeNodesCallback = types.MethodType(self.mergeNodes, self,
                                             EdgeContractionGraphCallback)
             except AttributeError:
                 pass
 
             try:
-                self.contractEdgeDoneCallback = types.MethodType(self.contractEdgeDone, self, 
+                self.contractEdgeDoneCallback = types.MethodType(self.contractEdgeDone, self,
                                             EdgeContractionGraphCallback)
             except AttributeError:
                 pass
@@ -235,11 +235,11 @@ def __extendEdgeContractionGraph():
 
     EdgeContractionGraphCallback.__module__ = "nifty.graph"
     graph.EdgeContractionGraphCallback = EdgeContractionGraphCallback
-    
+
     def edgeContractionGraph(g, callback):
         Ecg = g.__class__.EdgeContractionGraph
         ecg = Ecg(g, callback)
-        return ecg 
+        return ecg
 
     edgeContractionGraph.__module__ = "nifty.graph"
     graph.edgeContractionGraph = edgeContractionGraph
@@ -274,7 +274,7 @@ def __addStaticMethodsToUndirectedGraph():
 
     def _getGalaSettings(threshold0=0.1, threshold1=0.9, thresholdU=0.1, numberOfEpochs=3, numberOfTrees=100,
                          contractionOrderSettings = G.galaContractionOrderSettings(),
-                         mapFactory=G.MulticutObjective.fusionMoveBasedFactory(), 
+                         mapFactory=G.MulticutObjective.fusionMoveBasedFactory(),
                          perturbAndMapFactory=G.MulticutObjective.fusionMoveBasedFactory()):
         s =  graph.gala.GalaSettingsUndirectedGraph()
         s.threshold0 = float(threshold0)
@@ -317,6 +317,18 @@ def __extendRag():
     gridRag.__module__ = "nifty.graph.rag"
     graph.rag.gridRag = gridRag
 
+    def deserializeGridRag(labels, serialization):
+        labels = numpy.require(labels)
+        if numpy.squeeze(labels).ndim == 2:
+            return graph.rag.deserializeExplicitLabelsGridRag2D(labels, serialization)
+        elif numpy.squeeze(labels).ndim == 3:
+            return graph.rag.deserializeExplicitLabelsGridRag3D(labels, serialization)
+        else:
+            raise RuntimeError("wrong dimension, currently only 2D and 3D is implemented")
+
+    deserializeGridRag.__module__ = "nifty.graph.rag"
+    graph.rag.deserializeGridRag = deserializeGridRag
+
 
     if Configuration.WITH_HDF5:
 
@@ -342,6 +354,22 @@ def __extendRag():
         gridRagHdf5.__module__ = "nifty.graph.rag"
         graph.rag.gridRagHdf5 = gridRagHdf5
 
+        def deserializeGridRagHdf5(labels, numberOfLabels, serialization):
+
+            if dim == 2:
+                labelsProxy = graph.rag.gridRag2DHdf5LabelsProxy(labels, int(numberOfLabels))
+                rag = graph.rag.deserializeGridRag2DHdf5(labelsProxy, serialization)
+            elif dim == 3:
+                labelsProxy = graph.rag.deserializeGridRag3DHdf5LabelsProxy(labels, int(numberOfLabels))
+                rag = graph.rag.gridRag3DHdf5(labelsProxy, serialization)
+            else:
+                raise RuntimeError("deserializeGridRagHdf5 is only implemented for 2D and 3D not for %dD"%dim)
+
+            return rag
+
+        deserializeGridRagHdf5.__module__ = "nifty.graph.rag"
+        graph.rag.deserializeGridRagHdf5 = deserializeGridRagHdf5
+
         def gridRagStacked2DHdf5(labels, numberOfLabels, numberOfThreads=-1):
             dim = labels.ndim
             if dim == 3:
@@ -354,6 +382,19 @@ def __extendRag():
 
         gridRagStacked2DHdf5.__module__ = "nifty.graph.rag"
         graph.rag.gridRagStacked2DHdf5 = gridRagStacked2DHdf5
+
+        def deserializeGridRagStacked2DHdf5(labels, numberOfLabels, serialization):
+            dim = labels.ndim
+            if dim == 3:
+                labelsProxy = graph.rag.gridRag3DHdf5LabelsProxy(labels, int(numberOfLabels))
+                rag = graph.rag.deserializeGridRagStacked2DHdf5Impl(labelsProxy, serialization)
+            else:
+                raise RuntimeError("gridRagStacked2DHdf5 is only implemented for 3D not for %dD"%dim)
+
+            return rag
+
+        deserializeGridRagStacked2DHdf5.__module__ = "nifty.graph.rag"
+        graph.rag.deserializeGridRagStacked2DHdf5 = deserializeGridRagStacked2DHdf5
 
 
 __extendRag()

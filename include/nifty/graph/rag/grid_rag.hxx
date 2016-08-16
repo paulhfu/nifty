@@ -66,6 +66,7 @@ public:
         array::StaticArray<int64_t, DIM> blockShape;
     };
 
+    typedef UndirectedGraph<> BaseType;
     typedef GridRag<DIM, LABELS_PROXY> SelfType;
     typedef array::StaticArray<int64_t, DIM> ShapeType;
 
@@ -78,6 +79,14 @@ public:
     {
         detail_rag::ComputeRag< SelfType >::computeRag(*this, settings_);
     }
+    
+    // need to expose this for deserializing the rag
+    GridRag(const LabelsProxy & labelsProxy, const Settings & settings, const DontComputeRag)
+    :   settings_(settings),
+        labelsProxy_(labelsProxy){
+
+    }
+    
 
     const LabelsProxy & labelsProxy() const {
         return labelsProxy_;
@@ -86,12 +95,40 @@ public:
     const ShapeType & shape()const{
         return labelsProxy_.shape();
     }
-protected:
-    GridRag(const LabelsProxy & labelsProxy, const Settings & settings, const DontComputeRag)
-    :   settings_(settings),
-        labelsProxy_(labelsProxy){
-
+    
+    /* On second thought, we don't really need these apart from the construction 
+    // reimplement serialization due to the Settings
+    uint64_t serializationSize() const{
+        uint64_t size = BaseType::serializationSize();
+        size += 1;
+        size += DIM;
+        return size;
     }
+
+    template<class ITER>
+    void serialize(ITER iter) const {
+        BaseType::serialize(iter);
+        *iter = settings_.numberOfThreads;  
+        iter++;
+        for(auto d = 0; d < DIM; ++d) {
+            *iter = settings_.blockShape[d];  
+            iter++;
+        }
+    }
+    
+    template<class ITER>
+    void deserialize(ITER iter) {
+        BaseType::deserialize(iter);
+        settings_.numberOfThreads = *iter;  
+        iter++;
+        for(auto d = 0; d < DIM; ++d) {
+            settings_.blockShape[d] = *iter;  
+            iter++;
+        }
+    }
+    */
+
+
 protected:
     typedef typename RefHelper<LABELS_PROXY>::type StorageType;
     Settings settings_;

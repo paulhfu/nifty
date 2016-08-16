@@ -13,6 +13,7 @@ namespace graph{
     void exportGraphAccumulator(py::module &, py::module &);
     void exportProjectToPixels(py::module &);
     void exportAccumulate(py::module &);
+    void exportDeserializeRag(py::module &);
 
     void initSubmoduleRag(py::module &graphModule) {
 
@@ -21,6 +22,7 @@ namespace graph{
         exportGraphAccumulator(ragModule, graphModule);
         exportProjectToPixels(ragModule);
         exportAccumulate(ragModule);
+        exportDeserializeRag(ragModule);
     }
 
 }
