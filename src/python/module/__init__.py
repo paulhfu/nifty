@@ -396,6 +396,16 @@ def __extendRag():
         deserializeGridRagStacked2DHdf5.__module__ = "nifty.graph.rag"
         graph.rag.deserializeGridRagStacked2DHdf5 = deserializeGridRagStacked2DHdf5
 
+        # FIXME all this got really ugly somehow...
+        def extractNodesAndEdgesFromNodeList(rag, nodeList):
+
+            extractReturn = graph.rag.extractNodesAndEdgesFromNodeListImpl(rag, nodeList)
+
+            return extractReturn.innerEdges(), extractReturn.outerEdges(), extractReturn.uvIds()
+
+        extractNodesAndEdgesFromNodeList.__module__ = "nifty.graph.rag"
+        graph.rag.extractNodesAndEdgesFromNodeList = extractNodesAndEdgesFromNodeList
+
 
 __extendRag()
 del __extendRag

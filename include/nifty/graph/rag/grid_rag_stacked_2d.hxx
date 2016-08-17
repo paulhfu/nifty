@@ -16,10 +16,14 @@ template<class LABEL_PROXY>
 class GridRagStacked2D
 : public GridRag<3, LABEL_PROXY >
 {
-    typedef LABEL_PROXY LabelsProxyType;
+
+public:
+    typedef LABEL_PROXY LabelsProxy;
+    typedef typename LabelsProxy::LabelType LabelType;
+
+private:
     typedef GridRag<3, LABEL_PROXY > BaseType;
     typedef GridRagStacked2D< LABEL_PROXY > SelfType;
-    typedef typename LabelsProxyType::LabelType LabelType;
     friend class detail_rag::ComputeRag< SelfType >;
 
     struct PerSliceData{
@@ -40,7 +44,6 @@ class GridRagStacked2D
     };
     
 public:
-    typedef typename BaseType::LabelsProxy LabelsProxy;
     typedef typename BaseType::Settings Settings;
     typedef typename BaseType::DontComputeRag DontComputeRag;
     

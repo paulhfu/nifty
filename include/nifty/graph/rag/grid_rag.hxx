@@ -69,6 +69,8 @@ public:
     typedef UndirectedGraph<> BaseType;
     typedef GridRag<DIM, LABELS_PROXY> SelfType;
     typedef array::StaticArray<int64_t, DIM> ShapeType;
+    typedef typename LabelsProxy::LabelType LabelType;
+    typedef typename BaseType::EdgeInternalType EdgeType;
 
     friend class detail_rag::ComputeRag< SelfType >;
 
