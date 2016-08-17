@@ -99,6 +99,12 @@ public:
     const std::vector<uint64_t> & edgeLengths() const {
         return edgeLengths_;
     }
+    uint64_t numberOfInSliceEdges() const{
+        return numberOfInSliceEdges_;
+    }
+    uint64_t numberOfInBetweenSliceEdges() const{
+        return numberOfInBetweenSliceEdges_;
+    }
     
     // reimplement serialization due to the perSliceData
     uint64_t serializationSize() const{

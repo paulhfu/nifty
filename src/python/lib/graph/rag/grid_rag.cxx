@@ -220,6 +220,12 @@ namespace graph{
             .def_property_readonly("edgeLengths", [](const GridRagType & self){
                 return self.edgeLengths();
             })
+            .def_property_readonly("totalNumberOfInSliceEdges", [](const GridRagType & self){
+                return self.numberOfInSliceEdges();
+            })
+            .def_property_readonly("totalNumberOfInBetweenSliceEdges", [](const GridRagType & self){
+                return self.numberOfInBetweenSliceEdges();
+            })
             // serialization is overloaded for the stacked rag
             .def("serialize",
                 [](const GridRagType & self) {
