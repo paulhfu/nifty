@@ -14,7 +14,6 @@ namespace graph{
     void exportProjectToPixels(py::module &);
     void exportAccumulate(py::module &);
     void exportDeserializeRag(py::module &);
-    void exportExtractNodesAndEdgesFromNodeList(py::module &);
 
     void initSubmoduleRag(py::module &graphModule) {
 
@@ -24,7 +23,6 @@ namespace graph{
         exportProjectToPixels(ragModule);
         exportAccumulate(ragModule);
         exportDeserializeRag(ragModule);
-        exportExtractNodesAndEdgesFromNodeList(ragModule);
     }
 
 }

@@ -3,6 +3,7 @@
 #define NIFTY_GRAPH_SIMPLE_GRAPH_HXX
 
 #include <vector>
+#include <map>
 #include <boost/version.hpp>
 
 // for strange reason travis does not find the boost flat set
@@ -130,6 +131,12 @@ public:
     template<class ITER>
     void deserialize(ITER iter);
 
+    void extractSubgraphFromNodes(
+        const marray::View<NODE_INTERNAL_TYPE> & nodeList, 
+        std::vector<EDGE_INTERANL_TYPE> & innerEdgesOut,
+        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut,
+        std::vector<std::pair<NODE_INTERNAL_TYPE, NODE_INTERNAL_TYPE>> & uvIdsOut) const;
+
 protected:
 
     bool insertEdgeOnlyInNodeAdj(const int64_t u, const int64_t v);
@@ -143,6 +150,55 @@ protected:
     std::vector<NodeStorage> nodes_;
     std::vector<EdgeStorage> edges_;
 };
+    
+template<class EDGE_INTERANL_TYPE, class NODE_INTERNAL_TYPE>
+void 
+UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>::
+extractSubgraphFromNodes(
+        const marray::View<NODE_INTERNAL_TYPE> & nodeList, 
+        std::vector<EDGE_INTERANL_TYPE> & innerEdgesOut,
+        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut,
+        std::vector<std::pair<NODE_INTERNAL_TYPE, NODE_INTERNAL_TYPE>> & uvIdsOut) const {
+    
+    std::map<NodeInteralType,NodeInteralType> globalToLocalNodes;
+    for(size_t i = 0; i < nodeList.size(); i++)
+        globalToLocalNodes.insert( std::make_pair(nodeList(i), NodeInteralType(i)) );
+
+    for(auto nodeIt = nodeList.begin(); nodeIt != nodeList.end(); ++nodeIt) {
+        auto u = *nodeIt;
+        for(auto adjacencyIt = this->adjacencyBegin(u); adjacencyIt != this->adjacencyEnd(u); ++adjacencyIt) {
+            auto v = adjacencyIt->node();
+            auto e = this->findEdge(u, v);
+            if( std::find(nodeList.begin(), nodeList.end(), v) != nodeList.end() )
+                innerEdgesOut.push_back(e);
+            else
+                outerEdgesOut.push_back(e);
+        }
+    }
+    
+    // sort the edges and make them unique
+    std::vector<EdgeInternalType> temp(innerEdgesOut.size());
+    std::sort(innerEdgesOut.begin(),innerEdgesOut.end());
+    auto it = std::unique_copy(innerEdgesOut.begin(), innerEdgesOut.end(), temp.begin());
+    temp.resize(std::distance(temp.begin(),it));
+    innerEdgesOut = temp;
+
+    temp.clear();
+    temp.resize(outerEdgesOut.size());
+    std::sort(outerEdgesOut.begin(),outerEdgesOut.end());
+    it = std::unique_copy(outerEdgesOut.begin(), outerEdgesOut.end(), temp.begin());
+    temp.resize(std::distance(temp.begin(),it));
+    outerEdgesOut = temp;
+
+    uvIdsOut.resize(innerEdgesOut.size());
+
+    // get the local uv - ids
+    for(size_t i = 0; i < innerEdgesOut.size(); ++i) {
+        auto uv = this->uv(innerEdgesOut[i]);
+        uvIdsOut[i].first = globalToLocalNodes[uv.first];
+        uvIdsOut[i].second = globalToLocalNodes[uv.second];
+    }
+}
 
 
 template<class EDGE_INTERANL_TYPE, class NODE_INTERNAL_TYPE >

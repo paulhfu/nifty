@@ -302,6 +302,21 @@ __addStaticMethodsToUndirectedGraph()
 del __addStaticMethodsToUndirectedGraph
 
 
+def __extendGraph():
+
+    # FIXME all this got really ugly somehow...
+    def extractSubgraphFromNodes(graph, nodeList):
+
+        extractReturn = graph.extractSubgraphFromNodesImpl(nodeList)
+
+        return extractReturn.innerEdges(), extractReturn.outerEdges(), extractReturn.uvIds()
+
+    extractSubgraphFromNodes.__module__ = "nifty.graph"
+    graph.extractSubgraphFromNodes = extractSubgraphFromNodes
+
+__extendGraph()
+del __extendGraph
+
 
 def __extendRag():
 
@@ -396,15 +411,6 @@ def __extendRag():
         deserializeGridRagStacked2DHdf5.__module__ = "nifty.graph.rag"
         graph.rag.deserializeGridRagStacked2DHdf5 = deserializeGridRagStacked2DHdf5
 
-        # FIXME all this got really ugly somehow...
-        def extractNodesAndEdgesFromNodeList(rag, nodeList):
-
-            extractReturn = graph.rag.extractNodesAndEdgesFromNodeListImpl(rag, nodeList)
-
-            return extractReturn.innerEdges(), extractReturn.outerEdges(), extractReturn.uvIds()
-
-        extractNodesAndEdgesFromNodeList.__module__ = "nifty.graph.rag"
-        graph.rag.extractNodesAndEdgesFromNodeList = extractNodesAndEdgesFromNodeList
 
 
 __extendRag()

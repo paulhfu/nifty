@@ -20,6 +20,59 @@ namespace graph{
 
         typedef UndirectedGraph<> Graph;
         const auto clsName = std::string("UndirectedGraph");
+        
+        // this introduces some data copys... maybe can be rid of this, but I don't know if we won't run into mem errors then...
+        struct SubgraphReturnType {
+            SubgraphReturnType(const std::vector<int64_t> & innerEdges, const std::vector<int64_t> & outerEdges, const std::vector<std::pair<int64_t,int64_t>> & uvIds)
+                : innerEdges_(innerEdges), outerEdges_(outerEdges), uvIds_(uvIds) {
+        }
+
+            const std::vector<int64_t> & getInnerEdges() const {
+                return innerEdges_;
+            }
+            
+            const std::vector<int64_t> & getOuterEdges() const {
+                return outerEdges_;
+            }
+            
+            const std::vector<std::pair<int64_t,int64_t>> & getUvIds() const {
+                return uvIds_;
+            }
+
+        private:
+            std::vector<int64_t> innerEdges_;
+            std::vector<int64_t> outerEdges_;
+            std::vector<std::pair<int64_t,int64_t>> uvIds_;
+        };
+        
+        
+        py::class_<SubgraphReturnType>(graphModule, "SubgraphReturnType")
+            // need to def init ?
+            .def("innerEdges",[](const SubgraphReturnType & self) {
+                const auto & in = self.getInnerEdges();
+                marray::PyView<int64_t,1> out({in.size()});
+                for(size_t i = 0; i < in.size(); ++i)
+                    out(i) = in[i];
+                return out;
+            })
+            .def("outerEdges",[](const SubgraphReturnType & self) {
+                const auto & in = self.getOuterEdges();
+                marray::PyView<int64_t,1> out({in.size()});
+                for(size_t i = 0; i < in.size(); ++i)
+                    out(i) = in[i];
+                return out;
+            })
+            .def("uvIds",[](const SubgraphReturnType & self) {
+                const auto & in = self.getUvIds();
+                marray::PyView<int64_t,2> out({in.size(),uint64_t(2)});
+                for(size_t i = 0; i < in.size(); ++i) {
+                    out(i,0) = in[i].first;
+                    out(i,1) = in[i].second;
+                }
+                return out;
+            })
+        ;
+        
         auto undirectedGraphCls = py::class_<Graph>(graphModule, clsName.c_str());
 
         undirectedGraphCls
@@ -60,6 +113,21 @@ namespace graph{
                 [](Graph & g, nifty::marray::PyView<uint64_t,1> serialization) {
                     auto ptr = &serialization(0);
                     g.deserialize(ptr);
+                }
+            )
+            .def("extractSubgraphFromNodesImpl",
+                []( Graph & g, const marray::PyView<int64_t,1> nodeList) {
+                    
+                    std::vector<int64_t> innerEdgesVec;  
+                    std::vector<int64_t> outerEdgesVec;  
+                    std::vector<std::pair<int64_t,int64_t>> uvIdsVec;  
+                    {
+                        py::gil_scoped_release allowThreads;
+                        g.extractSubgraphFromNodes(nodeList, innerEdgesVec, outerEdgesVec, uvIdsVec);
+                    }
+                    
+                    return SubgraphReturnType(innerEdgesVec, outerEdgesVec, uvIdsVec);
+
                 }
             )
         ;
