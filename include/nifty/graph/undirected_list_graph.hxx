@@ -131,11 +131,10 @@ public:
     template<class ITER>
     void deserialize(ITER iter);
 
-    void extractSubgraphFromNodes(
+    UndirectedGraph<EdgeInternalType,NodeInteralType> extractSubgraphFromNodes(
         const marray::View<NODE_INTERNAL_TYPE> & nodeList, 
         std::vector<EDGE_INTERANL_TYPE> & innerEdgesOut,
-        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut,
-        std::vector<std::pair<NODE_INTERNAL_TYPE, NODE_INTERNAL_TYPE>> & uvIdsOut) const;
+        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut) const;
 
 protected:
 
@@ -152,13 +151,12 @@ protected:
 };
     
 template<class EDGE_INTERANL_TYPE, class NODE_INTERNAL_TYPE>
-void 
+UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>
 UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>::
 extractSubgraphFromNodes(
         const marray::View<NODE_INTERNAL_TYPE> & nodeList, 
         std::vector<EDGE_INTERANL_TYPE> & innerEdgesOut,
-        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut,
-        std::vector<std::pair<NODE_INTERNAL_TYPE, NODE_INTERNAL_TYPE>> & uvIdsOut) const {
+        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut) const {
     
     std::map<NodeInteralType,NodeInteralType> globalToLocalNodes;
     for(size_t i = 0; i < nodeList.size(); i++)
@@ -190,14 +188,17 @@ extractSubgraphFromNodes(
     temp.resize(std::distance(temp.begin(),it));
     outerEdgesOut = temp;
 
-    uvIdsOut.resize(innerEdgesOut.size());
+    // get number of nodes
+    uint64_t numberOfNodes = nodeList.size();
+    UndirectedGraph<EdgeInternalType,NodeInteralType> subgraphOut(numberOfNodes);
 
     // get the local uv - ids
     for(size_t i = 0; i < innerEdgesOut.size(); ++i) {
         auto uv = this->uv(innerEdgesOut[i]);
-        uvIdsOut[i].first = globalToLocalNodes[uv.first];
-        uvIdsOut[i].second = globalToLocalNodes[uv.second];
+        subgraphOut.insertEdge(globalToLocalNodes[uv.first], globalToLocalNodes[uv.second]);
     }
+
+    return subgraphOut;
 }
 
 

@@ -309,7 +309,7 @@ def __extendGraph():
 
         extractReturn = graph.extractSubgraphFromNodesImpl(nodeList)
 
-        return extractReturn.innerEdges(), extractReturn.outerEdges(), extractReturn.uvIds()
+        return extractReturn.innerEdges(), extractReturn.outerEdges(), extractReturn.subgraph()
 
     extractSubgraphFromNodes.__module__ = "nifty.graph"
     graph.extractSubgraphFromNodes = extractSubgraphFromNodes

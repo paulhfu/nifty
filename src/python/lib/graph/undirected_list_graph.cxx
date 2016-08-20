@@ -23,8 +23,8 @@ namespace graph{
         
         // this introduces some data copys... maybe can be rid of this, but I don't know if we won't run into mem errors then...
         struct SubgraphReturnType {
-            SubgraphReturnType(const std::vector<int64_t> & innerEdges, const std::vector<int64_t> & outerEdges, const std::vector<std::pair<int64_t,int64_t>> & uvIds)
-                : innerEdges_(innerEdges), outerEdges_(outerEdges), uvIds_(uvIds) {
+            SubgraphReturnType(const std::vector<int64_t> & innerEdges, const std::vector<int64_t> & outerEdges, const Graph & graph)
+                : innerEdges_(innerEdges), outerEdges_(outerEdges), graph_(graph) {
         }
 
             const std::vector<int64_t> & getInnerEdges() const {
@@ -35,14 +35,14 @@ namespace graph{
                 return outerEdges_;
             }
             
-            const std::vector<std::pair<int64_t,int64_t>> & getUvIds() const {
-                return uvIds_;
+            const Graph & getSubgraph() const {
+                return graph_;
             }
 
         private:
             std::vector<int64_t> innerEdges_;
             std::vector<int64_t> outerEdges_;
-            std::vector<std::pair<int64_t,int64_t>> uvIds_;
+            Graph graph_;
         };
         
         
@@ -62,14 +62,8 @@ namespace graph{
                     out(i) = in[i];
                 return out;
             })
-            .def("uvIds",[](const SubgraphReturnType & self) {
-                const auto & in = self.getUvIds();
-                marray::PyView<int64_t,2> out({in.size(),uint64_t(2)});
-                for(size_t i = 0; i < in.size(); ++i) {
-                    out(i,0) = in[i].first;
-                    out(i,1) = in[i].second;
-                }
-                return out;
+            .def("subgraph",[](const SubgraphReturnType & self) {
+                return self.getSubgraph();
             })
         ;
         
@@ -120,14 +114,12 @@ namespace graph{
                     
                     std::vector<int64_t> innerEdgesVec;  
                     std::vector<int64_t> outerEdgesVec;  
-                    std::vector<std::pair<int64_t,int64_t>> uvIdsVec;  
+                    Graph subgraph;
                     {
                         py::gil_scoped_release allowThreads;
-                        g.extractSubgraphFromNodes(nodeList, innerEdgesVec, outerEdgesVec, uvIdsVec);
+                        subgraph = g.extractSubgraphFromNodes(nodeList, innerEdgesVec, outerEdgesVec);
                     }
-                    
-                    return SubgraphReturnType(innerEdgesVec, outerEdgesVec, uvIdsVec);
-
+                    return SubgraphReturnType(innerEdgesVec, outerEdgesVec, subgraph);
                 }
             )
         ;
