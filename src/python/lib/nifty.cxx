@@ -20,6 +20,9 @@ namespace hdf5{
     void initSubmoduleHdf5(py::module & );
 }
 #endif
+namespace ufd {
+    void initSubmoduleUfd(py::module &);
+}
 }
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
@@ -43,6 +46,8 @@ PYBIND11_PLUGIN(_nifty) {
     #ifdef WITH_HDF5
     hdf5::initSubmoduleHdf5(niftyModule);
     #endif
+
+    ufd::initSubmoduleUfd(niftyModule);
 
     // \TODO move to another header
     py::class_<Configuration>(niftyModule, "Configuration")

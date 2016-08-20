@@ -69,7 +69,7 @@ add_library(_nifty SHARED
     graph/multicut/perturb_and_map.cxx
 
     #############################
-    # hdf5
+    # tools
     #############################
     tools/tools.cxx
     tools/make_dense.cxx
@@ -79,6 +79,10 @@ add_library(_nifty SHARED
     hdf5/hdf5.cxx
     hdf5/hdf5_common.cxx
     hdf5/hdf5_array.cxx
+    #############################
+    # uff
+    #############################
+    ufd/ufd.cxx
 )
 
 
