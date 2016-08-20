@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include <iostream>
 #include <pybind11/numpy.h>
 
@@ -14,8 +15,8 @@ namespace ufd{
     template<class T>
     void exportUfdT(py::module & ufdModule) {
     
-        typedef T IndexType;
-        typedef Ufd<IndexType> UfdType;
+        typedef Ufd<T> UfdType;
+        typedef typename UfdType::Index IndexType;
 
         py::class_<UfdType>(ufdModule, "Ufd")
             .def(py::init<const IndexType>(),
@@ -31,6 +32,11 @@ namespace ufd{
             .def("elementLabeling", [](const UfdType & self) {
                 marray::PyView<IndexType,1> out({self.numberOfElements()});
                 self.elementLabeling(&out(0));
+                return out;
+            })
+            .def("representativesToSets", [](const UfdType & self) {
+                std::vector<std::vector<IndexType>> out;
+                self.representativesToSets(out);
                 return out;
             })
         ;
