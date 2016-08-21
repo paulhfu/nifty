@@ -33,9 +33,9 @@ def __extendObj(objectiveCls, objectiveName):
 
     O = objectiveCls
 
-    def multicutVerboseVisitor(visitNth=1):
+    def multicutVerboseVisitor(visitNth=1, timeLimit=0):
         V = getMcCls("MulticutVerboseVisitor")
-        return V(visitNth)
+        return V(visitNth, timeLimit)
     O.multicutVerboseVisitor = staticmethod(multicutVerboseVisitor)
 
     def greedyAdditiveProposals(sigma=1.0, weightStopCond=0.0, nodeNumStopCond=-1.0):
