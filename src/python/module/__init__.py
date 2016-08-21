@@ -33,9 +33,9 @@ def __extendObj(objectiveCls, objectiveName):
 
     O = objectiveCls
 
-    def multicutVerboseVisitor(visitNth=1):
+    def multicutVerboseVisitor(visitNth=1, timeLimit=0):
         V = getMcCls("MulticutVerboseVisitor")
-        return V(visitNth)
+        return V(visitNth, timeLimit)
     O.multicutVerboseVisitor = staticmethod(multicutVerboseVisitor)
 
     def greedyAdditiveProposals(sigma=1.0, weightStopCond=0.0, nodeNumStopCond=-1.0):
@@ -173,9 +173,9 @@ def __extendObj(objectiveCls, objectiveName):
     O.perturbAndMap = staticmethod(perturbAndMap)
 
 
-__extendObj(graph.multicut.MulticutObjectiveUndirectedGraph, 
+__extendObj(graph.multicut.MulticutObjectiveUndirectedGraph,
     "MulticutObjectiveUndirectedGraph")
-__extendObj(graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph, 
+__extendObj(graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph,
     "MulticutObjectiveEdgeContractionGraphUndirectedGraph")
 del __extendObj
 
@@ -203,27 +203,27 @@ def __extendEdgeContractionGraph():
         def __init__(self):
             super(EdgeContractionGraphCallback, self).__init__()
 
-            
-            try:
-                self.contractEdgeCallback = types.MethodType(self.contractEdge, self, 
-                                                EdgeContractionGraphCallback)
-            except AttributeError:
-                pass
 
-            try:    
-                self.mergeEdgesCallback = types.MethodType(self.mergeEdges, self, 
+            try:
+                self.contractEdgeCallback = types.MethodType(self.contractEdge, self,
                                                 EdgeContractionGraphCallback)
             except AttributeError:
                 pass
 
             try:
-                self.mergeNodesCallback = types.MethodType(self.mergeNodes, self, 
+                self.mergeEdgesCallback = types.MethodType(self.mergeEdges, self,
+                                                EdgeContractionGraphCallback)
+            except AttributeError:
+                pass
+
+            try:
+                self.mergeNodesCallback = types.MethodType(self.mergeNodes, self,
                                             EdgeContractionGraphCallback)
             except AttributeError:
                 pass
 
             try:
-                self.contractEdgeDoneCallback = types.MethodType(self.contractEdgeDone, self, 
+                self.contractEdgeDoneCallback = types.MethodType(self.contractEdgeDone, self,
                                             EdgeContractionGraphCallback)
             except AttributeError:
                 pass
@@ -235,11 +235,11 @@ def __extendEdgeContractionGraph():
 
     EdgeContractionGraphCallback.__module__ = "nifty.graph"
     graph.EdgeContractionGraphCallback = EdgeContractionGraphCallback
-    
+
     def edgeContractionGraph(g, callback):
         Ecg = g.__class__.EdgeContractionGraph
         ecg = Ecg(g, callback)
-        return ecg 
+        return ecg
 
     edgeContractionGraph.__module__ = "nifty.graph"
     graph.edgeContractionGraph = edgeContractionGraph
@@ -274,7 +274,7 @@ def __addStaticMethodsToUndirectedGraph():
 
     def _getGalaSettings(threshold0=0.1, threshold1=0.9, thresholdU=0.1, numberOfEpochs=3, numberOfTrees=100,
                          contractionOrderSettings = G.galaContractionOrderSettings(),
-                         mapFactory=G.MulticutObjective.fusionMoveBasedFactory(), 
+                         mapFactory=G.MulticutObjective.fusionMoveBasedFactory(),
                          perturbAndMapFactory=G.MulticutObjective.fusionMoveBasedFactory()):
         s =  graph.gala.GalaSettingsUndirectedGraph()
         s.threshold0 = float(threshold0)
