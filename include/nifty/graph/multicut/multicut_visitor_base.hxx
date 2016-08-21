@@ -5,6 +5,7 @@
 #include <string>
 #include <initializer_list>
 #include <sstream>
+#include <chrono>
 
 namespace nifty {
 namespace graph {
@@ -39,15 +40,20 @@ namespace graph {
     public:
         typedef OBJECTIVE Objective;
         typedef MulticutBase<Objective> McBase;
+        typedef std::chrono::seconds TimeType;
+        typedef std::chrono::time_point<std::chrono::steady_clock> TimePointType;
 
-        MulticutVerboseVisitor(const int printNth = 1)
+        MulticutVerboseVisitor(const int printNth = 1, const size_t timeLimit = 0)
         :   printNth_(printNth),
             runOpt_(true),
-            iter_(1){
+            iter_(1),
+            timeLimit_(timeLimit),
+            startPoint_(){
         }
 
         virtual void begin(McBase * ) {
             std::cout<<"begin inference\n";
+            startPoint_ = std::chrono::steady_clock::now();
         }
         virtual bool visit(McBase * solver) {
             if(iter_%printNth_ == 0){
@@ -59,6 +65,8 @@ namespace graph {
                 ss<<"\n";
                 std::cout<<ss.str();
             }
+            if(timeLimit_ > 0)
+                checkRuntime();
             ++iter_;
             return runOpt_;
         }
@@ -72,6 +80,13 @@ namespace graph {
         virtual void setLogValue(const size_t logIndex, double logValue){
             logValues_[logIndex] = logValue;
         }
+        void checkRuntime() {
+            auto runtime = std::chrono::duration_cast<TimeType>(std::chrono::steady_clock::now() - startPoint_);
+            if(runtime.count() > timeLimit_) {
+                std::cout << "inference stoped due to timeout \n";
+                stopOptimize();
+            }
+        }
         void stopOptimize(){
             runOpt_ = false;
         }
@@ -79,6 +94,9 @@ namespace graph {
         bool runOpt_;
         int printNth_;
         int iter_;
+        size_t timeLimit_;
+        TimePointType startPoint_;
+
         std::vector<std::string> logNames_;
         std::vector<double> logValues_;
     };
