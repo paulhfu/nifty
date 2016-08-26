@@ -34,7 +34,8 @@ namespace hdf5{
         :   groupHandle_(groupHandle),
             dataset_(),
             datatype_(),
-            isChunked_(true)
+            isChunked_(true)//,
+            //hasOffset_(false)
         {
             datatype_ = H5Tcopy(hdf5Type<T>());
             const auto dim = std::distance(shapeBegin, shapeEnd);

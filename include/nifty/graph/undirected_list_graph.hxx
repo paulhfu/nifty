@@ -174,20 +174,15 @@ extractSubgraphFromNodes(
         }
     }
     
-    // sort the edges and make them unique
-    std::vector<EdgeInternalType> temp(innerEdgesOut.size());
+    // make the edges unique
     std::sort(innerEdgesOut.begin(),innerEdgesOut.end());
-    auto it = std::unique_copy(innerEdgesOut.begin(), innerEdgesOut.end(), temp.begin());
-    temp.resize(std::distance(temp.begin(),it));
-    innerEdgesOut = temp;
-
-    temp.clear();
-    temp.resize(outerEdgesOut.size());
+    auto last = std::unique(innerEdgesOut.begin(), innerEdgesOut.end());
+    innerEdgesOut.erase( last, innerEdgesOut.end() );
+    
     std::sort(outerEdgesOut.begin(),outerEdgesOut.end());
-    it = std::unique_copy(outerEdgesOut.begin(), outerEdgesOut.end(), temp.begin());
-    temp.resize(std::distance(temp.begin(),it));
-    outerEdgesOut = temp;
-
+    last = std::unique(outerEdgesOut.begin(), outerEdgesOut.end());
+    outerEdgesOut.erase( last, outerEdgesOut.end() );
+    
     // get number of nodes
     uint64_t numberOfNodes = nodeList.size();
     UndirectedGraph<EdgeInternalType,NodeInteralType> subgraphOut(numberOfNodes);

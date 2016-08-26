@@ -14,11 +14,13 @@ namespace hdf5{
 
     void exportHdf5Common(py::module &);
     void exportHdf5Array(py::module &);
+    void exportHdf5Tools(py::module &);
 
     void initSubmoduleHdf5(py::module &niftyModule) {
         auto hdf5Module = niftyModule.def_submodule("hdf5","hdf5 submodule");
         exportHdf5Common(hdf5Module);
         exportHdf5Array(hdf5Module);
+        exportHdf5Tools(hdf5Module);
     }
 
 }

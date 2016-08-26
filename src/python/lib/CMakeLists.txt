@@ -79,6 +79,7 @@ add_library(_nifty SHARED
     hdf5/hdf5.cxx
     hdf5/hdf5_common.cxx
     hdf5/hdf5_array.cxx
+    hdf5/hdf5_tools.cxx
     #############################
     # uff
     #############################
