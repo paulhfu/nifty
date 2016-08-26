@@ -34,14 +34,17 @@ namespace hdf5{
         :   groupHandle_(groupHandle),
             dataset_(),
             datatype_(),
-            isChunked_(true)//,
-            //hasOffset_(false)
+            isChunked_(true),
+            hasOffset_(false),
+            offsetBegin_(),
+            offsetEnd_()
         {
             datatype_ = H5Tcopy(hdf5Type<T>());
             const auto dim = std::distance(shapeBegin, shapeEnd);
 
             shape_.resize(dim);
             chunkShape_.resize(dim);
+            actualShape_.resize(dim);
 
             std::vector<hsize_t> shape(dim);
             std::vector<hsize_t> chunkShape(dim);
@@ -51,6 +54,7 @@ namespace hdf5{
                 const auto cs = *chunkShapeBegin;
                 shape[d] = s;
                 shape_[d] = s;
+                actualShape_[d] = s;
                 chunkShape[d] = cs;
                 chunkShape_[d] = cs;
                 ++shapeBegin;
@@ -80,7 +84,10 @@ namespace hdf5{
         :   groupHandle_(groupHandle),
             dataset_(),
             datatype_(),
-            isChunked_(true)
+            isChunked_(true),
+            hasOffset_(false),
+            offsetBegin_(),
+            offsetEnd_()
         {
             dataset_ = H5Dopen(groupHandle_, datasetName.c_str(), H5P_DEFAULT);
             if(dataset_ < 0) {
@@ -96,6 +103,7 @@ namespace hdf5{
 
             this->loadShape(shape_);
             this->loadChunkShape(chunkShape_);
+            actualShape_ = shape_;
         }
 
         ~Hdf5Array(){
@@ -107,10 +115,10 @@ namespace hdf5{
             return shape_.size();
         }
         uint64_t shape(const size_t d)const{
-            return shape_[d];
+            return actualShape_[d];
         }
         const std::vector<uint64_t> & shape()const{
-            return shape_;
+            return actualShape_;
         }
         uint64_t chunkShape(const size_t d)const{
             return chunkShape_[d];
@@ -132,8 +140,17 @@ namespace hdf5{
             NIFTY_CHECK(out.coordinateOrder() == marray::FirstMajorOrder, 
                 "currently only views with last major order are supported"
             );
-            //std::cout<<"load hyperslab\n";
-            this->loadHyperslab(roiBeginIter, roiBeginIter+out.dimension(), out.shapeBegin(), out);
+            if(!hasOffset_) {
+                this->loadHyperslab(roiBeginIter, roiBeginIter+out.dimension(), out.shapeBegin(), out);
+            }
+            else {
+                std::vector<uint64_t> actualRoiBegin(this->dimension());
+                for(size_t d = 0; d < this->dimension(); d++) {
+                    actualRoiBegin[d] = *roiBeginIter + offsetBegin_[d];
+                    roiBeginIter++;
+                }
+                this->loadHyperslab(actualRoiBegin.begin(), actualRoiBegin.end(), out.shapeBegin(), out);
+            }
         }
 
         template<class ITER>
@@ -145,7 +162,31 @@ namespace hdf5{
             NIFTY_CHECK(in.coordinateOrder() == marray::FirstMajorOrder, 
                 "currently only views with last major order are supported"
             );
-            this->saveHyperslab(roiBeginIter, roiBeginIter+in.dimension(), in.shapeBegin(), in);
+            if(!hasOffset_) {
+                this->saveHyperslab(roiBeginIter, roiBeginIter+in.dimension(), in.shapeBegin(), in);
+            }
+            else {
+                std::vector<uint64_t> actualRoiBegin(this->dimension());
+                for(size_t d = 0; d < this->dimension(); d++) {
+                    actualRoiBegin[d] = *roiBeginIter + offsetBegin_[d];
+                    roiBeginIter++;
+                }
+                this->saveHyperslab(actualRoiBegin.begin(), actualRoiBegin.end(), in.shapeBegin(), in);
+            }
+        }
+
+        template<class COORD>
+        void setOffsets(const COORD & offsetBegin, COORD & offsetEnd ) {
+            hasOffset_ = true;
+            NIFTY_CHECK_OP(offsetBegin.size(),==,this->dimension(),"offset has wrong dimension");
+            NIFTY_CHECK_OP(offsetEnd.size(),==,this->dimension(),"offset has wrong dimension");
+            offsetBegin_.resize(this->dimension());
+            offsetEnd_.resize(this->dimension());
+            for(size_t d = 0; d < this->dimension(); d++) {
+                offsetBegin_[d] = offsetBegin[d];
+                offsetEnd_[d] = offsetEnd[d];
+                actualShape_[d] = shape_[d] - offsetBegin[d] - offsetEnd[d];
+            }
         }
 
     private:
@@ -367,8 +408,12 @@ namespace hdf5{
         hid_t dataset_;
         hid_t datatype_;
         std::vector<uint64_t> shape_;
+        std::vector<uint64_t> actualShape_;
         std::vector<uint64_t> chunkShape_;
         bool isChunked_;
+        bool hasOffset_;
+        std::vector<uint64_t> offsetBegin_;
+        std::vector<uint64_t> offsetEnd_;
     };
 
 

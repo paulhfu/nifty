@@ -73,13 +73,13 @@ namespace hdf5{
                 NIFTY_CHECK_OP(roiBegin.size(),==,dim,"`roiBegin`has wrong size");
                 array.writeSubarray(roiBegin.begin(), in);
             })
-            //.def("setOffsets",[](
-            //    Hdf5ArrayType & array,
-            //    std::vector<size_t> offsetsBegin,
-            //    std::vector<size_t> offsetsEnd
-            //){
-            //    array.setOffsets(offsetsBegin, offsetsEnd);
-            //})
+            .def("setOffsets",[](
+                Hdf5ArrayType & array,
+                std::vector<size_t> offsetsBegin,
+                std::vector<size_t> offsetsEnd
+            ){
+                array.setOffsets(offsetsBegin, offsetsEnd);
+            })
         ;
 
     }
