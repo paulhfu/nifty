@@ -16,6 +16,75 @@ namespace hdf5{
 
 
 
+    inline hid_t
+    createFile2
+    (
+        const std::string& filename,
+        HDF5Version hdf5version,
+        const int somePrime = 977,
+        const int nBytes = 36000000,
+        const float rddc = 1.0
+    )
+    {
+        auto plist = H5Pcreate(H5P_FILE_ACCESS);
+        if(hdf5version == LATEST_HDF5_VERSION) {
+            H5Pset_libver_bounds(plist, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
+        }
+
+        auto ret = H5Pset_cache(plist, 0.0, somePrime,  nBytes, rddc);
+
+        hid_t fileHandle = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, plist);
+        if(fileHandle < 0) {
+            throw std::runtime_error("Could not create HDF5 file: " + filename);
+        }
+
+        return fileHandle;
+    }
+
+    /// Open an HDF5 file.
+    ///
+    /// \param filename Name of the file.
+    /// \param fileAccessMode File access mode.
+    /// \param hdf5version HDF5 version tag.
+    ///
+    /// \returns HDF5 handle
+    ///
+    /// \sa closeFile(), createFile()
+    ///
+    inline hid_t
+    openFile2
+    (
+        const std::string& filename,
+        FileAccessMode fileAccessMode,
+        HDF5Version hdf5version,
+
+        const int somePrime = 977,
+        const int nBytes = 36000000,
+        const float rddc = 1.0
+    )
+    {
+        hid_t access = H5F_ACC_RDONLY;
+        if(fileAccessMode == READ_WRITE) {
+            access = H5F_ACC_RDWR;
+        }
+
+
+        auto plist = H5Pcreate(H5P_FILE_ACCESS);
+        if(hdf5version == LATEST_HDF5_VERSION) {
+            H5Pset_libver_bounds(plist, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
+        }
+
+        auto ret = H5Pset_cache(plist, 0.0, somePrime,  nBytes, rddc);
+
+        hid_t fileHandle = H5Fopen(filename.c_str(), access, plist);
+        if(fileHandle < 0) {
+            throw std::runtime_error("Could not open HDF5 file: " + filename);
+        }
+
+        return fileHandle;
+    }
+
+
 
     template<class T>
     class Hdf5Array{
@@ -89,6 +158,9 @@ namespace hdf5{
             offsetBegin_(),
             offsetEnd_()
         {
+
+
+
             dataset_ = H5Dopen(groupHandle_, datasetName.c_str(), H5P_DEFAULT);
             if(dataset_ < 0) {
                 throw std::runtime_error("Marray cannot open dataset.");
@@ -104,6 +176,10 @@ namespace hdf5{
             this->loadShape(shape_);
             this->loadChunkShape(chunkShape_);
             actualShape_ = shape_;
+        }
+
+        int setCache(){
+            //herr_t H5Pset_cache(hid_t plist_id, int mdc_nelmts, size_t rdcc_nslots, size_t rdcc_nbytes, double rdcc_w0)
         }
 
         ~Hdf5Array(){

@@ -87,4 +87,5 @@ PYBIND11_PLUGIN(_nifty) {
             #endif
         })
         ;
+    return niftyModule.ptr();
 }

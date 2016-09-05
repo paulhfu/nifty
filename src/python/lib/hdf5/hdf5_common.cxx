@@ -3,9 +3,12 @@
 #include <iostream>
 #include <sstream>
 #include <pybind11/numpy.h>
+#include <tuple>
 
 #include "nifty/python/converter.hxx"
 #include "nifty/marray/marray_hdf5.hxx"
+#include "nifty/hdf5/hdf5_array.hxx"
+
 
 namespace py = pybind11;
 
@@ -35,15 +38,23 @@ namespace hdf5{
         ;
 
 
-        hdf5Module.def("createFile", &createFile,
+
+
+        hdf5Module.def("createFile", &createFile2,
             py::arg("filename"),
-            py::arg_t<HDF5Version>("hdf5version",LATEST_HDF5_VERSION)
+            py::arg("hdf5version")=LATEST_HDF5_VERSION,
+            py::arg("hashTableSize") = 977,
+            py::arg("nBytes") = 36000000,
+            py::arg("rddc") = 1.0
         );
 
-        hdf5Module.def("openFile", &openFile,
+        hdf5Module.def("openFile", &openFile2,
             py::arg("filename"),
             py::arg_t<FileAccessMode>("hdf5version",READ_ONLY),
-            py::arg_t<HDF5Version>("hdf5version",LATEST_HDF5_VERSION)
+            py::arg_t<HDF5Version>("hdf5version",LATEST_HDF5_VERSION),
+            py::arg("hashTableSize") = 977,
+            py::arg("nBytes") = 36000000,
+            py::arg("rddc") = 1.0
         );
 
         hdf5Module.def("closeFile", &closeFile,
@@ -64,43 +75,7 @@ namespace hdf5{
             py::arg("hidT")
         );
 
-        hdf5Module.def("setCacheOnFile", [](const hid_t & fileHandle){
-            auto plist = H5Fget_access_plist(fileHandle);
-            const auto anyVal = 0;
-            const auto somePrime = 977;
-            const auto nBytes = 36000000;
-            const auto rddc = 1.0;
-            auto ret = H5Pset_cache(plist, anyVal, somePrime,  nBytes, rddc);
-            H5Pclose(plist);
-            std::cout<<"set H5Pset_cache groupHandle_ "<<ret<<"\n";
-        });
-
-        struct CacheReturnType {
-            CacheReturnType(const double & somePrime, const double & nBytes, const double & rdcc)
-                : somePrime_(somePrime), nBytes_(nBytes), rdcc_(rdcc)
-            {}
-            size_t getSomePrime() const {
-                return somePrime_;
-            }
-            size_t getNBytes() const {
-                return nBytes_;
-            }
-            double getRdcc() const {
-                return rdcc_;
-            }
-        private:
-            size_t somePrime_;
-            size_t nBytes_;
-            double rdcc_;
-        };
-
-        py::class_<CacheReturnType>(hdf5Module,"CacheReturnType")
-            .def_property_readonly("somePrime", &CacheReturnType::getSomePrime)
-            .def_property_readonly("nBytes", &CacheReturnType::getNBytes)
-            .def_property_readonly("rdcc", &CacheReturnType::getRdcc)
-        ;
-        
-        hdf5Module.def("getCacheOnFileImpl", [](const hid_t & fileHandle){
+        hdf5Module.def("getCacheSettings", [](const hid_t & fileHandle){
             auto plist = H5Fget_access_plist(fileHandle);
             int anyVal;
             size_t somePrime;
@@ -108,11 +83,9 @@ namespace hdf5{
             double rdcc;
             auto ret = H5Pget_cache(plist, &anyVal, &somePrime, &nBytes, &rdcc);
             H5Pclose(plist);
-            std::cout<<"get H5Pget_cache groupHandle_ "<<ret<<"\n";
-            return CacheReturnType(somePrime, nBytes, rdcc); 
+            //std::cout<<"get H5Pget_cache groupHandle_ "<<ret<<"\n";
+            return std::make_tuple(somePrime, nBytes, rdcc); 
         });
-
-
     }
 
 }

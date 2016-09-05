@@ -472,15 +472,6 @@ if Configuration.WITH_HDF5:
             array.__setitem__ = setItem
 
 
-        def getCacheOnFile(fileHandle):
-            cacheReturn = _nifty.hdf5.getCacheOnFileImpl(fileHandle)
-            return cacheReturn.somePrime, cacheReturn.nBytes, cacheReturn.rdcc
-
-        getCacheOnFile.__module__ = "nifty.hdf5"
-        hdf5.getCacheOnFile = getCacheOnFile
-
-
-
 
     __extendHdf5()
     del __extendHdf5
