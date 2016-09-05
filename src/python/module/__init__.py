@@ -1,14 +1,45 @@
+from __future__ import print_function
 from _nifty import *
 import types
 from functools import partial
 import numpy
+import time
+
+
+
+class Timer:
+    def __init__(self, name=None, verbose=True):
+        self.name = name
+        self.verbose = verbose
+
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.dt = self.end - self.start
+        if self.verbose:
+            if self.name is not None:
+                print(self.name,"took",self.dt,"sec")
+            else:
+                print("took",self.dt,"sec")
 
 
 
 
+def ilpSettings(relativeGap=0.0, absoluteGap=0.0, memLimit=-1.0):
+    s = graph.multicut.IlpBackendSettings()
+    s.relativeGap = float(relativeGap)
+    s.absoluteGap = float(absoluteGap)
+    s.memLimit = float(memLimit)
+
+    return s
 
 
-def __extendObj(objectiveCls, objectiveName):
+
+
+def __extendMulticutObj(objectiveCls, objectiveName):
 
 
     mcMod = graph.multicut
@@ -53,21 +84,14 @@ def __extendObj(objectiveCls, objectiveName):
         return s
     O.watershedProposals = staticmethod(watershedProposals)
 
-    def greedyAdditiveFactory(verbose=0):
+    def greedyAdditiveFactory( weightStopCond=0.0, nodeNumStopCond=-1.0):
         s,F = getSettingsAndFactoryCls("MulticutGreedyAdditive")
-        s.verbose = int(verbose)
+        s.weightStopCond = float(weightStopCond)
+        s.nodeNumStopCond = float(nodeNumStopCond)
         return F(s)
     O.greedyAdditiveFactory = staticmethod(greedyAdditiveFactory)
 
 
-    def ilpSettings(relativeGap=0.0, absoluteGap=0.0, memLimit=-1.0):
-        s = graph.multicut.IlpBackendSettings()
-        s.relativeGap = float(relativeGap)
-        s.absoluteGap = float(absoluteGap)
-        s.memLimit = float(memLimit)
-
-        return s
-    O.ilpSettings = staticmethod(ilpSettings)
 
 
     def multicutIlpFactory(verbose=0, addThreeCyclesConstraints=True,
@@ -173,26 +197,145 @@ def __extendObj(objectiveCls, objectiveName):
     O.perturbAndMap = staticmethod(perturbAndMap)
 
 
-__extendObj(graph.multicut.MulticutObjectiveUndirectedGraph,
+__extendLiftedMulticutObj(graph.multicut.MulticutObjectiveUndirectedGraph,
     "MulticutObjectiveUndirectedGraph")
-__extendObj(graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph,
+__extendMulticutObj(graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph,
     "MulticutObjectiveEdgeContractionGraphUndirectedGraph")
-del __extendObj
+del __extendMulticutObj
 
 
 
-
-
-
-
-
-
-
-
-
+# multicut objective
 graph.UndirectedGraph.MulticutObjective = graph.multicut.MulticutObjectiveUndirectedGraph
 graph.UndirectedGraph.EdgeContractionGraph = graph.EdgeContractionGraphUndirectedGraph
 graph.EdgeContractionGraphUndirectedGraph.MulticutObjective = graph.multicut.MulticutObjectiveEdgeContractionGraphUndirectedGraph
+
+
+
+
+
+# lifted multicut objective
+graph.UndirectedGraph.LiftedMulticutObjective = graph.lifted_multicut.LiftedMulticutObjectiveUndirectedGraph
+
+def __extendLiftedMulticutObj(objectiveCls, objectiveName):
+
+    def insertLiftedEdgesBfs(self, maxDistance, returnDistance = False):
+        if returnDistance :
+            return self._insertLiftedEdgesBfsReturnDist(maxDistance)
+        else:
+            self._insertLiftedEdgesBfs(maxDistance)
+
+    objectiveCls.insertLiftedEdgesBfs = insertLiftedEdgesBfs
+
+
+
+
+
+    lmcMod = graph.lifted_multicut
+
+    def getCls(module, prefix, postfix):
+        return module.__dict__[prefix+postfix]
+
+    def getSettingsCls(baseName):
+        S =  getCls(lmcMod, baseName + "Settings" ,objectiveName)
+        return S
+    def getLmcCls(baseName):
+        S =  getCls(lmcMod, baseName,objectiveName)
+        return S
+    def getSettings(baseName):
+        S =  getSettingsCls(baseName)
+        return S()
+    def getSettingsAndFactoryCls(baseName):
+        s =  getSettings(baseName)
+        F =  getCls(lmcMod, baseName + "Factory" ,objectiveName)
+        return s,F
+
+
+    O = objectiveCls
+
+    def verboseVisitor(visitNth=1):
+        V = getLmcCls("LiftedMulticutVerboseVisitor")
+        return V(visitNth)
+    O.verboseVisitor = staticmethod(verboseVisitor)
+
+
+
+
+    def liftedMulticutGreedyAdditiveFactory( weightStopCond=0.0, nodeNumStopCond=-1.0):
+        s,F = getSettingsAndFactoryCls("LiftedMulticutGreedyAdditive")
+        s.weightStopCond = float(weightStopCond)
+        s.nodeNumStopCond = float(nodeNumStopCond)
+        return F(s)
+    O.liftedMulticutGreedyAdditiveFactory = staticmethod(liftedMulticutGreedyAdditiveFactory)
+
+
+    def liftedMulticutKernighanLinFactory( numberOfOuterIterations=1000000,
+                                            numberOfInnerIterations=100,
+                                            epsilon=1e-7):
+        s,F = getSettingsAndFactoryCls("LiftedMulticutKernighanLin")
+        s.numberOfOuterIterations = int(numberOfOuterIterations)
+        s.numberOfInnerIterations = int(numberOfInnerIterations)
+        s.epsilon = float(epsilon)
+        return F(s)
+    O.liftedMulticutKernighanLinFactory = staticmethod(liftedMulticutKernighanLinFactory)
+
+
+    def liftedMulticutAndresKernighanLinFactory( numberOfOuterIterations=1000000,
+                                            numberOfInnerIterations=100,
+                                            epsilon=1e-7):
+        s,F = getSettingsAndFactoryCls("LiftedMulticutAndresKernighanLin")
+        s.numberOfOuterIterations = int(numberOfOuterIterations)
+        s.numberOfInnerIterations = int(numberOfInnerIterations)
+        s.epsilon = float(epsilon)
+        return F(s)
+    O.liftedMulticutAndresKernighanLinFactory = staticmethod(liftedMulticutAndresKernighanLinFactory)
+
+
+    def liftedMulticutAndresGreedyAdditiveFactory():
+        s,F = getSettingsAndFactoryCls("LiftedMulticutAndresGreedyAdditive")
+        return F(s)
+    O.liftedMulticutAndresGreedyAdditiveFactory = staticmethod(liftedMulticutAndresGreedyAdditiveFactory)
+
+
+
+
+
+    def liftedMulticutIlpFactory(verbose=0, addThreeCyclesConstraints=True,
+                                addOnlyViolatedThreeCyclesConstraints=True,
+                                relativeGap=0.0, absoluteGap=0.0, memLimit=-1.0,
+                                ilpSolver = 'cplex'):
+
+        if ilpSolver == 'cplex':
+            s,F = getSettingsAndFactoryCls("LiftedMulticutIlpCplex")
+        elif ilpSolver == 'gurobi':
+            s,F = getSettingsAndFactoryCls("LiftedMulticutIlpGurobi")
+        elif ilpSolver == 'glpk':
+            s,F = getSettingsAndFactoryCls("LiftedMulticutIlpGlpk")
+        else:
+            raise RuntimeError("%s is an unknown ilp solver"%str(ilpSolver))
+        s.verbose = int(verbose)
+        s.addThreeCyclesConstraints = bool(addThreeCyclesConstraints)
+        s.addOnlyViolatedThreeCyclesConstraints = bool(addOnlyViolatedThreeCyclesConstraints)
+        s.ilpSettings = ilpSettings(relativeGap=relativeGap, absoluteGap=absoluteGap, memLimit=memLimit)
+        return F(s)
+
+    O.liftedMulticutIlpFactory = staticmethod(liftedMulticutIlpFactory)
+    O.liftedMulticutIlpCplexFactory = staticmethod(partial(liftedMulticutIlpFactory,ilpSolver='cplex'))
+    O.liftedMulticutIlpGurobiFactory = staticmethod(partial(liftedMulticutIlpFactory,ilpSolver='gurobi'))
+    O.liftedMulticutIlpGlpkFactory = staticmethod(partial(liftedMulticutIlpFactory,ilpSolver='glpk'))
+
+
+
+
+
+
+__extendLiftedMulticutObj(graph.UndirectedGraph.LiftedMulticutObjective,
+    "LiftedMulticutObjectiveUndirectedGraph")
+del __extendLiftedMulticutObj
+
+
+
+
 
 
 

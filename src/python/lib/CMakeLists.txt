@@ -26,7 +26,9 @@ pybind11_add_module(_nifty
     graph/gala/gala.cxx
     graph/gala/gala_main_class.cxx
     graph/gala/gala_feature_base.cxx
+    #############################
     # multicut
+    #############################
     graph/multicut/multicut.cxx
     graph/multicut/multicut_objective.cxx
     graph/multicut/multicut_visitor_base.cxx
@@ -36,7 +38,20 @@ pybind11_add_module(_nifty
     graph/multicut/multicut_greedy_additive.cxx
     graph/multicut/fusion_move_based.cxx
     graph/multicut/perturb_and_map.cxx
+    #############################
+    # lifted -multicut
+    #############################
+    graph/lifted_multicut/lifted_multicut.cxx
+    graph/lifted_multicut/lifted_multicut_objective.cxx
+    graph/lifted_multicut/lifted_multicut_visitor_base.cxx
+    graph/lifted_multicut/lifted_multicut_base.cxx
+    graph/lifted_multicut/lifted_multicut_factory.cxx
+    graph/lifted_multicut/lifted_multicut_greedy_additive.cxx
+    graph/lifted_multicut/lifted_multicut_kernighan_lin.cxx
+    graph/lifted_multicut/lifted_multicut_ilp.cxx
 
+    graph/lifted_multicut/lifted_multicut_andres_kernighan_lin.cxx
+    graph/lifted_multicut/lifted_multicut_andres_greedy_additive.cxx
     #############################
     # tools
     #############################

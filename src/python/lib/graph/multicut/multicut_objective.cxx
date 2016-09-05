@@ -5,7 +5,7 @@
 
 #include "nifty/python/graph/undirected_list_graph.hxx"
 #include "nifty/python/graph/edge_contraction_graph.hxx"
-#include "nifty/python/graph/multicut/multicut_objective.hxx"
+#include "nifty/python/graph/optimization/multicut/multicut_objective.hxx"
 #include "nifty/python/converter.hxx"
 
 namespace py = pybind11;
@@ -21,24 +21,11 @@ namespace graph{
         typedef GRAPH Graph;
         typedef MulticutObjective<Graph, double> ObjectiveType;
         const auto clsName = MulticutObjectiveName<ObjectiveType>::name();
-        auto multicutObjectiveCls = py::class_<ObjectiveType>(multicutModule, clsName.c_str())
+
+        auto multicutObjectiveCls = py::class_<ObjectiveType>(multicutModule, clsName.c_str());
+        multicutObjectiveCls
             .def("evalNodeLabels",[](const ObjectiveType & objective,  nifty::marray::PyView<uint64_t> array){
-                const auto & g = objective.graph();
-                NIFTY_CHECK_OP(array.dimension(),==,1,"wrong dimensions");
-                NIFTY_CHECK_OP(array.shape(0),==,g.nodeIdUpperBound()+1,"wrong shape");
-
-
-                double sum = static_cast<double>(0.0);
-                const auto & w = objective.weights();
-                for(const auto edge: g.edges()){
-                    const auto uv = g.uv(edge);
-                    if(array(uv.first) != array(uv.second)){
-                        sum += w[edge];
-                    }
-                }
-                return sum;
-
-
+                return objective.evalNodeLabels(array);
             })
         ;
 
