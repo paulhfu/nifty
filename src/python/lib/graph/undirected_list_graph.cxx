@@ -6,6 +6,7 @@
 #include "nifty/graph/undirected_list_graph.hxx"
 
 #include "export_undirected_graph_class_api.hxx"
+#include "subgraph_return_type.hxx"
 #include "nifty/python/converter.hxx"
 
 namespace py = pybind11;
@@ -21,6 +22,8 @@ namespace graph{
         typedef UndirectedGraph<> Graph;
         const auto clsName = std::string("UndirectedGraph");
         auto undirectedGraphCls = py::class_<Graph>(graphModule, clsName.c_str());
+
+        exportSubgraphReturnType(graphModule);
 
         undirectedGraphCls
             .def(py::init<const uint64_t,const uint64_t>(),
@@ -68,6 +71,19 @@ namespace graph{
 
                     
                     g.deserialize(startPtr);
+                }
+            )
+            .def("extractSubgraphFromNodes",
+                []( Graph & g, const marray::PyView<int64_t,1> nodeList) {
+                    
+                    std::vector<int64_t> innerEdgesVec;  
+                    std::vector<int64_t> outerEdgesVec;  
+                    Graph subgraph;
+                    {
+                        py::gil_scoped_release allowThreads;
+                        subgraph = g.extractSubgraphFromNodes(nodeList, innerEdgesVec, outerEdgesVec);
+                    }
+                    return SubgraphReturnType(innerEdgesVec, outerEdgesVec, subgraph);
                 }
             )
         ;
