@@ -10,6 +10,8 @@ pybind11_add_module(_rag
     graph_accumulator.cxx
     project_to_pixels.cxx
     accumulate.cxx
+    accumulate_from_bounding_boxes.cxx
+    accumulate_from_filters.cxx
 )
 
 
@@ -27,6 +29,10 @@ endif()
 
 if(WITH_GLPK)
     target_link_libraries(_rag ${GLPK_LIBRARY})
+endif()
+
+if(WITH_FASTFILTERS)
+    target_link_libraries(_rag ${FASTFILTERS_LIBRARY})
 endif()
 
 

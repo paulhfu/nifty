@@ -68,7 +68,6 @@ namespace graph{
         );
 
         // from labels + serialization
-        // from labels
         ragModule.def(facName.c_str(),
             [](
                nifty::marray::PyView<LABELS, DIM>           labels,
@@ -142,6 +141,7 @@ namespace graph{
 
 
 
+        // from labels
         ragModule.def(facName.c_str(),
             [](
                 const LabelsProxyType & labelsProxy,
@@ -169,6 +169,55 @@ namespace graph{
             py::arg("labelsProxy"),
             py::arg_t< std::vector<int64_t>  >("blockShape", std::vector<int64_t>() ),
             py::arg_t< int >("numberOfThreads", -1 )
+        );
+        
+        
+        // from labels + bounding boxes
+        ragModule.def(facName.c_str(),
+            [](
+                const LabelsProxyType & labelsProxy,
+                std::vector<std::vector<int64_t>> startCoordinates,
+                std::vector<int64_t> blockShape,
+                const int numberOfThreads
+            ){
+                auto s = typename  GridRagType::Settings();
+                s.numberOfThreads = numberOfThreads;
+
+                auto ptr = new GridRagType(labelsProxy, startCoordinates, blockShape, s);
+                return ptr;
+            },
+            py::return_value_policy::take_ownership,
+            py::keep_alive<0, 1>(),
+            py::arg("labelsProxy"),
+            py::arg("startCoordinates"),
+            py::arg("blockShape"),
+            py::arg_t< int >("numberOfThreads", -1 )
+        );
+        
+
+        // from labels + serialization
+        ragModule.def(facName.c_str(),
+            [](
+                const LabelsProxyType & labelsProxy,
+               nifty::marray::PyView<uint64_t,   1, false>  serialization
+            ){
+                auto  startPtr = &serialization(0);
+                auto  lastElement = &serialization(serialization.size()-1);
+                auto d = lastElement - startPtr + 1;
+
+                NIFTY_CHECK_OP(d,==,serialization.size(), "serialization must be contiguous");
+
+
+                auto s = typename  GridRagType::Settings();
+                s.numberOfThreads = -1;
+
+                auto ptr = new GridRagType(labelsProxy, startPtr, s);
+                return ptr;
+            },
+            py::return_value_policy::take_ownership,
+            py::keep_alive<0, 1>(),
+            py::arg("labelsProxy"),
+            py::arg("serialization")
         );
 
     }
@@ -377,6 +426,9 @@ namespace graph{
         #ifdef WITH_HDF5
         exportHdf5GridRagT<2, uint32_t>(ragModule, "GridRagHdf5Labels2D", "gridRag2DHdf5");
         exportHdf5GridRagT<3, uint32_t>(ragModule, "GridRagHdf5Labels3D", "gridRag3DHdf5");
+        
+        exportHdf5GridRagT<2, uint64_t>(ragModule, "GridRagHdf5Labels2D", "gridRag2DHdf5");
+        exportHdf5GridRagT<3, uint64_t>(ragModule, "GridRagHdf5Labels3D", "gridRag3DHdf5");
        
         exportHdf5GridRagStacked2D<uint32_t>(ragModule, "GridRagStacked2DHdf5", "gridRagStacked2DHdf5Impl");
         #endif

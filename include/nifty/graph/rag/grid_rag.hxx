@@ -72,11 +72,24 @@ public:
     friend class detail_rag::ComputeRag< SelfType >;
 
 
+    // generate rag for the whole volume
     GridRag(const LabelsProxy & labelsProxy, const Settings & settings = Settings())
     :   settings_(settings),
         labelsProxy_(labelsProxy)
     {
         detail_rag::ComputeRag< SelfType >::computeRag(*this, settings_);
+    }
+    
+    // generate rag only for the bounding boxes
+    template<class COORD>
+    GridRag(const LabelsProxy & labelsProxy,
+            const std::vector<COORD> & startCoordinates,
+            const COORD & blockShape,
+            const Settings & settings = Settings())
+    :   settings_(settings),
+        labelsProxy_(labelsProxy)
+    {
+        detail_rag::ComputeRag< SelfType >::computeRag(*this, startCoordinates, blockShape, settings_);
     }
 
     template<class ITER>

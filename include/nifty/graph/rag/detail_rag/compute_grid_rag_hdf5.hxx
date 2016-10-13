@@ -130,6 +130,107 @@ struct ComputeRag< GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > > {
         rag.mergeAdjacencies(perThreadDataVec, threadpool);
 
     }
+
+    // TODO need to figure out how to best parallelize this
+    // FIXME unify COORD and Coord!
+    template<class S, class COORD>
+    static void computeRag(
+        GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > & rag,
+        const std::vector<COORD> & startCoordinates,
+        const COORD & blockShape,
+        const S & settings
+    ){
+
+        typedef array::StaticArray<int64_t, DIM> Coord;
+
+
+        const auto & labelsProxy = rag.labelsProxy();
+        const auto & shape = labelsProxy.shape();
+        
+
+        const auto numberOfLabels = labelsProxy.numberOfLabels();
+        rag.assign(numberOfLabels);
+
+
+        // single thread for debugging
+        //nifty::parallel::ParallelOptions pOpts(1);
+        nifty::parallel::ParallelOptions pOpts(settings.numberOfThreads);
+        nifty::parallel::ThreadPool threadpool(pOpts);
+        const auto nThreads = pOpts.getActualNumThreads();
+
+        // allocate / create data for each thread
+        Coord blockShapeWithBorder;
+        for(auto d=0; d<DIM; ++d){
+            blockShapeWithBorder[d] = std::min(blockShape[d]+1, shape[d]);
+        }
+        struct PerThreadData{
+            marray::Marray<LABEL_TYPE> blockLabels;
+            std::vector< container::BoostFlatSet<uint64_t> > adjacency;
+        };
+        std::vector<PerThreadData> perThreadDataVec(nThreads);
+        parallel::parallel_foreach(threadpool, nThreads, [&](const int tid, const int i){
+            perThreadDataVec[i].blockLabels.resize(blockShapeWithBorder.begin(), blockShapeWithBorder.end());
+            perThreadDataVec[i].adjacency.resize(numberOfLabels);
+        });
+        
+        
+        auto makeCoord2 = [](const Coord & coord,const size_t axis){
+            Coord coord2 = coord;
+            coord2[axis] += 1;
+            return coord2;
+        };
+
+
+        const Coord zeroCoord(0);
+        const size_t nBlocks = startCoordinates.size();
+        
+        parallel::parallel_foreach(threadpool, nBlocks,
+        [&](
+            const int tid, const int blockId
+        ){
+            //std::cout << tid << " " << blockId << std::endl;
+            auto blockLabels = perThreadDataVec[tid].blockLabels.view(zeroCoord.begin(), blockShapeWithBorder.begin());
+
+            Coord marrayShape;
+            Coord viewShape;
+            
+            Coord blockBegin;
+            Coord blockEnd;
+
+            for(auto d=0; d<DIM; ++d){
+                marrayShape[d] = perThreadDataVec[tid].blockLabels.shape(d);
+                viewShape[d] = blockLabels.shape(d);
+                
+                blockBegin[d] = startCoordinates[blockId][d];
+                blockEnd[d]   = startCoordinates[blockId][d] + blockShapeWithBorder[d];
+            }
+
+            //std::cout << "reading labels proxy" << std::endl;
+            labelsProxy.readSubarray(blockBegin, blockEnd, blockLabels);
+
+            auto & adjacency = perThreadDataVec[tid].adjacency;
+
+            nifty::tools::forEachCoordinate(blockShapeWithBorder,[&](const Coord & coord){
+                const auto lU = blockLabels(coord.asStdArray());
+                for(size_t axis=0; axis<DIM; ++axis){
+                    const auto coord2 = makeCoord2(coord, axis);
+                    if(coord2[axis] < blockShapeWithBorder[axis]){
+                        const auto lV = blockLabels(coord2.asStdArray());
+                        if(lU != lV){
+                            // FIXME this crashes for non-contiguous labels!
+                            adjacency[lV].insert(lU);
+                            adjacency[lU].insert(lV);
+                        }
+                    }
+                }
+            });
+        });
+
+        rag.mergeAdjacencies(perThreadDataVec, threadpool);
+
+    }
+
+
 };
 
 

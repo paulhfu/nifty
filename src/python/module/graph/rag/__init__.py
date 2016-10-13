@@ -35,7 +35,7 @@ def gridRag(labels, numberOfThreads=-1, serialization = None):
 
 if Configuration.WITH_HDF5:
 
-    def gridRagHdf5(labels, numberOfLabels, blockShape = None, numberOfThreads=-1):
+    def gridRagHdf5(labels, numberOfLabels, blockShape = None, numberOfThreads=-1, serialization=None):
 
         dim = labels.ndim
         if blockShape is None:
@@ -44,11 +44,34 @@ if Configuration.WITH_HDF5:
             bs = blockShape
 
         if dim == 2:
+            if serialization is None:
+                labelsProxy = gridRag2DHdf5LabelsProxy(labels, int(numberOfLabels))
+                ragGraph = gridRag2DHdf5(labelsProxy,bs,int(numberOfThreads))
+            else:
+                labelsProxy = gridRag2DHdf5LabelsProxy(labels, int(numberOfLabels))
+                ragGraph = gridRag2DHdf5(labelsProxy,serialization)
+        elif dim == 3:
+            if serialization is None:
+                labelsProxy = gridRag3DHdf5LabelsProxy(labels, int(numberOfLabels))
+                ragGraph = gridRag3DHdf5(labelsProxy,bs,int(numberOfThreads))
+            else:
+                labelsProxy = gridRag3DHdf5LabelsProxy(labels, int(numberOfLabels))
+                ragGraph = gridRag3DHdf5(labelsProxy,serialization)
+        else:
+            raise RuntimeError("gridRagHdf5 is only implemented for 2D and 3D not for %dD"%dim)
+
+        return ragGraph
+
+    def gridRagHdf5FromBoundingBoxes(labels, numberOfLabels, startCoordinates, blockShape, numberOfThreads=-1):
+
+        dim = labels.ndim
+
+        if dim == 2:
             labelsProxy = gridRag2DHdf5LabelsProxy(labels, int(numberOfLabels))
-            ragGraph = gridRag2DHdf5(labelsProxy,bs,int(numberOfThreads))
+            ragGraph = gridRag2DHdf5(labelsProxy,startCoordinates,blockShape,int(numberOfThreads))
         elif dim == 3:
             labelsProxy = gridRag3DHdf5LabelsProxy(labels, int(numberOfLabels))
-            ragGraph = gridRag3DHdf5(labelsProxy,bs,int(numberOfThreads))
+            ragGraph = gridRag3DHdf5(labelsProxy,startCoordinates,blockShape,int(numberOfThreads))
         else:
             raise RuntimeError("gridRagHdf5 is only implemented for 2D and 3D not for %dD"%dim)
 

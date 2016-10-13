@@ -19,6 +19,9 @@ namespace hdf5{
     template<class T>
     class Hdf5Array{
     public:
+        
+        typedef T DataType;
+
         template<class SHAPE_ITER, class CHUNK_SHAPE_ITER>
         Hdf5Array(
             const hid_t& groupHandle,
@@ -187,6 +190,8 @@ namespace hdf5{
                 &offset[0], NULL, &slabShape[0], NULL);
             if(status < 0) {
                 H5Sclose(dataspace);
+                std::cout << offset[0] << " " << offset[1] << " " << offset[2] << std::endl;
+                std::cout << slabShape[0] << " " << slabShape[1] << " " << slabShape[2] << std::endl;
                 throw std::runtime_error("Marray cannot select hyperslab. Check offset and shape !");
             }
 
@@ -387,7 +392,7 @@ namespace tools{
 
     template<class T, class COORD>
     inline void readSubarray(
-        const hdf5::Hdf5Array<T> array,
+        const hdf5::Hdf5Array<T> & array, // THIS NEEDS TO BE CALL BY REFERENCE
         const COORD & beginCoord,
         const COORD & endCoord,
         marray::View<T> & subarray

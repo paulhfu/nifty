@@ -143,14 +143,14 @@ namespace graph{
             nifty::marray::PyView<DATA_T, DIM> data,
             const double minVal,
             const double maxVal,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
             NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(11)});
             {
                 py::gil_scoped_release allowThreads;
-                accumulateNodeStandartFeatures(rag, data, minVal, maxVal, blocKShape, nodeOut, numberOfThreads);
+                accumulateNodeStandartFeatures(rag, data, minVal, maxVal, blockShape, nodeOut, numberOfThreads);
             }
             return nodeOut;
         },
@@ -173,14 +173,14 @@ namespace graph{
             nifty::marray::PyView<DATA_T, DIM> data,
             const double minVal,
             const double maxVal,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
             NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(11)});
             {
                 py::gil_scoped_release allowThreads;
-                accumulateEdgeStandartFeatures(rag, data, minVal, maxVal, blocKShape, edgeOut, numberOfThreads);
+                accumulateEdgeStandartFeatures(rag, data, minVal, maxVal, blockShape, edgeOut, numberOfThreads);
             }
             return edgeOut;
         },
@@ -252,4 +252,3 @@ namespace graph{
 
 } // end namespace graph
 } // end namespace nifty
-    
