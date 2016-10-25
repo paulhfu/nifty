@@ -5,6 +5,7 @@
 #include <mutex>
 
 #include "nifty/marray/marray.hxx"
+#include "nifty/parallel/threadpool.hxx"
 #include "fastfilters.h"
 
 namespace nifty{
@@ -42,6 +43,7 @@ namespace detail_fastfilters {
 
     
     // adapted from fastfilters/python/core.hxx, convert_py2ff
+    // for float input
     template <typename fastfilters_array_t>
     void convertMarray2ff(const marray::View<float> & array, fastfilters_array_t & ff) {
         
@@ -109,6 +111,7 @@ namespace detail_fastfilters {
 
     struct GaussianSmoothing : FilterBase {
         
+        // TODO in the long run, we should change that, s.t. the ff array is not exposed here
         void inline operator()(const fastfilters_array2d_t & ff, marray::View<float> & out, const  double sigma) const {
             fastfilters_array2d_t ff_out;
             detail_fastfilters::convertMarray2ff(out, ff_out);
@@ -319,7 +322,8 @@ namespace detail_fastfilters {
         ApplyFilters(const std::vector<double> & sigmas, const std::vector<FilterBase*> & filters) : sigmas_(sigmas), filters_(filters) {
         }
         
-        void operator()(const marray::View<float> & in, marray::View<float> & out) const{
+        // TODO implement in parallel
+        void operator()(const marray::View<float> & in, marray::View<float> & out, const bool parallel = false) const{
     
             NIFTY_CHECK_OP(in.dimension(),==,2,"Input needs to be 2 dimensional.")
             NIFTY_CHECK_OP(out.shape(0),==,numberOfChannels(),"Number of Channels of out Array do not match!")
@@ -376,8 +380,8 @@ namespace detail_fastfilters {
             NIFTY_CHECK_OP(out.shape(2),==,in.shape(1),"y-axis does not agree")
             NIFTY_CHECK_OP(out.shape(3),==,in.shape(2),"x-axis does not agree")
 
-            const size_t shapeSingleChannel[] = {1, out.shape(0), out.shape(1), out.shape(3)};
-            const size_t shapeMultiChannel[]  = {3, out.shape(0), out.shape(1), out.shape(3)};
+            const size_t shapeSingleChannel[] = {1, out.shape(1), out.shape(2), out.shape(3)};
+            const size_t shapeMultiChannel[]  = {3, out.shape(1), out.shape(2), out.shape(3)};
             
             FastfiltersArrayType ff;
             detail_fastfilters::convertMarray2ff(in, ff);
@@ -395,6 +399,45 @@ namespace detail_fastfilters {
                 }
             }
         }
+
+        //void applyInParallel(const marray::View<float> & in, marray::View<float> & out, threadpool & pool) const{
+
+        //    NIFTY_CHECK_OP(in.dimension(),==,3,"Input needs to be 3 dimensional.")
+        //    NIFTY_CHECK_OP(out.shape(0),==,numberOfChannels(),"Number of Channels of out Array do not match!")
+        //    NIFTY_CHECK_OP(out.shape(1),==,in.shape(0),"z-axis does not agree")
+        //    NIFTY_CHECK_OP(out.shape(2),==,in.shape(1),"y-axis does not agree")
+        //    NIFTY_CHECK_OP(out.shape(3),==,in.shape(2),"x-axis does not agree")
+
+        //    const size_t shapeSingleChannel[] = {1, out.shape(1), out.shape(2), out.shape(3)};
+        //    const size_t shapeMultiChannel[]  = {3, out.shape(1), out.shape(2), out.shape(3)};
+        //    
+        //    FastfiltersArrayType ff;
+        //    detail_fastfilters::convertMarray2ff(in, ff);
+
+        //    size_t base[] = {0,0,0,0};
+        //    
+        //    std::vector< std::pair<FilterBase*,double> > filtersAndSigmas;
+        //    for( auto filter : filters_ ) {
+        //        for( auto sigma : sigmas_) {
+        //            filtersAndSigmas.push_back(std::make_pair(filter,sigma));
+        //        }
+        //    }
+
+        //    parallel::parallel_foreach( pool, filtersAndSimgas.size(),
+        //        [&](int tid, int fid) {
+
+        //            auto filter = filtersAndSigmas[fid].first;
+        //            auto sigma  = filtersAndSigmas[fid].second;
+
+        //            size_t nChannels = filter->isMultiChannel() ? 3 : 1;
+        //            const auto & shapeView = filter->isMultiChannel() ? shapeMultiChannel : shapeSingleChannel;
+        //            auto view = out.view(base, shapeView);
+        //            view.squeeze();
+        //            (*filter)(ff, view, sigma);
+        //            base[0] += nChannels;
+        //        }
+        //    }
+        //}
 
         size_t numberOfChannels() const {
             size_t numberOfChannels = 0;

@@ -25,18 +25,16 @@ namespace graph{
         const AccOptions & accOptions = AccOptions()
     ){
 
-        typedef LABELS_PROXY LabelsProxyType;
         typedef typename vigra::MultiArrayShape<DIM>::type   VigraCoord;
-        typedef typename LabelsProxyType::BlockStorageType LabelBlockStorage;
-        typedef typename tools::BlockStorageSelector<DATA>::type DataBlocKStorage;
+        typedef LABELS_PROXY LabelsProxyType;
+        typedef typename LabelsProxyType::LabelType LabelType;
+        typedef typename DATA::DataType DataType;
 
         typedef array::StaticArray<int64_t, DIM> Coord;
         typedef EDGE_ACC_CHAIN EdgeAccChainType;
         typedef std::vector<EdgeAccChainType> EdgeAccChainVectorType; 
 
-
         const size_t actualNumberOfThreads = pOpts.getActualNumThreads();
-
 
         const auto & shape = rag.shape();
 
@@ -47,7 +45,6 @@ namespace graph{
         [&](const int tid, const int64_t i){
             perThreadEdgeAccChainVector[i] = new EdgeAccChainVectorType(rag.edgeIdUpperBound()+1);
         });
-
 
         const auto passesRequired = (*perThreadEdgeAccChainVector.front()).front().passesRequired();
 
@@ -71,26 +68,17 @@ namespace graph{
         }
         
         const size_t nBlocks = startCoordinates.size();
+        marray::Marray<LabelType> labelsBlockView(blockShapeWithBorder.begin(),blockShapeWithBorder.end());
+        marray::Marray<DataType> dataBlockView(blockShapeWithBorder.begin(),blockShapeWithBorder.end());
 
         // do N passes of accumulator
         for(auto pass=1; pass <= passesRequired; ++pass){
 
-            // LOOP IN PARALLEL OVER ALL BLOCKS WITH A CERTAIN OVERLAP
-            LabelBlockStorage labelsBlockStorage(threadpool, blockShapeWithBorder, actualNumberOfThreads);
-            DataBlocKStorage dataBlocKStorage(threadpool, blockShapeWithBorder, actualNumberOfThreads);
-            
-            parallel::parallel_foreach(threadpool, nBlocks,
-            [&](
-                const int tid, const int blockId
-            ){
+            std::cout << "Pass: " << pass << std::endl;
 
-                // get the accumulator vector for this thread
-                auto & accVec = *(perThreadEdgeAccChainVector[tid]);
+            for(size_t blockId = 0; blockId < nBlocks; blockId++ ) {
+                std::cout << "Block: " << blockId << std::endl;
 
-                // read the labels block and the data block
-                auto labelsBlockView = labelsBlockStorage.getView(blockShapeWithBorder, tid);
-                auto dataBlockView = dataBlocKStorage.getView(blockShapeWithBorder, tid);
-                
                 Coord blockBegin;
                 Coord blockEnd;
 
@@ -98,39 +86,69 @@ namespace graph{
                     blockBegin[d] = startCoordinates[blockId][d];
                     blockEnd[d]   = startCoordinates[blockId][d] + blockShapeWithBorder[d];
                 }
+                
+                // need to try catch in case of violating overlaps
+                bool overlapViolates = false;
+                try { 
+                    tools::readSubarray(rag.labelsProxy(), blockBegin, blockEnd, labelsBlockView);
+                    tools::readSubarray(data, blockBegin, blockEnd, dataBlockView);
+                }
+                catch (const std::runtime_error & e) {
+                    std::cout << "Overlap violating and reduced" << std::endl;
+                    overlapViolates = true;
+                    for(auto d=0; d<DIM; ++d) {
+                        blockEnd[d] -= 1;
+                        blockShapeWithBorder[d] -= 1;
+                    }
+                    labelsBlockView.resize(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                    dataBlockView.resize(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                    tools::readSubarray(rag.labelsProxy(), blockBegin, blockEnd, labelsBlockView);
+                    tools::readSubarray(data, blockBegin, blockEnd, dataBlockView);
+                }
 
-                tools::readSubarray(rag.labelsProxy(), blockBegin, blockEnd, labelsBlockView);
-                tools::readSubarray(data, blockBegin, blockEnd, dataBlockView);
+                nifty::tools::parallelForEachCoordinate(
+                    threadpool,
+                    blockShapeWithBorder,
+                    [&](int tid, const Coord & coordU) {
+                    
+                        // get the accumulator vector for this thread
+                        auto & accVec = *(perThreadEdgeAccChainVector[tid]);
 
-                // loop over all coordinates in block
-                nifty::tools::forEachCoordinate(blockShapeWithBorder,[&](const Coord & coordU){
-                    const auto lU = labelsBlockView(coordU.asStdArray());
-                    for(size_t axis=0; axis<DIM; ++axis){
-                        auto coordV = makeCoord2(coordU, axis);
-                        if(coordV[axis] < blockShapeWithBorder[axis]){
-                            const auto lV = labelsBlockView(coordV.asStdArray());
-                            if(lU != lV){
-                                const auto edge = rag.findEdge(lU,lV);
+                        const auto lU = labelsBlockView(coordU.asStdArray());
+                        for(size_t axis=0; axis<DIM; ++axis){
+                            auto coordV = makeCoord2(coordU, axis);
+                            if(coordV[axis] < blockShapeWithBorder[axis]){
+                                const auto lV = labelsBlockView(coordV.asStdArray());
+                                if(lU != lV){
+                                    const auto edge = rag.findEdge(lU,lV);
 
-                                const auto dataU = dataBlockView(coordU.asStdArray());
-                                const auto dataV = dataBlockView(coordV.asStdArray());
+                                    const auto dataU = dataBlockView(coordU.asStdArray());
+                                    const auto dataV = dataBlockView(coordV.asStdArray());
 
-                                
-                                VigraCoord vigraCoordU;
-                                VigraCoord vigraCoordV;
+                                    
+                                    VigraCoord vigraCoordU;
+                                    VigraCoord vigraCoordV;
 
-                                for(size_t d=0; d<DIM; ++d){
-                                    vigraCoordU[d] = coordU[d];
-                                    vigraCoordV[d] = coordV[d];
+                                    for(size_t d=0; d<DIM; ++d){
+                                        vigraCoordU[d] = coordU[d];
+                                        vigraCoordV[d] = coordV[d];
+                                    }
+
+                                    accVec[edge].updatePassN(dataU, vigraCoordU, pass);
+                                    accVec[edge].updatePassN(dataV, vigraCoordV, pass);
                                 }
-
-                                accVec[edge].updatePassN(dataU, vigraCoordU, pass);
-                                accVec[edge].updatePassN(dataV, vigraCoordV, pass);
                             }
                         }
-                    }
                 });
-            });
+                
+                // reset shape and marray if overlap was violating
+                if(overlapViolates) {
+                    for(auto d=0; d<DIM; ++d)
+                        blockShapeWithBorder[d] += 1;
+                    labelsBlockView.resize(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                    dataBlockView.resize(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                }
+            }
         }
 
         auto & resultAccVec = *(perThreadEdgeAccChainVector.front());
@@ -169,11 +187,10 @@ namespace graph{
         F && f,
         const AccOptions & accOptions = AccOptions()
     ){
-
-        typedef LABELS_PROXY LabelsProxyType;
         typedef typename vigra::MultiArrayShape<DIM>::type   VigraCoord;
-        typedef typename LabelsProxyType::BlockStorageType LabelBlockStorage;
-        typedef typename tools::BlockStorageSelector<DATA>::type DataBlocKStorage;
+        typedef LABELS_PROXY LabelsProxyType;
+        typedef typename LabelsProxyType::LabelType LabelType;
+        typedef typename DATA::DataType DataType;
 
         typedef array::StaticArray<int64_t, DIM> Coord;
 
@@ -182,11 +199,7 @@ namespace graph{
 
         const size_t actualNumberOfThreads = pOpts.getActualNumThreads();
 
-        typedef typename DATA::DataType DataType;
-
-
         const auto & shape = rag.shape();
-
 
         std::vector< NodeAccChainVectorType * > perThreadNodeAccChainVector(actualNumberOfThreads);
 
@@ -195,20 +208,18 @@ namespace graph{
             perThreadNodeAccChainVector[i] = new NodeAccChainVectorType(rag.nodeIdUpperBound()+1);
         });
 
-
         const auto numberOfPasses = (*perThreadNodeAccChainVector.front()).front().passesRequired();
 
         if(accOptions.setMinMax){
             parallel::parallel_foreach(threadpool, actualNumberOfThreads,
             [&](int tid, int i){
+                vigra::HistogramOptions histogram_opt;
+                histogram_opt = histogram_opt.setMinMax(accOptions.minVal, accOptions.maxVal); 
 
-                    vigra::HistogramOptions histogram_opt;
-                    histogram_opt = histogram_opt.setMinMax(accOptions.minVal, accOptions.maxVal); 
-
-                    auto & nodeAccVec = *(perThreadNodeAccChainVector[i]);
-                    for(auto & nodeAcc : nodeAccVec){
-                        nodeAcc.setHistogramOptions(histogram_opt);
-                    }
+                auto & nodeAccVec = *(perThreadNodeAccChainVector[i]);
+                for(auto & nodeAcc : nodeAccVec){
+                    nodeAcc.setHistogramOptions(histogram_opt);
+                }
             });
         }
         
@@ -218,29 +229,17 @@ namespace graph{
         }
         
         const size_t nBlocks = startCoordinates.size();
+        marray::Marray<LabelType> labelsBlockView(blockShapeWithBorder.begin(),blockShapeWithBorder.end());
+        marray::Marray<DataType> dataBlockView(blockShapeWithBorder.begin(),blockShapeWithBorder.end());
 
         // do N passes of accumulator
         for(auto pass=1; pass <= numberOfPasses; ++pass){
 
             std::cout << "Pass: " << pass << std::endl;
 
-            // LOOP IN PARALLEL OVER ALL BLOCKS WITH A CERTAIN OVERLAP
-            LabelBlockStorage labelsBlockStorage(threadpool, blockShapeWithBorder, actualNumberOfThreads);
-            DataBlocKStorage dataBlocKStorage(threadpool, blockShapeWithBorder, actualNumberOfThreads);
+            for(size_t blockId = 0; blockId < nBlocks; blockId++ ) {
+                std::cout << "Block: " << blockId << std::endl;
 
-            parallel::parallel_foreach(threadpool, nBlocks,
-            [&](
-                const int tid, const int blockId
-            ){
-
-                // get the accumulator vector for this thread
-                auto & nodeAccVec = *(perThreadNodeAccChainVector[tid]);
- 
-                // read the labels block and the data block
-                auto labelsBlockView = labelsBlockStorage.getView(blockShapeWithBorder, tid);
-                auto dataBlockView = dataBlocKStorage.getView(blockShapeWithBorder, tid);
-                //nifty::marray::Marray<DataType> dataBlockView(blockShapeWithBorder, blockShapeWithBorder+3);
-                
                 Coord blockBegin;
                 Coord blockEnd;
 
@@ -249,22 +248,51 @@ namespace graph{
                     blockEnd[d]   = startCoordinates[blockId][d] + blockShapeWithBorder[d];
                 }
 
-                tools::readSubarray(rag.labelsProxy(), blockBegin, blockEnd, labelsBlockView);
-                tools::readSubarray(data, blockBegin, blockEnd, dataBlockView);
+                // need to try catch in case of violating overlaps
+                bool overlapViolates = false;
+                try { 
+                    tools::readSubarray(rag.labelsProxy(), blockBegin, blockEnd, labelsBlockView);
+                    tools::readSubarray(data, blockBegin, blockEnd, dataBlockView);
+                }
+                catch (const std::runtime_error & e) {
+                    std::cout << "Overlap violating and reduced" << std::endl;
+                    overlapViolates = true;
+                    for(auto d=0; d<DIM; ++d) {
+                        blockEnd[d] -= 1;
+                        blockShapeWithBorder[d] -= 1;
+                    }
+                    labelsBlockView = marray::Marray<LabelType>(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                    dataBlockView = marray::Marray<DataType>(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                    tools::readSubarray(rag.labelsProxy(), blockBegin, blockEnd, labelsBlockView);
+                    tools::readSubarray(data, blockBegin, blockEnd, dataBlockView);
+                }
 
-                // loop over all coordinates in block
-                nifty::tools::forEachCoordinate(blockShapeWithBorder,[&](const Coord & coordU){
+                nifty::tools::parallelForEachCoordinate(
+                    threadpool,
+                    blockShapeWithBorder,
+                    [&](int tid, const Coord & coordU) {
+                        
+                        // get the accumulator vector for this thread
+                        auto & nodeAccVec = *(perThreadNodeAccChainVector[tid]);
 
-                    const auto lU = labelsBlockView(coordU.asStdArray());
-                    const auto dataU = dataBlockView(coordU.asStdArray());
-                    
-                    VigraCoord vigraCoordU;
-                    for(size_t d=0; d<DIM; ++d)
-                        vigraCoordU[d] = coordU[d] + blockBegin[d];
+                        const auto lU = labelsBlockView(coordU.asStdArray());
+                        const auto dataU = dataBlockView(coordU.asStdArray());
+                        
+                        VigraCoord vigraCoordU;
+                        for(size_t d=0; d<DIM; ++d)
+                            vigraCoordU[d] = coordU[d] + blockBegin[d];
 
-                    nodeAccVec[lU].updatePassN(dataU, vigraCoordU, pass);
+                        nodeAccVec[lU].updatePassN(dataU, vigraCoordU, pass);
                 });
-            });
+                
+                // reset shape and marray if overlap was violating
+                if(overlapViolates) {
+                    for(auto d=0; d<DIM; ++d)
+                        blockShapeWithBorder[d] += 1;
+                    labelsBlockView = marray::Marray<LabelType>(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                    dataBlockView = marray::Marray<DataType>(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                }
+            }
         }
 
         auto & nodeResultAccVec = *perThreadNodeAccChainVector.front();

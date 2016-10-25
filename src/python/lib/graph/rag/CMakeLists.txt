@@ -12,6 +12,7 @@ pybind11_add_module(_rag
     accumulate.cxx
     accumulate_from_bounding_boxes.cxx
     accumulate_from_filters.cxx
+    edge_coordinates.cxx
 )
 
 

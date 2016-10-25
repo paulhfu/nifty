@@ -15,6 +15,7 @@ namespace graph{
     void exportAccumulate(py::module &);
     void exportAccumulateFromBoundingBoxes(py::module &);
     void exportAccumulateFilters(py::module &);
+    void exportEdgeCoordinates(py::module &);
 
 }
 }
@@ -33,6 +34,7 @@ PYBIND11_PLUGIN(_rag) {
     #ifdef WITH_FASTFILTERS
     exportAccumulateFilters(ragModule);
     #endif
+    exportEdgeCoordinates(ragModule);
 
     return ragModule.ptr();
 }

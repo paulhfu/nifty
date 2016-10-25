@@ -143,14 +143,20 @@ namespace graph{
             nifty::marray::PyView<DATA_T, DIM> data,
             const double minVal,
             const double maxVal,
+            const bool onePass,
             array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(11)});
-            {
+            size_t nFeatures = onePass ? 9 : 11;
+            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(nFeatures)});
+            if(onePass) {
                 py::gil_scoped_release allowThreads;
-                accumulateNodeStandartFeatures(rag, data, minVal, maxVal, blockShape, nodeOut, numberOfThreads);
+                accumulateNodeStandartFeaturesOnePass(rag, data, minVal, maxVal, blockShape, nodeOut, numberOfThreads);
+            }
+            else {
+                py::gil_scoped_release allowThreads;
+                accumulateNodeStandartFeaturesTwoPass(rag, data, minVal, maxVal, blockShape, nodeOut, numberOfThreads);
             }
             return nodeOut;
         },
@@ -158,6 +164,7 @@ namespace graph{
         py::arg("data"),
         py::arg("minVal"),
         py::arg("maxVal"),
+        py::arg("onePass")=true,
         py::arg("blockShape") = array::StaticArray<int64_t,DIM>(100),
         py::arg("numberOfThreads")= -1
         );
@@ -173,14 +180,20 @@ namespace graph{
             nifty::marray::PyView<DATA_T, DIM> data,
             const double minVal,
             const double maxVal,
+            const bool onePass,
             array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
-            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(11)});
-            {
+            size_t nFeatures = onePass ? 9 : 11;
+            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(nFeatures)});
+            if(onePass) {
                 py::gil_scoped_release allowThreads;
-                accumulateEdgeStandartFeatures(rag, data, minVal, maxVal, blockShape, edgeOut, numberOfThreads);
+                accumulateEdgeStandartFeaturesOnePass(rag, data, minVal, maxVal, blockShape, edgeOut, numberOfThreads);
+            } 
+            else {
+                py::gil_scoped_release allowThreads;
+                accumulateEdgeStandartFeaturesTwoPass(rag, data, minVal, maxVal, blockShape, edgeOut, numberOfThreads);
             }
             return edgeOut;
         },
@@ -188,6 +201,7 @@ namespace graph{
         py::arg("data"),
         py::arg("minVal"),
         py::arg("maxVal"),
+        py::arg("onePass")=true,
         py::arg("blockShape") = array::StaticArray<int64_t,DIM>(100),
         py::arg("numberOfThreads")= -1
         );

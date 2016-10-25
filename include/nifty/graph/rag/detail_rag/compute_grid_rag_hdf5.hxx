@@ -143,6 +143,7 @@ struct ComputeRag< GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > > {
 
         typedef array::StaticArray<int64_t, DIM> Coord;
 
+        typedef LABEL_TYPE LabelType;
 
         const auto & labelsProxy = rag.labelsProxy();
         const auto & shape = labelsProxy.shape();
@@ -163,13 +164,13 @@ struct ComputeRag< GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > > {
         for(auto d=0; d<DIM; ++d){
             blockShapeWithBorder[d] = std::min(blockShape[d]+1, shape[d]);
         }
+        
         struct PerThreadData{
-            marray::Marray<LABEL_TYPE> blockLabels;
             std::vector< container::BoostFlatSet<uint64_t> > adjacency;
         };
         std::vector<PerThreadData> perThreadDataVec(nThreads);
+        
         parallel::parallel_foreach(threadpool, nThreads, [&](const int tid, const int i){
-            perThreadDataVec[i].blockLabels.resize(blockShapeWithBorder.begin(), blockShapeWithBorder.end());
             perThreadDataVec[i].adjacency.resize(numberOfLabels);
         });
         
@@ -180,51 +181,66 @@ struct ComputeRag< GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > > {
             return coord2;
         };
 
-
-        const Coord zeroCoord(0);
         const size_t nBlocks = startCoordinates.size();
-        
-        parallel::parallel_foreach(threadpool, nBlocks,
-        [&](
-            const int tid, const int blockId
-        ){
-            //std::cout << tid << " " << blockId << std::endl;
-            auto blockLabels = perThreadDataVec[tid].blockLabels.view(zeroCoord.begin(), blockShapeWithBorder.begin());
 
-            Coord marrayShape;
-            Coord viewShape;
-            
+        marray::Marray<LabelType> blockLabels(blockShapeWithBorder.begin(),blockShapeWithBorder.end());
+        
+        for(size_t blockId = 0; blockId < nBlocks; blockId++ ) {
+            std::cout << "Block: " << blockId << std::endl;
+
             Coord blockBegin;
             Coord blockEnd;
 
             for(auto d=0; d<DIM; ++d){
-                marrayShape[d] = perThreadDataVec[tid].blockLabels.shape(d);
-                viewShape[d] = blockLabels.shape(d);
-                
                 blockBegin[d] = startCoordinates[blockId][d];
                 blockEnd[d]   = startCoordinates[blockId][d] + blockShapeWithBorder[d];
             }
 
-            //std::cout << "reading labels proxy" << std::endl;
-            labelsProxy.readSubarray(blockBegin, blockEnd, blockLabels);
+            // need to try catch in case of violating overlaps
+            bool overlapViolates = false;
+            try { 
+                labelsProxy.readSubarray(blockBegin, blockEnd, blockLabels);
+            }
+            catch (const std::runtime_error & e) {
+                std::cout << "Overlap violating and reduced" << std::endl;
+                overlapViolates = true;
+                for(auto d=0; d<DIM; ++d) {
+                    blockEnd[d] -= 1;
+                    blockShapeWithBorder[d] -= 1;
+                }
+                blockLabels = marray::Marray<LabelType>(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+                labelsProxy.readSubarray(blockBegin, blockEnd, blockLabels);
+            }
 
-            auto & adjacency = perThreadDataVec[tid].adjacency;
+            nifty::tools::parallelForEachCoordinate(
+                threadpool,
+                blockShapeWithBorder,
+                [&](int tid, const Coord & coord) {
 
-            nifty::tools::forEachCoordinate(blockShapeWithBorder,[&](const Coord & coord){
-                const auto lU = blockLabels(coord.asStdArray());
-                for(size_t axis=0; axis<DIM; ++axis){
-                    const auto coord2 = makeCoord2(coord, axis);
-                    if(coord2[axis] < blockShapeWithBorder[axis]){
-                        const auto lV = blockLabels(coord2.asStdArray());
-                        if(lU != lV){
-                            // FIXME this crashes for non-contiguous labels!
-                            adjacency[lV].insert(lU);
-                            adjacency[lU].insert(lV);
+                    auto & adjacency = perThreadDataVec[tid].adjacency;
+                    
+                    const auto lU = blockLabels(coord.asStdArray());
+                    
+                    for(size_t axis=0; axis<DIM; ++axis){
+                        const auto coord2 = makeCoord2(coord, axis);
+                        if(coord2[axis] < blockShapeWithBorder[axis]){
+                            const auto lV = blockLabels(coord2.asStdArray());
+                            if(lU != lV){
+                                // FIXME this crashes for non-contiguous labels!
+                                adjacency[lV].insert(lU);
+                                adjacency[lU].insert(lV);
+                            }
                         }
                     }
-                }
             });
-        });
+            
+            // reset shape and marray if overlap was violating
+            if(overlapViolates) {
+                for(auto d=0; d<DIM; ++d)
+                    blockShapeWithBorder[d] += 1;
+                blockLabels = marray::Marray<LabelType>(blockShapeWithBorder.begin(),blockShapeWithBorder.end());  
+            }
+        }
 
         rag.mergeAdjacencies(perThreadDataVec, threadpool);
 

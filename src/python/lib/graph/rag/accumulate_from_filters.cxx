@@ -38,19 +38,15 @@ namespace graph{
             const int numberOfThreads
         ){
             typedef typename DATA::DataType DataType;
-            typedef nifty::marray::PyView<DataType> NumpyArrayType;
+            typedef nifty::marray::PyView<float> NumpyArrayType;
             size_t nStats = onePass ? 9 : 11;
             size_t nChannels = (DIM==2) ? 12 : 15;
             auto nFeatures = nStats * nChannels;
             NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(nFeatures)});
-            if(onePass) {
-                std::cout << "OnePass Features from filters" << std::endl;
+            {
+                std::cout << "Features from filters" << std::endl;
                 py::gil_scoped_release allowThreads;
-                accumulateEdgeStandartFeaturesOnePass(rag, data, startCoordinates, blockShape, edgeOut, numberOfThreads);
-            }
-            else {
-                py::gil_scoped_release allowThreads;
-                accumulateEdgeStandartFeaturesTwoPass(rag, data, startCoordinates, blockShape, edgeOut, numberOfThreads);
+                accumulateEdgeFeaturesOverFilters(rag, data, startCoordinates, blockShape, edgeOut, numberOfThreads, onePass);
             }
             return edgeOut;
         },
@@ -77,9 +73,9 @@ namespace graph{
             typedef hdf5::Hdf5Array<uint8_t> UInt8Array;
             
             exportAccumulateEdgeStandartFeaturesFromFilters<3, Hdf5Rag3dUInt32, FloatArray>(ragModule);
-            //exportAccumulateEdgeStandartFeaturesFromFilters<3, Hdf5Rag3dUInt32, UInt8Array>(ragModule);
+            exportAccumulateEdgeStandartFeaturesFromFilters<3, Hdf5Rag3dUInt32, UInt8Array>(ragModule);
             exportAccumulateEdgeStandartFeaturesFromFilters<3, Hdf5Rag3dUInt64, FloatArray>(ragModule);
-            //exportAccumulateEdgeStandartFeaturesFromFilters<3, Hdf5Rag3dUInt64, UInt8Array>(ragModule);
+            exportAccumulateEdgeStandartFeaturesFromFilters<3, Hdf5Rag3dUInt64, UInt8Array>(ragModule);
             #endif
         }
     }

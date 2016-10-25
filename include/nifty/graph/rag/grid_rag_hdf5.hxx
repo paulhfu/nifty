@@ -10,6 +10,9 @@
 namespace nifty{
 namespace graph{
 
+template<unsigned int DIM, class LABEL_TYPE>
+using Hdf5LabelsGridRag = GridRag<DIM, Hdf5Labels<DIM, LABEL_TYPE> >; 
+
 
 } // end namespace graph
 } // end namespace nifty

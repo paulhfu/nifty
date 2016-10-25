@@ -468,7 +468,7 @@ extractSubgraphFromNodes(
                 outerEdgesOut.push_back(e);
         }
     }
-    
+
     // make the edges unique
     std::sort(innerEdgesOut.begin(),innerEdgesOut.end());
     auto last = std::unique(innerEdgesOut.begin(), innerEdgesOut.end());
@@ -479,7 +479,8 @@ extractSubgraphFromNodes(
     outerEdgesOut.erase( last, outerEdgesOut.end() );
     
     // get number of nodes
-    uint64_t numberOfNodes = nodeList.size();
+    //uint64_t numberOfNodes = nodeList.size();
+    uint64_t numberOfNodes = *std::max_element(nodeList.begin(),nodeList.end())+1;
     UndirectedGraph<EdgeInternalType,NodeInteralType> subgraphOut(numberOfNodes);
 
     // get the local uv - ids

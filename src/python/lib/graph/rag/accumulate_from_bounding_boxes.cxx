@@ -36,8 +36,7 @@ namespace graph{
             const bool onePass,
             const int numberOfThreads
         ){
-            typedef typename DATA::DataType DataType;
-            typedef nifty::marray::PyView<DataType> NumpyArrayType;
+            typedef nifty::marray::PyView<float> NumpyArrayType;
             auto nFeatures = onePass ? 9 : 11;
             NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(nFeatures)});
             if(onePass) {
@@ -76,8 +75,7 @@ namespace graph{
             const bool onePass,
             const int numberOfThreads
         ){
-            typedef typename DATA::DataType DataType;
-            typedef nifty::marray::PyView<DataType> NumpyArrayType;
+            typedef nifty::marray::PyView<float> NumpyArrayType;
             auto nFeatures = onePass ? 9 : 11;
             NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(nFeatures)});
             if(onePass) {

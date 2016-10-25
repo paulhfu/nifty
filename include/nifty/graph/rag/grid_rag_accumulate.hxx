@@ -875,7 +875,7 @@ namespace graph{
 
     // 11 features
     template<size_t DIM, class LABELS_PROXY, class DATA, class FEATURE_TYPE>
-    void accumulateEdgeStandartFeatures(
+    void accumulateEdgeStandartFeaturesTwoPass(
         const GridRag<DIM, LABELS_PROXY> & rag,
         const DATA & data,
         const double minVal,
@@ -888,7 +888,7 @@ namespace graph{
         typedef FEATURE_TYPE DataType;
 
 
-        typedef acc::UserRangeHistogram<40>            SomeHistogram;   //binCount set at compile time
+        typedef acc::AutoRangeHistogram<40>            SomeHistogram;   //binCount set at compile time
         typedef acc::StandardQuantiles<SomeHistogram > Quantiles;
 
 
@@ -932,14 +932,75 @@ namespace graph{
                         edgeFeaturesOut(edge, 4+qi) = replaceIfNotFinite(quantiles[qi], mean);
                 }); 
             },
+            AccOptions(minVal,maxVal)
+        );
+
+    }
+    
+    
+    // 9 features
+    template<size_t DIM, class LABELS_PROXY, class DATA, class FEATURE_TYPE>
+    void accumulateEdgeStandartFeaturesOnePass(
+        const GridRag<DIM, LABELS_PROXY> & rag,
+        const DATA & data,
+        const double minVal,
+        const double maxVal,
+        const array::StaticArray<int64_t, DIM> & blockShape,
+        marray::View<FEATURE_TYPE> & edgeFeaturesOut,
+        const int numberOfThreads = -1
+    ){
+        namespace acc = vigra::acc;
+        typedef FEATURE_TYPE DataType;
+
+
+        typedef acc::UserRangeHistogram<40>            SomeHistogram;   //binCount set at compile time
+        typedef acc::StandardQuantiles<SomeHistogram > Quantiles;
+
+
+        typedef acc::Select<
+            acc::DataArg<1>,
+            acc::Mean,        //1
+            acc::Variance,    //1
+            Quantiles         //7
+        > SelectType;
+        typedef acc::StandAloneAccumulatorChain<DIM, DataType, SelectType> AccChainType;
+
+        // threadpool
+        nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+        nifty::parallel::ThreadPool threadpool(pOpts);
+        const size_t actualNumberOfThreads = pOpts.getActualNumThreads();
+
+        accumulateEdgeFeaturesWithAccChain<AccChainType>(
+            rag,
+            data,
+            blockShape,
+            pOpts,
+            threadpool,
+            [&](
+                const std::vector<AccChainType> & edgeAccChainVec
+            ){
+                using namespace vigra::acc;
+
+                parallel::parallel_foreach(threadpool, edgeAccChainVec.size(),[&](
+                    const int tid, const int64_t edge
+                ){
+                    const auto & chain = edgeAccChainVec[edge];
+                    const auto mean = get<acc::Mean>(chain);
+                    const auto quantiles = get<Quantiles>(chain);
+                    edgeFeaturesOut(edge, 0) = replaceIfNotFinite(mean,     0.0);
+                    edgeFeaturesOut(edge, 1) = replaceIfNotFinite(get<acc::Variance>(chain), 0.0);
+                    for(auto qi=0; qi<7; ++qi)
+                        edgeFeaturesOut(edge, 2+qi) = replaceIfNotFinite(quantiles[qi], mean);
+                }); 
+            },
             AccOptions(minVal, maxVal)
         );
 
     }
 
-
+    // 11 features
     template<size_t DIM, class LABELS_PROXY, class DATA, class FEATURE_TYPE>
-    void accumulateNodeStandartFeatures(
+    void accumulateNodeStandartFeaturesTwoPass(
         const GridRag<DIM, LABELS_PROXY> & rag,
         const DATA & data,
         const double minVal,
@@ -952,7 +1013,7 @@ namespace graph{
         typedef FEATURE_TYPE DataType;
 
 
-        typedef acc::UserRangeHistogram<40>            SomeHistogram;   //binCount set at compile time
+        typedef acc::AutoRangeHistogram<40>            SomeHistogram;   //binCount set at compile time
         typedef acc::StandardQuantiles<SomeHistogram > Quantiles;
 
 
@@ -996,6 +1057,70 @@ namespace graph{
                     nodeFeaturesOut(node, 3) = replaceIfNotFinite(get<acc::Kurtosis>(chain), 0.0);
                     for(auto qi=0; qi<7; ++qi){
                         nodeFeaturesOut(node, 4+qi) = replaceIfNotFinite(quantiles[qi], mean);
+                    }
+                });
+
+            },
+            AccOptions(minVal,maxVal)
+        );
+    }
+    
+
+    // 9 features
+    template<size_t DIM, class LABELS_PROXY, class DATA, class FEATURE_TYPE>
+    void accumulateNodeStandartFeaturesOnePass(
+        const GridRag<DIM, LABELS_PROXY> & rag,
+        const DATA & data,
+        const double minVal,
+        const double maxVal,
+        const array::StaticArray<int64_t, DIM> & blockShape,
+        marray::View<FEATURE_TYPE> & nodeFeaturesOut,
+        const int numberOfThreads = -1
+    ){
+        namespace acc = vigra::acc;
+        typedef FEATURE_TYPE DataType;
+
+
+        typedef acc::UserRangeHistogram<40>            SomeHistogram;   //binCount set at compile time
+        typedef acc::StandardQuantiles<SomeHistogram > Quantiles;
+
+
+        typedef acc::Select< 
+            acc::DataArg<1>, 
+            acc::Mean,        //1
+            acc::Variance,    //1
+            Quantiles         //7
+        > SelectType;
+        typedef acc::StandAloneAccumulatorChain<DIM, DataType, SelectType> AccChainType;
+
+
+        // threadpool
+        nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+        nifty::parallel::ThreadPool threadpool(pOpts);
+        const size_t actualNumberOfThreads = pOpts.getActualNumThreads();
+
+
+        accumulateNodeFeaturesWithAccChain<AccChainType>(
+            rag, 
+            data, 
+            blockShape, 
+            pOpts, 
+            threadpool,
+            [&](
+                const std::vector<AccChainType> & nodeAccChainVec
+            ){
+                using namespace vigra::acc;
+
+                parallel::parallel_foreach(threadpool, nodeAccChainVec.size(),[&](
+                    const int tid, const int64_t node
+                ){
+                    const auto & chain = nodeAccChainVec[node];
+                    const auto mean = get<acc::Mean>(chain);
+                    const auto quantiles = get<Quantiles>(chain);
+                    nodeFeaturesOut(node, 0) = replaceIfNotFinite(mean,     0.0);
+                    nodeFeaturesOut(node, 1) = replaceIfNotFinite(get<acc::Variance>(chain), 0.0);
+                    for(auto qi=0; qi<7; ++qi){
+                        nodeFeaturesOut(node, 2+qi) = replaceIfNotFinite(quantiles[qi], mean);
                     }
                 });
 
