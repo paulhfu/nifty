@@ -14,7 +14,7 @@ namespace region_growing {
     template<unsigned DIM, class DATA_TYPE, class LABEL_TYPE>
     void exportEdgeBasedWatershedT(py::module & regionGrowingModule) {
         regionGrowingModule.def("edgeBasedWatershed",[](
-            const marray::PyView<DATA_TYPE,DIM> affinityMap,
+            const marray::PyView<DATA_TYPE,DIM+1> affinityMap,
             const DATA_TYPE low,
             const DATA_TYPE high){
 
@@ -24,7 +24,7 @@ namespace region_growing {
                 marray::PyView<LABEL_TYPE,DIM> segmentationOut(shape,shape+DIM);
                 {
                     py::gil_scoped_release allowThreads;
-                    auto counts = edgeBasedWatershed<DIM>(affinityMap,high,low,segmentationOut);
+                    auto counts = edgeBasedWatershed<DIM>(affinityMap,low,high,segmentationOut);
                 }
                 return segmentationOut;
             },

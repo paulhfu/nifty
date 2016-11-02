@@ -12,7 +12,7 @@ namespace py = pybind11;
 
 namespace nifty{
 namespace graph{
-    void initSubmoduleGraph(py::module & );
+    void initSubmoduleGraph(py::module &);
 }
 namespace tools{
     void initSubmoduleTools(py::module &);
@@ -22,9 +22,12 @@ namespace ufd{
 }
 #ifdef WITH_HDF5
 namespace hdf5{
-    void initSubmoduleHdf5(py::module & );
+    void initSubmoduleHdf5(py::module &);
 }
 #endif
+namespace region_growing{
+    void initSubmoduleRegionGrowing(py::module &);
+}
 }
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
@@ -45,6 +48,7 @@ PYBIND11_PLUGIN(_nifty) {
     //graph::initSubmoduleGraph(niftyModule);
     tools::initSubmoduleTools(niftyModule);
     ufd::initSubmoduleUfd(niftyModule);
+    region_growing::initSubmoduleRegionGrowing(niftyModule);
 
     #ifdef WITH_HDF5
     hdf5::initSubmoduleHdf5(niftyModule);

@@ -18,6 +18,8 @@ edgeBasedWatershed(
         const DATA_TYPE high,
         marray::View<LABEL_TYPE> & out)
 {
+    std::cout << "Starting" << std::endl;
+    
     typedef DATA_TYPE DataType;
     typedef LABEL_TYPE LabelType;
 
@@ -28,55 +30,81 @@ edgeBasedWatershed(
         shape[d] = affinityMap.shape(d);
     
     std::vector<size_t> counts(1,0);
+    
+    //
+    // initialize bitvalues encoding the directions
+    //
+
+    // TODO is this consistent with the strides ?!
+    // need to check for non-symetric input
+    //const std::ptrdiff_t direction[2*DIM] = { -1, -shape[1], 1, shape[1] };
+    //const LabelType dirmask[2*DIM]  = { 0x01, 0x02, 0x04, 0x08 };
+    //const LabelType idirmask[2*DIM] = { 0x04, 0x08, 0x01, 0x02 };
+    std::ptrdiff_t direction[2*DIM];
+    LabelType dirmask[2*DIM];
+    LabelType idirmask[2*DIM];
+    LabelType currentBit = 0x01;
+    std::ptrdiff_t currentDirection = -1;
+    for( size_t dir = 0; dir < 2*DIM; dir++) {
+        // we need to change the sign of the direction after DIM directions
+        if(dir == DIM)
+            currentDirection = 1;
+        
+        direction[dir] = currentDirection;
+        dirmask[dir] = currentBit;
+        idirmask[dir] = (dir < DIM) ? currentBit << DIM : currentBit >> DIM;
+        
+        currentBit = currentBit << 1;
+        // TODO is this consistent with the strides ?
+        currentDirection *= shape[DIM-((dir%DIM)+1)];
+    }
+    LabelType maxBit = currentBit;
 
     //
     // initialize the connecitivity according due to the affinity map
     //
     
-    // TODO dimension independent!
-    //nifty::tools::forEachCoordinate(shape,[&](const Coord & coord){
-    //});
+    auto makeCoordDir = [](const Coord & coord,const size_t dir){
+        Coord coordDir = coord;
+        coordDir[dir%DIM] += (dir<DIM) ? -1 : 1;
+        return coordDir;
+    };
+    
+    // dimension independent!
+    nifty::tools::forEachCoordinate(shape,[&](const Coord & coord){
+        
+        LabelType & segId = out(coord.asStdArray());
 
-    for(size_t x = 0; x < shape[0]; x++) {
-        for(size_t y = 0; y < shape[1]; y++) {
+        std::vector<DataType> affinityValues;
+        for( size_t dir = 0; dir < 2*DIM; ++dir ) {
+            Coord coordDir = makeCoordDir(coord, dir);
+            DataType val = (dir<DIM) ? ( (coordDir[dir%DIM]>0) ? affinityMap(coordDir.asStdArray()) : low )
+                : ( (coordDir[dir%DIM]<shape[dir%DIM]-1) ? affinityMap(coordDir.asStdArray()) : low );
+            affinityValues.push_back(val);
+        }
+        DataType maxAffinity = *(std::max_element(affinityValues.begin(), affinityValues.end()));
 
-            LabelType & segId = out(x,y);
-                
-            DataType negx = (x>0) ? affinityMap(x,y,0) : low;
-            DataType negy = (y>0) ? affinityMap(x,y,1) : low;
-            DataType posx = (x<(shape[0]-1)) ? affinityMap(x+1,y,0) : low;
-            DataType posy = (y<(shape[1]-1)) ? affinityMap(x,y+1,1) : low;
-
-            DataType m = std::max({negx,negy,posx,posy});
-
-            if( m > low ) {
-                if ( negx == m || negx >= high ) { segId |= 0x01; } // bit magic: 01 -> connected to left x
-                if ( negy == m || negy >= high ) { segId |= 0x02; } // 02 ->
-                if ( posx == m || posx >= high ) { segId |= 0x04; } // 04
-                if ( posy == m || posy >= high ) { segId |= 0x08; } // 08
+        if( maxAffinity > low ) {
+            for( size_t dir = 0; dir < 2*DIM; ++dir ) {
+                if( affinityValues[dir] == maxAffinity || affinityValues[dir] >= high )
+                    segId |= dirmask[dir];
             }
         }
-    }
+    });
 
-    // TODO is this consistent with the strides ?!
-    // need to check for non-symetric input
-    const std::ptrdiff_t direction[2*DIM] = { -1, -shape[1], 1, shape[1] };
-    const LabelType dirmask[2*DIM]  = { 0x01, 0x02, 0x04, 0x08 };
-    const LabelType idirmask[2*DIM] = { 0x04, 0x08, 0x01, 0x02 };
 
     //
     // get plateau corners
     //
 
-    //std::vector<Coord> bfs;
     std::vector<std::ptrdiff_t> bfs;
     size_t size = std::accumulate( shape.begin(), shape.end(), 1, std::multiplies<int64_t>() );
 
-    for ( auto segIt = out.begin(); segIt != out.end(); segIt++ ) {
+    for ( auto segIt = out.begin(); segIt != out.end(); ++segIt ) {
         for ( std::ptrdiff_t dir = 0; dir < 2*DIM; ++dir ) {
             if ( *segIt & dirmask[dir] ) {
                 if ( !( *(segIt+direction[dir]) & idirmask[dir]) ) {
-                    *segIt |= 0x10;
+                    *segIt |= maxBit;
                     bfs.push_back(std::distance(out.begin(),segIt));
                     break;
                 }
@@ -99,9 +127,9 @@ edgeBasedWatershed(
         for ( std::ptrdiff_t dir = 0; dir < 2*DIM; ++dir ) {
             if ( *segIt & dirmask[dir] ) {
                 if ( *(segIt+direction[dir]) & idirmask[dir] ) {
-                    if ( !( *(segIt+direction[dir]) & 0x10 ) ) {
+                    if ( !( *(segIt+direction[dir]) & maxBit ) ) {
                         bfs.push_back(idx+direction[dir]);
-                        *(segIt+direction[dir]) |= 0x10;
+                        *(segIt+direction[dir]) |= maxBit;
                         }
                 }
                 else {
@@ -127,19 +155,19 @@ edgeBasedWatershed(
     for ( std::ptrdiff_t idx = 0; idx < size; ++idx ) {
         auto segIt = out.begin() + idx;
         
-        // ponit was not visited yet
+        // point is must not link (all affinities < low)
         if ( *segIt == 0 ) {
             // why do we activate the highest bit for 0s ?? -> probably this is like a 'visited' flag
             *segIt |= highBit;
             ++counts[0];
         }
 
-        // point visited and is not 0
+        // point not visited and is not 0
         if ( !( *segIt & highBit ) && *segIt ) {
             
             bfs.push_back(idx);
             bfsIndex = 0;
-            *segIt |= 0x10;
+            *segIt |= maxBit;
 
             // loop over all points in the stream
             while ( bfsIndex < bfs.size() ) {
@@ -160,8 +188,8 @@ edgeBasedWatershed(
                             bfs.clear();
                             break;
                         }
-                        else if ( !( *segHim & 0x10 ) ) {
-                            *segHim |= 0x10;
+                        else if ( !( *segHim & maxBit ) ) {
+                            *segHim |= maxBit;
                             bfs.push_back( std::distance(out.begin(),segHim) );
                         }
                     }
@@ -183,10 +211,12 @@ edgeBasedWatershed(
 
     std::cout << "found: " << (next-1) << " components\n";
 
-    // I don't get why we do this...
-    //for ( std::ptrdiff_t idx = 0; idx < size; ++idx )
-    //    seg_raw[idx] &= traits::mask;
-    //
+    // TODO need to change this for different LabelTypes
+    const uint32_t mask = 0x7FFFFFFF;
+    // splice away the high bit
+    for( auto segIt = out.begin(); segIt != out.end(); segIt++ )
+        *segIt &= mask;
+    
     
     return counts;
 }

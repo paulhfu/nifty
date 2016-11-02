@@ -20,6 +20,11 @@ pybind11_add_module(_nifty
     # ufd
     #############################
     ufd/ufd.cxx
+    #############################
+    # region_growing
+    #############################
+    region_growing/region_growing.cxx
+    region_growing/edge_based_watershed.cxx
 )
 
 
