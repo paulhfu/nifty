@@ -38,6 +38,8 @@ public:
     template<class MAP_LIKE>
     void representativeLabeling(MAP_LIKE &) const;
 
+    void representativesToSets(std::vector<std::vector<Index>> &) const;
+
     void merge(Index, Index);
     void insert(const Index);
 
@@ -167,6 +169,11 @@ Ufd<T>::merge(
     }
 }
 
+
+
+
+
+
 /// Insert a number of new sets, each containing one element.
 /// 
 /// \param number Number of sets to insert. 
@@ -239,6 +246,21 @@ Ufd<T>::elementLabeling(
     }
 }
     
+template<class T>
+inline void 
+Ufd<T>::representativesToSets(std::vector<std::vector<typename Ufd<T>::Index>> & out ) const {
+    out.clear();
+    out.resize(static_cast<uint64_t>(numberOfSets()));
+    
+    std::map<Index, Index> rl;
+    representativeLabeling(rl);
+    
+    for(Index j = 0; j < numberOfElements(); j++) {
+        Index repr = rl[parents_[j]];
+        out[repr].push_back(j);
+    }
+}
+
 template<class T>
 inline void 
 Ufd<T>::representativesToSets(std::vector<std::vector<typename Ufd<T>::Index>> & out ) const {

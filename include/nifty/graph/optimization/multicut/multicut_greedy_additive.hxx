@@ -9,7 +9,6 @@
 #include "vigra/priority_queue.hxx"
 
 #include "nifty/tools/runtime_check.hxx"
-#include "nifty/ufd/ufd.hxx"
 #include "nifty/graph/detail/adjacency.hxx"
 #include "nifty/graph/optimization/multicut/multicut_base.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
@@ -20,7 +19,7 @@
 namespace nifty{
 namespace graph{
 
-
+    // \cond SUPPRESS_DOXYGEN
 
     namespace detail_multicut_greedy_additive{
 
@@ -115,10 +114,12 @@ namespace graph{
                     return true;
                 }
             }
-            if(currentNodeNum_<=1)
+            if(currentNodeNum_<=1){
                 return true;
-            if(pq_.empty())
+            }
+            if(pq_.empty()){
                 return true;
+            }
             return false;
         }
 
@@ -149,7 +150,7 @@ namespace graph{
     };
 
     } // end namespace detail_multicut_greedy_additive
-
+    // \endcond 
 
 
 
@@ -182,9 +183,8 @@ namespace graph{
             this->reset();
         }
         virtual const NodeLabels & currentBestNodeLabels( ){
-            auto & ufd  = edgeContractionGraph_.ufd();
             for(auto node : graph_.nodes()){
-                currentBest_->operator[](node) = ufd.find(node);
+                currentBest_->operator[](node) = edgeContractionGraph_.findRepresentativeNode(node);
             }
             return *currentBest_;
         }
@@ -248,13 +248,14 @@ namespace graph{
                    visitor->setLogValue(0, edgeContractionGraph_.numberOfNodes());
                    visitor->setLogValue(1, callback_.queue().topPriority());
                    if(!visitor->visit(this)){
+                        std::cout<<"end by visitor\n";
                        break;
                    }
                 }
             }
-            auto & ufd  = edgeContractionGraph_.ufd();
+            
             for(auto node : graph_.nodes()){
-                nodeLabels[node] = ufd.find(node);
+                nodeLabels[node] = edgeContractionGraph_.findRepresentativeNode(node);
             }
         }
         if(visitor!=nullptr)

@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <sstream>
 #include <chrono>
+#include <iostream>
 
 namespace nifty {
 namespace graph {

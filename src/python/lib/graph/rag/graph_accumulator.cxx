@@ -105,7 +105,7 @@ namespace graph{
 
 
 
-    void exportGraphAccumulator(py::module & ragModule, py::module & graphModule) {
+    void exportGraphAccumulator(py::module & ragModule) {
 
         typedef UndirectedGraph<> Graph;
         

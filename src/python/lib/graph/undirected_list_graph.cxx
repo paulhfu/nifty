@@ -6,6 +6,7 @@
 #include "nifty/graph/undirected_list_graph.hxx"
 
 #include "export_undirected_graph_class_api.hxx"
+#include "subgraph_return_type.hxx"
 #include "nifty/python/converter.hxx"
 
 namespace py = pybind11;
@@ -69,6 +70,8 @@ namespace graph{
         
         auto undirectedGraphCls = py::class_<Graph>(graphModule, clsName.c_str());
 
+        exportSubgraphReturnType(graphModule);
+
         undirectedGraphCls
             .def(py::init<const uint64_t,const uint64_t>(),
                py::arg_t<uint64_t>("numberOfNodes",0),
@@ -105,8 +108,29 @@ namespace graph{
             )
             .def("deserialize",
                 [](Graph & g, nifty::marray::PyView<uint64_t,1> serialization) {
-                    auto ptr = &serialization(0);
-                    g.deserialize(ptr);
+
+                    auto  startPtr = &serialization(0);
+                    auto  lastElement = &serialization(serialization.size()-1);
+                    auto d = lastElement - startPtr + 1;
+
+                    NIFTY_CHECK_OP(d,==,serialization.size(), "serialization must be contiguous");
+
+
+                    
+                    g.deserialize(startPtr);
+                }
+            )
+            .def("extractSubgraphFromNodes",
+                []( Graph & g, const marray::PyView<int64_t,1> nodeList) {
+                    
+                    std::vector<int64_t> innerEdgesVec;  
+                    std::vector<int64_t> outerEdgesVec;  
+                    Graph subgraph;
+                    {
+                        py::gil_scoped_release allowThreads;
+                        subgraph = g.extractSubgraphFromNodes(nodeList, innerEdgesVec, outerEdgesVec);
+                    }
+                    return SubgraphReturnType(innerEdgesVec, outerEdgesVec, subgraph);
                 }
             )
             .def("extractSubgraphFromNodesImpl",

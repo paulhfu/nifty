@@ -186,7 +186,7 @@ namespace graph{
                 //std::cout<<"opt\n";
                 solverPtr->optimize(fmLabels, &fmVisitor);
                 //std::cout<<"del ptr\n";
-                //delete solverPtr;
+                delete solverPtr;
 
                 //std::cout<<"fm get res\n";
                 for(auto edge : graph_.edges()){
