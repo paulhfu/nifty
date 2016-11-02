@@ -43,8 +43,6 @@ public:
     void merge(Index, Index);
     void insert(const Index);
 
-    void representativesToSets(std::vector<std::vector<Index>> &) const;
-
 private:
     std::vector<Index> parents_;
     std::vector<Index> ranks_;
@@ -246,21 +244,6 @@ Ufd<T>::elementLabeling(
     }
 }
     
-template<class T>
-inline void 
-Ufd<T>::representativesToSets(std::vector<std::vector<typename Ufd<T>::Index>> & out ) const {
-    out.clear();
-    out.resize(static_cast<uint64_t>(numberOfSets()));
-    
-    std::map<Index, Index> rl;
-    representativeLabeling(rl);
-    
-    for(Index j = 0; j < numberOfElements(); j++) {
-        Index repr = rl[parents_[j]];
-        out[repr].push_back(j);
-    }
-}
-
 template<class T>
 inline void 
 Ufd<T>::representativesToSets(std::vector<std::vector<typename Ufd<T>::Index>> & out ) const {

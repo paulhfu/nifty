@@ -156,53 +156,6 @@ protected:
     std::vector<EdgeStorage> edges_;
 };
     
-template<class EDGE_INTERANL_TYPE, class NODE_INTERNAL_TYPE>
-UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>
-UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>::
-extractSubgraphFromNodes(
-        const marray::View<NODE_INTERNAL_TYPE> & nodeList, 
-        std::vector<EDGE_INTERANL_TYPE> & innerEdgesOut,
-        std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut) const {
-    
-    std::map<NodeInteralType,NodeInteralType> globalToLocalNodes;
-    for(size_t i = 0; i < nodeList.size(); i++)
-        globalToLocalNodes.insert( std::make_pair(nodeList(i), NodeInteralType(i)) );
-
-    for(auto nodeIt = nodeList.begin(); nodeIt != nodeList.end(); ++nodeIt) {
-        auto u = *nodeIt;
-        for(auto adjacencyIt = this->adjacencyBegin(u); adjacencyIt != this->adjacencyEnd(u); ++adjacencyIt) {
-            auto v = adjacencyIt->node();
-            auto e = this->findEdge(u, v);
-            if( std::find(nodeList.begin(), nodeList.end(), v) != nodeList.end() )
-                innerEdgesOut.push_back(e);
-            else
-                outerEdgesOut.push_back(e);
-        }
-    }
-    
-    // make the edges unique
-    std::sort(innerEdgesOut.begin(),innerEdgesOut.end());
-    auto last = std::unique(innerEdgesOut.begin(), innerEdgesOut.end());
-    innerEdgesOut.erase( last, innerEdgesOut.end() );
-    
-    std::sort(outerEdgesOut.begin(),outerEdgesOut.end());
-    last = std::unique(outerEdgesOut.begin(), outerEdgesOut.end());
-    outerEdgesOut.erase( last, outerEdgesOut.end() );
-    
-    // get number of nodes
-    uint64_t numberOfNodes = nodeList.size();
-    UndirectedGraph<EdgeInternalType,NodeInteralType> subgraphOut(numberOfNodes);
-
-    // get the local uv - ids
-    for(size_t i = 0; i < innerEdgesOut.size(); ++i) {
-        auto uv = this->uv(innerEdgesOut[i]);
-        subgraphOut.insertEdge(globalToLocalNodes[uv.first], globalToLocalNodes[uv.second]);
-    }
-
-    return subgraphOut;
-}
-
-
 template<class EDGE_INTERANL_TYPE, class NODE_INTERNAL_TYPE >
 UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>::
 UndirectedGraph(const uint64_t numberOfNodes , const uint64_t reserveNumberOfEdges )
