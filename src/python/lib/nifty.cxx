@@ -23,6 +23,9 @@ namespace hdf5{
 namespace ufd {
     void initSubmoduleUfd(py::module &);
 }
+namespace region_growing{
+    void initSubmoduleRegionGrowing(py::module &);
+}
 }
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
@@ -48,6 +51,7 @@ PYBIND11_PLUGIN(_nifty) {
     #endif
 
     ufd::initSubmoduleUfd(niftyModule);
+    region_growing::initSubmoduleRegionGrowing(niftyModule);
 
     // \TODO move to another header
     py::class_<Configuration>(niftyModule, "Configuration")

@@ -36,8 +36,8 @@ namespace optimization{
     template<class SOLVER> 
     class VerboseVisitor : public VisitorBase<SOLVER>{
     public:
-        typedef OBJECTIVE Objective;
-        typedef MulticutBase<Objective> McBase;
+        //typedef OBJECTIVE Objective;
+        //typedef MulticutBase<Objective> McBase;
         typedef std::chrono::seconds TimeType;
         typedef std::chrono::time_point<std::chrono::steady_clock> TimePointType;
         typedef SOLVER SolverType;

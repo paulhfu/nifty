@@ -65,9 +65,14 @@ pybind11_add_module(_nifty
     hdf5/hdf5_array.cxx
     hdf5/hdf5_tools.cxx
     #############################
-    # uff
+    # ufd
     #############################
     ufd/ufd.cxx
+    ############################
+    # region growing
+    ############################
+    region_growing/region_growing.cxx
+    region_growing/edge_based_watershed.cxx
 )
 
 
