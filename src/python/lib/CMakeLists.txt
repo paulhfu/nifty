@@ -25,6 +25,7 @@ pybind11_add_module(_nifty
     #############################
     region_growing/region_growing.cxx
     region_growing/edge_based_watershed.cxx
+    region_growing/zwatershed.cxx
 )
 
 
