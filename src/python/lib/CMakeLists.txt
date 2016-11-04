@@ -22,10 +22,6 @@ pybind11_add_module(_nifty
     # agglo
     graph/agglo/agglo.cxx
     graph/agglo/agglomerative_clustering.cxx
-    # gala
-    graph/gala/gala.cxx
-    graph/gala/gala_main_class.cxx
-    graph/gala/gala_feature_base.cxx
     #############################
     # multicut
     #############################
