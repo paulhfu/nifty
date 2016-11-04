@@ -89,14 +89,14 @@ mergeSegments(
 
     for(auto & edge : regionGraph) {
         // we compare to size_t here, because we compare to the counts later
-        size_t mergeScore = computeMergeScore( std::get<0>(edge) );
+        size_t mergeScore = static_cast<size_t>(computeMergeScore( std::get<0>(edge) ));
         if(mergeScore==0)
             break;
 
         LabelType s1 = sets.find(std::get<1>(edge));
         LabelType s2 = sets.find(std::get<2>(edge));
 
-        if( s1 != s2 && s1 && s2) {
+        if( (s1!=s2) && s1 && s2) {
             if( (counts[s1] < mergeScore) || (counts[s2] < mergeScore) ) {
                 counts[s1] += counts[s2];
                 counts[s2] = 0;
@@ -113,7 +113,7 @@ mergeSegments(
     for( LabelType id = 0; id < counts.size(); ++id) {
         LabelType s = sets.find(id);
         if( s && (mapping[s]==0) && (counts[s] >= sizeThreshold) ) {
-            mapping[s] == next;
+            mapping[s] = next;
             counts[next] = counts[s];
             ++next;
         }
@@ -122,6 +122,8 @@ mergeSegments(
 
     for( auto segIt = segmentation.begin(); segIt != segmentation.end(); ++segIt)
         *segIt = mapping[sets.find(*segIt)];
+
+    std::cout << "Number of segments after merging: " << next << std::endl;
     
     // in the original code the regiongraph is reconstructed, but I don't see why we need this
 }

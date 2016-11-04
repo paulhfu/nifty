@@ -22,12 +22,13 @@ edgeBasedWatershed(
         const DATA_TYPE high,
         marray::View<LABEL_TYPE> & out)
 {
-    std::cout << "Starting" << std::endl;
+    std::cout << "Edgebased Watershed called with low threshold: " << low << ", high threshold: " << high << std::endl;
     
     typedef DATA_TYPE DataType;
     typedef LABEL_TYPE LabelType;
 
     typedef array::StaticArray<int64_t, DIM> Coord;
+    typedef array::StaticArray<int64_t, DIM+1> CoordAndChannel;
 
     Coord shape;
     for(int d = 0; d < DIM; d++)
@@ -38,16 +39,18 @@ edgeBasedWatershed(
     //
     // initialize bitvalues encoding the directions
     //
+    std::fill(out.begin(),out.end(),0);
 
     // TODO is this consistent with the strides ?!
     // need to check for non-symetric input
     //const std::ptrdiff_t direction[2*DIM] = { -1, -shape[1], 1, shape[1] };
     //const LabelType dirmask[2*DIM]  = { 0x01, 0x02, 0x04, 0x08 };
     //const LabelType idirmask[2*DIM] = { 0x04, 0x08, 0x01, 0x02 };
+    
     std::ptrdiff_t direction[2*DIM];
     LabelType dirmask[2*DIM];
     LabelType idirmask[2*DIM];
-    LabelType currentBit = 0x01;
+    LabelType currentBit = 1;
     std::ptrdiff_t currentDirection = -1;
     for( size_t dir = 0; dir < 2*DIM; dir++) {
         // we need to change the sign of the direction after DIM directions
@@ -57,20 +60,36 @@ edgeBasedWatershed(
         direction[dir] = currentDirection;
         dirmask[dir] = currentBit;
         idirmask[dir] = (dir < DIM) ? currentBit << DIM : currentBit >> DIM;
+
+        //std::cout << currentDirection << std::endl;
+        //std::cout << currentBit << std::endl;
+        //std::cout << idirmask[dir] << std::endl;
+        //std::cout << std::endl;
         
         currentBit = currentBit << 1;
         // TODO is this consistent with the strides ?
         currentDirection *= shape[DIM-((dir%DIM)+1)];
     }
+    // I think that this encodes the upstream points
     LabelType maxBit = currentBit;
+    //std::cout << maxBit << std::endl;
+    //throw std::runtime_error("Lalilu");
 
     //
-    // initialize the connecitivity according due to the affinity map
+    // initialize the connecitivity according to the affinity map
     //
+    std::cout << "Here" << std::endl;
     
+    // make the affinity map coordinate corresponding to the dir value
     auto makeCoordDir = [](const Coord & coord,const size_t dir){
-        Coord coordDir = coord;
-        coordDir[dir%DIM] += (dir<DIM) ? -1 : 1;
+        // init with the coordinate
+        CoordAndChannel coordDir;
+        for(int d = 0; d < DIM; d++)
+            coordDir[d] = coord[d];
+        // set the correct channel
+        coordDir[DIM] = dir%DIM;
+        if(dir>=DIM)
+            coordDir[dir%DIM] += 1;
         return coordDir;
     };
     
@@ -81,10 +100,13 @@ edgeBasedWatershed(
 
         std::vector<DataType> affinityValues;
         for( size_t dir = 0; dir < 2*DIM; ++dir ) {
-            Coord coordDir = makeCoordDir(coord, dir);
-            DataType val = (dir<DIM) ? ( (coordDir[dir%DIM]>0) ? affinityMap(coordDir.asStdArray()) : low )
-                : ( (coordDir[dir%DIM]<shape[dir%DIM]-1) ? affinityMap(coordDir.asStdArray()) : low );
+            CoordAndChannel coordDir = makeCoordDir(coord, dir);
+            
+            DataType val = (dir<DIM) ? ( (coordDir[dir%DIM]>=0) ? affinityMap(coordDir.asStdArray()) : low )
+                : ( (coordDir[dir%DIM]<shape[dir%DIM]) ? affinityMap(coordDir.asStdArray()) : low );
+            
             affinityValues.push_back(val);
+
         }
         DataType maxAffinity = *(std::max_element(affinityValues.begin(), affinityValues.end()));
 
@@ -95,6 +117,7 @@ edgeBasedWatershed(
             }
         }
     });
+    std::cout << "And here" << std::endl;
 
 
     //
@@ -115,6 +138,7 @@ edgeBasedWatershed(
             }
         }
     }
+    std::cout << "Even here" << std::endl;
 
     //
     // divide the plateaus
@@ -131,10 +155,12 @@ edgeBasedWatershed(
         for ( std::ptrdiff_t dir = 0; dir < 2*DIM; ++dir ) {
             if ( *segIt & dirmask[dir] ) {
                 if ( *(segIt+direction[dir]) & idirmask[dir] ) {
+                    
                     if ( !( *(segIt+direction[dir]) & maxBit ) ) {
                         bfs.push_back(idx+direction[dir]);
                         *(segIt+direction[dir]) |= maxBit;
                         }
+                
                 }
                 else {
                     toSet = dirmask[dir];
@@ -146,6 +172,7 @@ edgeBasedWatershed(
     }
 
     bfs.clear();
+    std::cout << "Even even here" << std::endl;
 
     //
     // main watershed
@@ -220,7 +247,6 @@ edgeBasedWatershed(
     // splice away the high bit
     for( auto segIt = out.begin(); segIt != out.end(); segIt++ )
         *segIt &= mask;
-    
     
     return counts;
 }

@@ -15,7 +15,6 @@ namespace hdf5{
     using namespace marray::hdf5;
 
 
-
     template<class T>
     class Hdf5Array{
     public:
@@ -378,10 +377,6 @@ namespace hdf5{
         bool isChunked_;
     };
 
-
-    namespace tools{
-
-}
 
 
 } // namespace nifty::hdf5

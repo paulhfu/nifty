@@ -1,0 +1,6 @@
+add_executable(test_edge_based_watershed test_edge_based_watershed.cxx )
+target_link_libraries(test_edge_based_watershed ${TEST_LIBS})
+if(WITH_HDF5)
+    target_link_libraries(test_edge_based_watershed ${HDF5_LIBRARIES})
+endif()
+add_test(test_edge_based_watershed test_edge_based_watershed)
