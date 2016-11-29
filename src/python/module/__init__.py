@@ -14,6 +14,7 @@ import sys
 import graph
 import tools
 import ufd
+import region_growing
 
 
 
