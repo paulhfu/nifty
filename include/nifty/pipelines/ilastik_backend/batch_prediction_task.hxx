@@ -15,13 +15,15 @@ namespace ilastik_backend{
         using data_type = float;
         using in_data_type = uint8_t;
         using coordinate = nifty::array::StaticArray<int64_t, DIM>;
+        using multichan_coordinate = nifty::array::StaticArray<int64_t, DIM+1>;
         
         using float_array = nifty::marray::Marray<data_type>;
         using float_array_view = nifty::marray::View<data_type>;
         
-        using prediction_cache = tbb::concurrent_lru_cache<size_t, float_array_view, std::function<float_array_view(size_t)>>;
-        using feature_cache = tbb::concurrent_lru_cache<size_t, float_array_view, std::function<float_array_view(size_t)>>;
         using raw_cache = hdf5::Hdf5Array<in_data_type>;
+        // TODO does not really make sense to have to identical typedefs here
+        using feature_cache    = tbb::concurrent_lru_cache<size_t, float_array, std::function<float_array(size_t)>>;
+        using prediction_cache = tbb::concurrent_lru_cache<size_t, float_array, std::function<float_array(size_t)>>;
         using random_forest_vector = RandomForestVectorType;
 
         using blocking = tools::Blocking<DIM>;
@@ -56,7 +58,7 @@ namespace ilastik_backend{
             maxNumCacheEntries_(max_num_cache_entries),
             rfVectors_()
         {
-            init();
+            //init();
         }
 
         
@@ -72,15 +74,23 @@ namespace ilastik_backend{
             blocking_ = std::make_unique<blocking>(volBegin, volShape, blockShape_);
 
             // init the feature cache
-            std::function<float_array_view(size_t)> retrieve_features_for_caching = [&](size_t blockId) -> float_array_view {
-               float_array out_array(blockShape_.begin(), blockShape_.end());
-               feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(blockId, *rawCache_, out_array, selectedFeatures_, *blocking_);
-               // TODO why ref-count 2
-               set_ref_count(2);
-               // TODO spawn or spawn_and_wait
-               spawn_and_wait_for_all(feat_task);
-               //spawn(feat_task)
-               return out_array;
+            std::function<float_array(size_t)> retrieve_features_for_caching = [&](size_t blockId) -> float_array {
+                // TODO FIXME this should not be hard-coded, but we need some static method that calculate this given the selected features
+                size_t nChannels = 2;
+                multichan_coordinate filterShape;
+                filterShape[0] = nChannels;
+                // TODO once we have halos, we need them here -> this can also be wrapped into a static method
+                for(int d = 0; d < DIM; ++d)
+                    filterShape[d+1] = blockShape_[0];
+
+                float_array out_array(filterShape.begin(), filterShape.end());
+                feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(blockId, *rawCache_, out_array, selectedFeatures_, *blocking_);
+                // TODO why ref-count 2
+                set_ref_count(2);
+                // TODO spawn or spawn_and_wait
+                spawn_and_wait_for_all(feat_task);
+                //spawn(feat_task)
+                return out_array;
             };
             
             featureCache_ = std::make_unique<feature_cache>(retrieve_features_for_caching, maxNumCacheEntries_);
@@ -89,15 +99,17 @@ namespace ilastik_backend{
             get_rfs_from_file(rfVectors_, rfFile_, rfKey_, 4);
             
             // init the prediction cache
-            std::function<float_array_view(size_t)> retrieve_prediction_for_caching = [&](size_t blockId) -> float_array_view {
-               float_array out_array(blockShape_.begin(), blockShape_.end());
-               random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *featureCache_, out_array, rfVectors_);
-               // TODO why ref count 2
-               set_ref_count(2);
-               // TODO spawn or spawn_and_wait
-               spawn_and_wait_for_all(rf_task);
-               //spawn(rf_task)
-               return out_array;
+            std::function<float_array(size_t)> retrieve_prediction_for_caching = [&](size_t blockId) -> float_array {
+                float_array out_array(blockShape_.begin(), blockShape_.end());
+                random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *featureCache_, out_array, rfVectors_);
+                // TODO why ref count 2
+                set_ref_count(2);
+                // TODO spawn or spawn_and_wait
+                std::cout << "Before rf task" << std::endl;
+                spawn_and_wait_for_all(rf_task);
+                std::cout << "After rf task" << std::endl;
+                //spawn(rf_task)
+                return out_array;
             };
 
             predictionCache_ = std::make_unique<prediction_cache>(retrieve_prediction_for_caching, maxNumCacheEntries_);
@@ -105,13 +117,30 @@ namespace ilastik_backend{
         }
  
         tbb::task* execute() {
+            init();
             // TODO spawn the tasks to batch process the complete volume
             for(size_t blockId = 0; blockId < blocking_->numberOfBlocks(); ++blockId) {
+
+                std::cout << "Processing block " << blockId << std::endl;
+                std::cout << "AAAAABBBBCCCDDDEEE" << std::endl;
+                
                 auto handle = (*predictionCache_)[blockId];
+                std::cout << "we have the handle" << std::endl;
                 auto outView = handle.value();
+                std::cout << "we have the value" << std::endl;
                 auto block = blocking_->getBlock(blockId);
                 coordinate blockBegin = block.begin();
-                out_->writeSubarray(blockBegin.begin(), outView);
+                std::cout << "we have the block" << std::endl;
+                
+                // need to attach the channel coordinate
+                multichan_coordinate outBegin;
+                for(int d = 0; d < DIM; ++d)
+                    outBegin[d] = blockBegin[d];
+                outBegin[DIM] = 0;
+                
+                std::cout << "Processing block " << blockId << " going to write!" << std::endl;
+                out_->writeSubarray(outBegin.begin(), outView);
+                std::cout << "written" << std::endl;
             }
             return NULL;
         }
