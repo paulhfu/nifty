@@ -4,6 +4,8 @@
 #define TBB_PREVIEW_CONCURRENT_LRU_CACHE 1
 #include <tbb/concurrent_lru_cache.h>
 
+#include <algorithm>
+
 #include <tbb/tbb.h>
 #include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
 #include <nifty/marray/marray.hxx>
@@ -48,12 +50,11 @@ namespace nifty
 
                 tbb::task* execute()
                 {
+                    std::cout << "rf_task::execute()" << std::endl;
                     // ask for features. This blocks if it's not present
                     feature_cache::handle ho = feature_cache_[blockId_];
                     float_array_view& features = ho.value();
-                    std::cout << "Before computing rf" << std::endl;
                     compute(features);
-                    std::cout << "After computing rf" << std::endl;
                     return NULL;
                 }
 
@@ -73,8 +74,8 @@ namespace nifty
                         if(d > 0)
                             pixel_count *= in.shape(d);
                     }
-                    //std::cout << in_shape << std::endl;
-                    //std::cout << pixel_count << std::endl;
+                    std::cout << in_shape << std::endl;
+                    std::cout << pixel_count << std::endl;
 
                     feature_shape_type feature_shape({pixel_count, num_required_features});
                     
@@ -111,18 +112,24 @@ namespace nifty
                     std::cout << "rf_task::compute predicting" << std::endl;
                     for(size_t rf = 0; rf < random_forest_vector_.size(); ++rf)
                     {
-                        //std::cout << "pred for rf: " << rf << std::endl;
+                        std::cout << "AAA" << std::endl;
                         vigra::MultiArray<2, data_type> prediction_temp(pixel_count, num_pixel_classification_labels);
-                        //std::cout << "AAA" << std::endl;
+                        std::cout << "BBB" << std::endl;
                         random_forest_vector_[rf].predictProbabilities(vigra_in, prediction_temp);
-                        //std::cout << "BBB" << std::endl;
+                        std::cout << "CCC" << std::endl;
                         prediction_map_view += prediction_temp;
-                        //std::cout << "CCC" << std::endl;
+                        std::cout << "Prediction done for rf: " << rf << std::endl;
+                        auto pred_mm = std::minmax_element(prediction_map_view.begin(), prediction_map_view.end()); 
+                        std::cout << "RF-min prediction: " << *(pred_mm.first) << " RF-max prediction: " << *(pred_mm.second) << std::endl;
                     }
                     std::cout << "rf_task::compute prediction done" << std::endl;
 
+                    auto pred_mm = std::minmax_element(prediction_map_view.begin(), prediction_map_view.end()); 
+                    std::cout << "RF-min prediction: " << *(pred_mm.first) << " RF-max prediction: " << *(pred_mm.second) << std::endl;
                     // divide probs by num random forests
                     prediction_map_view /= random_forest_vector_.size();
+                    pred_mm = std::minmax_element(prediction_map_view.begin(), prediction_map_view.end()); 
+                    std::cout << "RF-min prediction: " << *(pred_mm.first) << " RF-max prediction: " << *(pred_mm.second) << std::endl;
 
                     // transform back to marray
                     out_shape_type output_shape;

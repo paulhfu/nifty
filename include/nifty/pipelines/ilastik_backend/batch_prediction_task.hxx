@@ -64,6 +64,7 @@ namespace ilastik_backend{
         
         void init() {
 
+            std::cout << "batch_prediction_task::init called" << std::endl;
             rawCache_ = std::make_unique<raw_cache>( hdf5::openFile(in_file_), in_key_ );
 
             // init the blocking
@@ -75,6 +76,9 @@ namespace ilastik_backend{
 
             // init the feature cache
             std::function<float_array(size_t)> retrieve_features_for_caching = [&](size_t blockId) -> float_array {
+
+                std::cout << "generating feature cache" << std::endl;
+
                 // TODO FIXME this should not be hard-coded, but we need some static method that calculate this given the selected features
                 size_t nChannels = 2;
                 multichan_coordinate filterShape;
@@ -87,9 +91,9 @@ namespace ilastik_backend{
                 feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(blockId, *rawCache_, out_array, selectedFeatures_, *blocking_);
                 // TODO why ref-count 2
                 set_ref_count(2);
-                // TODO spawn or spawn_and_wait
                 spawn_and_wait_for_all(feat_task);
-                //spawn(feat_task)
+                //spawn(feat_task);
+                // TODO spawn or spawn_and_wait
                 return out_array;
             };
             
@@ -97,53 +101,79 @@ namespace ilastik_backend{
             
             // TODO use vigra rf 3 instead !
             get_rfs_from_file(rfVectors_, rfFile_, rfKey_, 4);
+            size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
             
             // init the prediction cache
             std::function<float_array(size_t)> retrieve_prediction_for_caching = [&](size_t blockId) -> float_array {
-                float_array out_array(blockShape_.begin(), blockShape_.end());
+                
+                std::cout << "generating prediction cache" << std::endl;
+                size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
+                
+                multichan_coordinate predictionShape;
+                predictionShape[DIM] = n_classes;
+                for(int d = 0; d < DIM; ++d)
+                    predictionShape[d] = blockShape_[d];
+                float_array out_array(predictionShape.begin(), predictionShape.end());
+
                 random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *featureCache_, out_array, rfVectors_);
                 // TODO why ref count 2
                 set_ref_count(2);
                 // TODO spawn or spawn_and_wait
-                std::cout << "Before rf task" << std::endl;
-                spawn_and_wait_for_all(rf_task);
-                std::cout << "After rf task" << std::endl;
-                //spawn(rf_task)
+                //spawn_and_wait_for_all(rf_task);
+                spawn(rf_task);
                 return out_array;
             };
 
             predictionCache_ = std::make_unique<prediction_cache>(retrieve_prediction_for_caching, maxNumCacheEntries_);
-            out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( hdf5::createFile("./out.h5"), "data", volShape.begin(), volShape.end(), blockShape_.begin() );
+
+            multichan_coordinate outShape, chunkShape; 
+            outShape[DIM] = n_classes;
+            chunkShape[DIM] = 1;
+            for(int d = 0; d < DIM; ++d) {
+                outShape[d] = volShape[d];
+                chunkShape[d] = blockShape_[d];
+            }
+            out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( hdf5::createFile("./out.h5"), "data", outShape.begin(), outShape.end(), chunkShape.begin() );
         }
  
         tbb::task* execute() {
+            
+            std::cout << "batch_prediction_task::execute called" << std::endl;
+            
             init();
             // TODO spawn the tasks to batch process the complete volume
             for(size_t blockId = 0; blockId < blocking_->numberOfBlocks(); ++blockId) {
 
-                std::cout << "Processing block " << blockId << std::endl;
-                std::cout << "AAAAABBBBCCCDDDEEE" << std::endl;
+                std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
                 
                 auto handle = (*predictionCache_)[blockId];
-                std::cout << "we have the handle" << std::endl;
                 auto outView = handle.value();
-                std::cout << "we have the value" << std::endl;
+                std::cout << "handle with caution" << std::endl;
+
                 auto block = blocking_->getBlock(blockId);
                 coordinate blockBegin = block.begin();
-                std::cout << "we have the block" << std::endl;
                 
                 // need to attach the channel coordinate
                 multichan_coordinate outBegin;
                 for(int d = 0; d < DIM; ++d)
                     outBegin[d] = blockBegin[d];
                 outBegin[DIM] = 0;
+
+                std::cout << "Write start" << std::endl;
+                std::cout << outBegin << std::endl;
                 
-                std::cout << "Processing block " << blockId << " going to write!" << std::endl;
+                std::cout << "Prediction shape" << std::endl;
+                for(int dd = 0; dd < outView.dimension(); ++dd)
+                    std::cout << outView.shape(dd) << std::endl;
+                
                 out_->writeSubarray(outBegin.begin(), outView);
-                std::cout << "written" << std::endl;
+                std::cout << "Processing block " << blockId << " done!" << std::endl;
             }
+            
+            // TODO close the rawFile and outFile -> we need the filehandles
             return NULL;
         }
+
 
 
     private:
