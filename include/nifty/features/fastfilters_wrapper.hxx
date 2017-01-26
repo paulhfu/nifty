@@ -370,13 +370,13 @@ namespace detail_fastfilters {
 
         // apply filters sequential
         void operator()(const marray::View<float> & in, marray::View<float> & out) const{
-    
-            NIFTY_CHECK_OP(in.dimension(),==,DIM,"Input needs to be of correct dimension.")
-            NIFTY_CHECK_OP(out.shape(0),==,numberOfChannels(),"Number of Channels of out Array do not match!")
-            for(int d = 0; d < DIM; ++d){
-                NIFTY_CHECK_OP(out.shape(d+1),==,in.shape(d),"in and out axis do not agree")
-            }
 
+            NIFTY_ASSERT_OP(in.dimension(),==,DIM);//,"Input needs to be of correct dimension.")
+            NIFTY_ASSERT_OP(out.shape(0),==,numberOfChannels());//,"Number of Channels of out Array do not match!")
+            for(int d = 0; d < DIM; ++d){
+                NIFTY_ASSERT_OP(out.shape(d+1),==,in.shape(d));//,"in and out axis do not agree")
+            }
+            
             Coord shapeSingleChannel;
             Coord shapeMultiChannel;
             Coord base;
@@ -392,10 +392,10 @@ namespace detail_fastfilters {
             
             FastfiltersArrayType ff;
             detail_fastfilters::convertMarray2ff(in, ff);
-
+            
             for( auto filter : filters_ ) {
                 for( auto sigma : sigmas_) {
-                    
+
                     const auto & shapeView = filter->isMultiChannel() ? shapeMultiChannel : shapeSingleChannel;
                     auto view = out.view(base.begin(), shapeView.begin()).squeezedView();
                     (*filter)(ff, view, sigma);

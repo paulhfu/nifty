@@ -55,7 +55,7 @@ namespace nifty {
                     coordinate haloEnd;
                     for(int d = 0; d < DIM; ++d) {
                         haloBegin[d] = 0L;
-                        haloEnd[d] = 1L;
+                        haloEnd[d] = 0L;
                     }
                     // compute coordinates from blockIds!
                     auto blockWithHalo = blocking_.getBlockWithHalo(blockId_, haloBegin, haloEnd);

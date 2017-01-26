@@ -36,6 +36,7 @@ namespace nifty
                 const std::string& path_in_file,
                 int n_leading_zeros)
             {
+                
                 bool read_successful = true;
                 int n_forests = -1;
                 hid_t h5file = H5Fopen(fn.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -59,8 +60,8 @@ namespace nifty
                     }
                 } while(read_successful);
 
-                std::cout << "Read " << n_forests << " Random Forests" << std::endl;
                 H5Fclose(h5file);
+                std::cout << "Read " << n_forests << " Random Forests" << std::endl;
 
                 return n_forests > 0;
             }

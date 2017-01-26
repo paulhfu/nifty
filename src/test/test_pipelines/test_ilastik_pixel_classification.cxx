@@ -2,11 +2,8 @@
 
 #include <tbb/tbb.h>
 #include <boost/test/unit_test.hpp>
+
 #include "nifty/pipelines/ilastik_backend/batch_prediction_task.hxx"
-#include "nifty/pipelines/ilastik_backend/feature_computation_task.hxx"
-#include "nifty/pipelines/ilastik_backend/random_forest_prediction_task.hxx"
-#include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
-#include "nifty/pipelines/ilastik_backend/interactive_pixel_classification.hxx"
 
 BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
 {   
@@ -27,11 +24,10 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
     // load random forests
     const std::string rf_filename = "./testPC.ilp";
     const std::string rf_path = "/PixelClassification/ClassifierForests/Forest";
-    RandomForestVectorType rf_vector;
-    get_rfs_from_file(rf_vector, rf_filename, rf_path, 4);
 
     std::string raw_file = "./testraw.h5";
-    coordinate block_shape({64,64,64});
+    //coordinate block_shape({64,64,64});
+    coordinate block_shape({128,128,128});
 
     auto selected_features = std::make_pair(std::vector<std::string>({"GaussianSmoothing"}),
             std::vector<double>({2.,3.5}));
@@ -41,6 +37,8 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
             rf_filename, rf_path,
             selected_features,
             block_shape, max_num_entries);
+    std::cout << "Spawning Main Task" << std::endl;
     tbb::task::spawn_root_and_wait(batch);
+    std::cout << "Main Task done" << std::endl;
 }
 
