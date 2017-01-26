@@ -26,8 +26,8 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
     const std::string rf_path = "/PixelClassification/ClassifierForests/Forest";
 
     std::string raw_file = "./testraw.h5";
-    //coordinate block_shape({64,64,64});
-    coordinate block_shape({128,128,128});
+    coordinate block_shape({64,64,64});
+    //coordinate block_shape({128,128,128});
 
     auto selected_features = std::make_pair(std::vector<std::string>({"GaussianSmoothing"}),
             std::vector<double>({2.,3.5}));

@@ -4,6 +4,7 @@
 
 #include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
 #include "nifty/hdf5/hdf5_array.hxx"
+#include "nifty/tools/for_each_coordinate.hxx"
 
 BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
 {
@@ -67,25 +68,26 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
     }
     std::cout << "rf_task::compute prediction done" << std::endl;
 
-    //using coordinate = nifty::tools::StaticArray<4, int64_t>;
-    //coordinate out_shape;
-    //
-    //for(int d = 0; d < 4; d++) 
-    //    out_shape[d] = shapeSq[d];
-    //                
-    //// TODO check the output
-    //tools::forEachCoordinate(output_shape, [&tmp_out_array, &prediction_map_view, output_shape](const out_shape_type& coord)
-    //{
-    //    size_t pixelRow = coord[0] * (output_shape[1] + output_shape[2]) + coord[1] * (output_shape[2]);
-    //    if(DIM == 3)
-    //    {
-    //        pixelRow = coord[0] * (output_shape[1] + output_shape[2] + output_shape[3]) + coord[1] * (output_shape[2] + output_shape[3]) + coord[2] * output_shape[3];
-    //    }
-    //    tmp_out_array(coord.asStdArray()) = prediction_map_view(pixelRow, coord[DIM]);
-    //});
-
-    //nifty::hdf5::createFile("./out_rf.h5")
-    //nifty::hdf5::Hdf5Array<float> prediction( shapeSq.begin(), shapeSq.end(), chunks );
-
+    using coordinate = nifty::array::StaticArray<int64_t, 4>;
+    coordinate out_shape;
+    coordinate out_start;
     
+    for(int d = 0; d < 4; d++){ 
+        out_shape[d] = shapeSq[d];
+        out_start[d] = 0;
+    }
+    nifty::marray::Marray<float> out_array(out_shape.begin(), out_shape.end());
+                    
+    // TODO check the output
+    nifty::tools::forEachCoordinate(out_shape, [&out_array, &out_shape, &prediction_map_view](const coordinate & coord)
+    {
+        //size_t pixelRow = coord[0] * (out_shape[1] + out_shape[2]) + coord[1] * (out_shape[2]);
+        size_t pixelRow = coord[0] * (out_shape[1] + out_shape[2] + out_shape[3]) + coord[1] * (out_shape[2] + out_shape[3]) + coord[2] * out_shape[3];
+        out_array(coord.asStdArray()) = prediction_map_view(pixelRow, coord[3]);
+    });
+
+    auto out_file = nifty::hdf5::createFile("./out_rf.h5");
+    nifty::hdf5::Hdf5Array<float> prediction(out_file, "data", shapeSq.begin(), shapeSq.end(), chunks.begin() );
+
+    prediction.writeSubarray(out_start.begin(), out_array);
 }
