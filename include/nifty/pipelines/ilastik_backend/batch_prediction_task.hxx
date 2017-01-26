@@ -75,7 +75,7 @@ namespace ilastik_backend{
             blocking_ = std::make_unique<blocking>(volBegin, volShape, blockShape_);
 
             // init the feature cache
-            std::function<float_array(size_t)> retrieve_features_for_caching = [&](size_t blockId) -> float_array {
+            std::function<float_array(size_t)> retrieve_features_for_caching = [this](size_t blockId) -> float_array {
 
                 std::cout << "generating feature cache" << std::endl;
 
@@ -88,10 +88,16 @@ namespace ilastik_backend{
                     filterShape[d+1] = blockShape_[0];
 
                 float_array out_array(filterShape.begin(), filterShape.end());
-                feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(blockId, *rawCache_, out_array, selectedFeatures_, *blocking_);
+                feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
+                        blockId,
+                        *(this->rawCache_),
+                        out_array,
+                        this->selectedFeatures_,
+                        *(this->blocking_));
+                
                 // TODO why ref-count 2
-                set_ref_count(2);
-                spawn_and_wait_for_all(feat_task);
+                this->set_ref_count(2);
+                this->spawn_and_wait_for_all(feat_task);
                 //spawn(feat_task);
                 // TODO spawn or spawn_and_wait
                 return out_array;
@@ -104,7 +110,7 @@ namespace ilastik_backend{
             size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
             
             // init the prediction cache
-            std::function<float_array(size_t)> retrieve_prediction_for_caching = [&](size_t blockId) -> float_array {
+            std::function<float_array(size_t)> retrieve_prediction_for_caching = [this](size_t blockId) -> float_array {
                 
                 std::cout << "generating prediction cache" << std::endl;
                 size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
@@ -112,15 +118,15 @@ namespace ilastik_backend{
                 multichan_coordinate predictionShape;
                 predictionShape[DIM] = n_classes;
                 for(int d = 0; d < DIM; ++d)
-                    predictionShape[d] = blockShape_[d];
+                    predictionShape[d] = this->blockShape_[d];
                 float_array out_array(predictionShape.begin(), predictionShape.end());
 
-                random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *featureCache_, out_array, rfVectors_);
+                random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *(this->featureCache_), out_array, this->rfVectors_);
                 // TODO why ref count 2
-                set_ref_count(2);
+                this->set_ref_count(2);
                 // TODO spawn or spawn_and_wait
-                //spawn_and_wait_for_all(rf_task);
-                spawn(rf_task);
+                spawn_and_wait_for_all(rf_task);
+                this->spawn(rf_task);
                 return out_array;
             };
 
@@ -192,7 +198,7 @@ namespace ilastik_backend{
         random_forest_vector rfVectors_;
         std::unique_ptr<hdf5::Hdf5Array<data_type>> out_;
     };
-
+    
 } // namespace ilastik_backend
 } // namepsace pipelines
 } // namespace nifty
