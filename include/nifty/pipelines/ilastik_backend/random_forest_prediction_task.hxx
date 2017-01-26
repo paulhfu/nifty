@@ -67,6 +67,9 @@ namespace nifty
                     
                     assert(num_required_features == in.shape(0));
 
+                    std::cout << "Filters" << std::endl;
+                    std::cout << in(0) << std::endl;
+
                     size_t pixel_count = 1;
                     out_shape_type in_shape;
                     for(int d = 0; d < DIM+1; ++d) {
