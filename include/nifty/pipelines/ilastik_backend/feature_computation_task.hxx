@@ -64,7 +64,10 @@ namespace nifty {
                     auto outerBlockEnd = outerBlock.end();
                     auto outerBlockShape = outerBlock.shape();
                     nifty::marray::Marray<in_data_type> in(outerBlockShape.begin(), outerBlockShape.end());
+                    {
+                    std::lock_guard<std::mutex> lock(s_mutex);
                     rawCache_.readSubarray(outerBlockBegin.begin(), in);
+                    }
                     compute(in, outerBlock);
                     return NULL;
                 }
@@ -87,12 +90,16 @@ namespace nifty {
                 }
     
             private:
+        	static std::mutex s_mutex;
                 size_t blockId_;
                 raw_cache & rawCache_;
                 out_array_view & outArray_;
                 apply_type apply_; // the functor for applying the filters
                 const blocking_type blocking_;
             };
+            
+            template <unsigned DIM>
+            std::mutex feature_computation_task<DIM>::s_mutex;
         
         } // namespace ilastik_backend
     } // namespace pipelines
