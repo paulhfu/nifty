@@ -3,6 +3,7 @@
 #include "nifty/pipelines/ilastik_backend/interactive_pixel_classification.hxx"
 #include "nifty/pipelines/ilastik_backend/feature_computation_task.hxx"
 #include "nifty/pipelines/ilastik_backend/random_forest_prediction_task.hxx"
+#include "nifty/pipelines/ilastik_backend/random_forest_3_loader.hxx"
 
 namespace nifty{
 namespace pipelines{
@@ -118,7 +119,10 @@ std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n";
             featureCache_ = std::make_unique<feature_cache>(retrieve_features_for_caching, maxNumCacheEntries_);
             
             // TODO use vigra rf 3 instead !
-            get_rfs_from_file(rfVectors_, rfFile_, rfKey_, 4);
+            //get_rfs_from_file(rfVectors_, rfFile_, rfKey_, 4);
+            rfVectors_.emplace_back(RandomForestType());
+            get_rf_from_multi_file(rfVectors_[0], rfFile_, rfKey_, 4);
+            
             size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
             
             // init the prediction cache

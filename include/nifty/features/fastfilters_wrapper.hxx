@@ -98,11 +98,11 @@ namespace detail_fastfilters {
 
         virtual ~FilterBase(){};
 
-        virtual void inline operator()(const fastfilters_array2d_t &, marray::View<float> &, const double) const = 0;
+        virtual void operator()(const fastfilters_array2d_t &, marray::View<float> &, const double) const = 0;
 
-        virtual void inline operator()(const fastfilters_array3d_t &, marray::View<float> &, const  double) const = 0; 
+        virtual void operator()(const fastfilters_array3d_t &, marray::View<float> &, const  double) const = 0; 
 
-        virtual bool inline isMultiChannel() const = 0;
+        virtual bool isMultiChannel() const = 0;
         
         virtual void setOuterScale(const double sigmaOuter) = 0;
 

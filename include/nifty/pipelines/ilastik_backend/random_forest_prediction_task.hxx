@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include <tbb/tbb.h>
-#include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
+#include "nifty/pipelines/ilastik_backend/random_forest_3_loader.hxx"
 #include <nifty/marray/marray.hxx>
 // TODO include appropriate vigra stuff
 #include <vigra/random_forest_hdf5_impex.hxx>
@@ -115,15 +115,9 @@ namespace nifty
                     std::cout << "rf_task::compute predicting" << std::endl;
                     for(size_t rf = 0; rf < random_forest_vector_.size(); ++rf)
                     {
-                        std::cout << "AAA" << std::endl;
                         vigra::MultiArray<2, data_type> prediction_temp(pixel_count, num_pixel_classification_labels);
-                        std::cout << "BBB" << std::endl;
                         random_forest_vector_[rf].predictProbabilities(vigra_in, prediction_temp);
-                        std::cout << "CCC" << std::endl;
                         prediction_map_view += prediction_temp;
-                        std::cout << "Prediction done for rf: " << rf << std::endl;
-                        auto pred_mm = std::minmax_element(prediction_map_view.begin(), prediction_map_view.end()); 
-                        std::cout << "RF-min prediction: " << *(pred_mm.first) << " RF-max prediction: " << *(pred_mm.second) << std::endl;
                     }
                     std::cout << "rf_task::compute prediction done" << std::endl;
 
