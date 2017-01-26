@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
 
     // load random forests
     const std::string rf_filename = "./testPC.ilp";
-    const std::string rf_path = "/PixelClassification/ClassifierForests/Forest";
+    const std::string rf_path = "/PixelClassification/ClassifierForests/Forest0000";
 
     std::string raw_file = "./testraw.h5";
     coordinate block_shape({64,64,64});

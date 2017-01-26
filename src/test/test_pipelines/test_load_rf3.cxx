@@ -12,6 +12,9 @@ BOOST_AUTO_TEST_CASE(RandomForest3LoadingTest)
 
     //const std::string rf_file = "/home/constantin/Work/neurodata_hdd/ilastik_hackathon/fib_raw_test.h5";
     //const std::string rf_key = "Forest0000";
+    
+    const std::string rf_file = "./testPC.ilp";
+    const std::string rf_key = "/PixelClassification/ClassifierForests/Forest/Forest0000";
 
     const std::string feature_key  = "exported_data";
 

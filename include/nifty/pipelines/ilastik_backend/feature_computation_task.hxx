@@ -80,10 +80,21 @@ namespace nifty {
                     tools::forEachCoordinate(in_shape, [&](const coordinate & coord){
                         in_float(coord.asStdArray()) = in(coord.asStdArray());    
                     });
+                    
                     // apply the filter via the functor
                     // TODO consider passing the tbb threadpool here
+                    //apply_(in_float, outTransposedView);
                     apply_(in_float, outArray_);
                     // TODO cut the halo
+                    
+                    size_t permutation[outArray_.dimension()];
+                    permutation[DIM] = 0;
+                    for(int d = 0; d < DIM; ++d)
+                        permutation[d] = d+1;
+                    outArray_.permute(permutation);
+
+                    //outArray_.transpose(DIM,0);
+                    
                 }
     
             private:

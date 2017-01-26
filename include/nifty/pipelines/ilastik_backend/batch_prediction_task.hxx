@@ -78,28 +78,24 @@ namespace ilastik_backend{
             // init the feature cache
             std::function<float_array(size_t)> retrieve_features_for_caching = [this](size_t blockId) -> float_array {
 
-                std::cout << "generating feature cache" << std::endl;
-
                 // TODO FIXME this should not be hard-coded, but we need some static method that calculate this given the selected features
                 size_t nChannels = 2;
                 multichan_coordinate filterShape;
                 filterShape[0] = nChannels;
                 // TODO once we have halos, we need them here -> this can also be wrapped into a static method
                 for(int d = 0; d < DIM; ++d)
-                    filterShape[d+1] = blockShape_[0];
+                    filterShape[d+1] = blockShape_[d];
 
                 float_array out_array(filterShape.begin(), filterShape.end());
 
-		feature_computation_task<DIM> task(
+		        feature_computation_task<DIM> task(
                         blockId,
                         *(this->rawCache_),
                         out_array,
                         this->selectedFeatures_,
                         *(this->blocking_));
 
-std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n";
-
-		task.execute();
+		        task.execute();
 
                 /*feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
                         blockId,
@@ -120,15 +116,13 @@ std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n";
             
             // TODO use vigra rf 3 instead !
             //get_rfs_from_file(rfVectors_, rfFile_, rfKey_, 4);
-            rfVectors_.emplace_back(RandomForestType());
-            get_rf_from_multi_file(rfVectors_[0], rfFile_, rfKey_, 4);
+            rfVectors_.emplace_back( get_rf_from_file(rfFile_, rfKey_) );
             
             size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
             
             // init the prediction cache
             std::function<float_array(size_t)> retrieve_prediction_for_caching = [this](size_t blockId) -> float_array {
                 
-                std::cout << "generating prediction cache" << std::endl;
                 size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
                 
                 multichan_coordinate predictionShape;
@@ -136,9 +130,6 @@ std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n";
                 for(int d = 0; d < DIM; ++d)
                     predictionShape[d] = this->blockShape_[d];
                 float_array out_array(predictionShape.begin(), predictionShape.end());
-                
-std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBB\n";
-                
                 
                 random_forest_prediction_task<DIM> task(blockId, *(this->featureCache_), out_array, this->rfVectors_);
                 task.execute();
@@ -169,15 +160,18 @@ std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBB\n";
             std::cout << "batch_prediction_task::execute called" << std::endl;
             
             init();
+
+            // feature output for debugging only
+            auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
+            size_t feat_shape[] = {128,128,128,2};
+            size_t chunk_shape[] = {64,64,64,1};
+            nifty::hdf5::Hdf5Array<float> feats(feat_tmp, "data", feat_shape, feat_shape + 4, chunk_shape );
+            
             // TODO spawn the tasks to batch process the complete volume
             for(size_t blockId = 0; blockId < blocking_->numberOfBlocks(); ++blockId) {
 
                 std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
                 
-                auto handle = (*predictionCache_)[blockId];
-                auto outView = handle.value();
-                std::cout << "handle with caution" << std::endl;
-
                 auto block = blocking_->getBlock(blockId);
                 coordinate blockBegin = block.begin();
                 
@@ -187,12 +181,20 @@ std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBB\n";
                     outBegin[d] = blockBegin[d];
                 outBegin[DIM] = 0;
 
+                // write the features, debugging only
+                auto featHandlde = (*featureCache_)[blockId];
+                auto featView = featHandlde.value();
+                feats.writeSubarray(outBegin.begin(), featView);
+                
+                auto handle = (*predictionCache_)[blockId];
+                auto outView = handle.value();
+
                 std::cout << "Write start" << std::endl;
                 std::cout << outBegin << std::endl;
                 
-                std::cout << "Prediction shape" << std::endl;
-                for(int dd = 0; dd < outView.dimension(); ++dd)
-                    std::cout << outView.shape(dd) << std::endl;
+                //std::cout << "Prediction shape" << std::endl;
+                //for(int dd = 0; dd < outView.dimension(); ++dd)
+                //    std::cout << outView.shape(dd) << std::endl;
                 
                 out_->writeSubarray(outBegin.begin(), outView);
                 std::cout << "Processing block " << blockId << " done!" << std::endl;
