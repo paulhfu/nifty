@@ -50,7 +50,6 @@ namespace nifty
 
                 tbb::task* execute()
                 {
-                    std::cout << "rf_task::execute()" << std::endl;
                     // ask for features. This blocks if it's not present
                     feature_cache::handle ho = feature_cache_[blockId_];
                     float_array_view& features = ho.value();
@@ -58,75 +57,55 @@ namespace nifty
                     return NULL;
                 }
 
+                // TODO fix the reshapes to avoid 1 data copy
                 void compute(const float_array_view & in)
                 {
                     std::cout << "rf_task::compute for block " << blockId_ << std::endl;
                     // TODO: transform data to vigra array?!
-                    size_t num_pixel_classification_labels = random_forest_vector_[0].class_count();
-                    size_t num_required_features = random_forest_vector_[0].feature_count();
-                    
+                    size_t num_pixel_classification_labels = random_forest_vector_[0].num_classes();
+                    size_t num_required_features = random_forest_vector_[0].num_features();
                     assert(num_required_features == in.shape(0));
 
-                    std::cout << "Filters" << std::endl;
-                    std::cout << in(0) << std::endl;
+                    //std::cout << "Filters" << std::endl;
+                    //std::cout << in(0) << std::endl;
 
                     size_t pixel_count = 1;
                     out_shape_type in_shape;
                     for(int d = 0; d < DIM+1; ++d) {
                         in_shape[d] = in.shape(d);
-                        if(d > 0)
+                        if(d < DIM)
                             pixel_count *= in.shape(d);
                     }
-                    std::cout << in_shape << std::endl;
-                    std::cout << pixel_count << std::endl;
+                    //std::cout << in_shape << std::endl;
+                    //std::cout << pixel_count << std::endl;
 
                     feature_shape_type feature_shape({pixel_count, num_required_features});
+                    feature_shape_type prediction_shape({pixel_count, num_pixel_classification_labels});
                     
-                    //vigra::MultiArray<2, data_type> vigra_in(vigra::Shape2(pixel_count, num_required_features));
-                    vigra::MultiArrayView<2, data_type> vigra_in(vigra::Shape2(pixel_count, num_required_features), &in(0));
+                    //std::cout << "Flattened shape:" << std::endl;
+                    //auto in_flatten    = in.reshapedView(feature_shape.begin(), feature_shape.end());
                     
-                    std::cout << "rf_task::compute vigra copies " << std::endl;
+                    // TODO copy for now, but we should be able to do this w/o
+                    marray::Marray<data_type> in_flatten(feature_shape.begin(), feature_shape.end());
+
                     // copy data from marray to vigra. TODO: is the axes order correct??
-                    //tools::forEachCoordinate(in_shape, [&in, &vigra_in, &in_shape, pixel_count](const out_shape_type& coord)
-                    //{
-                    //    size_t pixel = (DIM == 2) ? coord[1] * (in_shape[2] + in_shape[3]) + coord[2] * (in_shape[3]) :
-                    //                   coord[1] * (in_shape[2] + in_shape[3] + in_shape[4]) + coord[2] * (in_shape[3] + in_shape[4]) + coord[3] * in_shape[4];
-                    //    if(pixel >= pixel_count) {
-                    //        std::cout << "WAAAAHAAHHAA" << std::endl;
-                    //        std::cout << pixel << " " << pixel_count << std::endl;
-                    //        std::cout << coord << std::endl;
-                    //    }
-                    //    if(coord[0] >= 2)
-                    //        std::cout << "Whoooooosa " << coord[0] << std::endl;
-                    //    
-                    //    //std::cout << coord << std::endl;
-                    //    //std::cout << pixel << std::endl;
-                    //    //std::cout << vigra_in(pixel, coord[0]) << std::endl;
-                    //    //std::cout << "Accessed vigra array " << std::endl;
-                    //    //std::cout << in(coord.asStdArray()) << std::endl;
-                    //    //std::cout << "Accessed in array " << std::endl;
-                    //    vigra_in(pixel, coord[0]) = in(coord.asStdArray());
-                    //});
-                    //std::cout << "rf_task::compute vigra copies done 1" << std::endl;
+                    tools::forEachCoordinate(in_shape, [&in, &in_flatten](const out_shape_type& coord)
+                    {
+                        size_t pixel = (DIM == 2) ? coord[0] + coord[1]*in.shape(0) : coord[0] + coord[1] * in.shape(0) + coord[2] * (in.shape(0) * in.shape(1));
+                        in_flatten(pixel, coord[DIM]) = in(coord.asStdArray());
+                    });
                     
-                    vigra::MultiArray<2, data_type> prediction_map_view(vigra::Shape2(pixel_count, num_pixel_classification_labels));
+                    for(int d = 0; d < in_flatten.dimension(); ++d)
+                        std::cout << in_flatten.shape(d) << std::endl;
+                    
+                    marray::Marray<data_type> prediction(prediction_shape.begin(), prediction_shape.end());
 
                     // loop over all random forests for prediction probabilities
-                    std::cout << "rf_task::compute predicting" << std::endl;
-                    for(size_t rf = 0; rf < random_forest_vector_.size(); ++rf)
-                    {
-                        vigra::MultiArray<2, data_type> prediction_temp(pixel_count, num_pixel_classification_labels);
-                        random_forest_vector_[rf].predictProbabilities(vigra_in, prediction_temp);
-                        prediction_map_view += prediction_temp;
-                    }
-                    std::cout << "rf_task::compute prediction done" << std::endl;
+                    random_forest_vector_[0].predict_probs(in_flatten, prediction);
+                    prediction /= random_forest_vector_[0].num_trees();
 
-                    auto pred_mm = std::minmax_element(prediction_map_view.begin(), prediction_map_view.end()); 
-                    std::cout << "RF-min prediction: " << *(pred_mm.first) << " RF-max prediction: " << *(pred_mm.second) << std::endl;
-                    // divide probs by num random forests
-                    prediction_map_view /= random_forest_vector_.size();
-                    pred_mm = std::minmax_element(prediction_map_view.begin(), prediction_map_view.end()); 
-                    std::cout << "RF-min prediction: " << *(pred_mm.first) << " RF-max prediction: " << *(pred_mm.second) << std::endl;
+                    //auto miMa = std::minmax_element(prediction.begin(), prediction.end());
+                    //std::cout << "MinMax predition " << *miMa.first << " " << *miMa.second << std::endl;
 
                     // transform back to marray
                     out_shape_type output_shape;
@@ -135,18 +114,16 @@ namespace nifty
                     }
                     
                     output_shape[DIM] = num_pixel_classification_labels;
-                    float_array_view& tmp_out_array = out_array_;
+                    //float_array_view & tmp_out_array = prediction.reshapedView(output_shape.begin(), output_shape.end());
+                    //out_array_ = prediction.reshapedView(output_shape.begin(), output_shape.end());
                     
-                    std::cout << "rf_task::compute black copy magic" << std::endl;
-                    tools::forEachCoordinate(output_shape, [&tmp_out_array, &prediction_map_view, output_shape](const out_shape_type& coord)
+                    tools::forEachCoordinate(output_shape, [&prediction, this](const out_shape_type& coord)
                     {
-                        size_t pixelRow = coord[0] + coord[1] * (output_shape[0] * output_shape[1]) + coord[2] * (output_shape[0]);
-                        if(DIM == 3)
-                        {
-                            size_t pixelRow = coord[0] + coord[1] * (output_shape[0] * output_shape[1] * output_shape[2]) + coord[2] * (output_shape[0] * output_shape[1]) + coord[3] * (output_shape[0]);
-                        }
-                        tmp_out_array(coord.asStdArray()) = prediction_map_view(pixelRow, coord[DIM]);
+                        size_t pixel = (DIM == 2) ? coord[0] + coord[1]*this->out_array_.shape(0) 
+                            : coord[0] + coord[1] * this->out_array_.shape(0) + coord[2] * (this->out_array_.shape(0) * this->out_array_.shape(1));
+                        this->out_array_(coord.asStdArray()) = prediction(pixel, coord[DIM]);
                     });
+                    
                     std::cout << "rf_task::compute done" << std::endl;
                 }
 

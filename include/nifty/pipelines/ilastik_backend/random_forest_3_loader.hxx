@@ -16,7 +16,7 @@ namespace nifty
         namespace ilastik_backend
         {
             using LabelType = size_t;
-            using FeatureType = size_t;
+            using FeatureType = float;
             using Labels = nifty::marray::View<LabelType>; 
             using Features = nifty::marray::View<FeatureType>; 
             
@@ -37,6 +37,7 @@ namespace nifty
              *          tree than is available. But that seems to be the easiest option to get all RFs in the group.
              * 
              */
+            /*
             bool get_rf_from_multi_file(
                 RandomForestType& rf,
                 const std::string& fn,
@@ -72,6 +73,15 @@ namespace nifty
                 std::cout << "Read " << n_forests << " Random Forests" << std::endl;
 
                 return n_forests > 0;
+            }
+            */
+            
+            RandomForestType get_rf_from_file(
+                const std::string& fn,
+                const std::string& path_in_file)
+            {
+                auto h5file = vigra::HDF5File(fn);
+                return vigra::rf3::random_forest_import_HDF5<Features,Labels>(h5file, path_in_file);
             }
         }
     }
