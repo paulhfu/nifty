@@ -88,16 +88,28 @@ namespace ilastik_backend{
                     filterShape[d+1] = blockShape_[0];
 
                 float_array out_array(filterShape.begin(), filterShape.end());
-                feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
+
+		feature_computation_task<DIM> task(
                         blockId,
                         *(this->rawCache_),
                         out_array,
                         this->selectedFeatures_,
                         *(this->blocking_));
+
+std::cout << "AAAAAAAAAAAAAAAAAAAAAA\n";
+
+		task.execute();
+
+                /*feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
+                        blockId,
+                        *(this->rawCache_),
+                        out_array,
+                        this->selectedFeatures_,
+                        *(this->blocking_));*/
                 
                 // TODO why ref-count 2
-                this->set_ref_count(2);
-                this->spawn_and_wait_for_all(feat_task);
+                //this->set_ref_count(2);
+                //this->spawn_and_wait_for_all(feat_task);
                 //spawn(feat_task);
                 // TODO spawn or spawn_and_wait
                 return out_array;
@@ -120,12 +132,18 @@ namespace ilastik_backend{
                 for(int d = 0; d < DIM; ++d)
                     predictionShape[d] = this->blockShape_[d];
                 float_array out_array(predictionShape.begin(), predictionShape.end());
+                
+std::cout << "BBBBBBBBBBBBBBBBBBBBBBBBB\n";
+                
+                
+                random_forest_prediction_task<DIM> task(blockId, *(this->featureCache_), out_array, this->rfVectors_);
+                task.execute();
 
-                random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *(this->featureCache_), out_array, this->rfVectors_);
+                //random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *(this->featureCache_), out_array, this->rfVectors_);
                 // TODO why ref count 2
-                this->set_ref_count(2);
+                //this->set_ref_count(2);
                 // TODO spawn or spawn_and_wait
-                this->spawn_and_wait_for_all(rf_task);
+                //this->spawn_and_wait_for_all(rf_task);
                 //this->spawn(rf_task);
                 return out_array;
             };

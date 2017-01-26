@@ -19,7 +19,7 @@ namespace nifty {
         namespace ilastik_backend {
             
             template<unsigned DIM>
-            class feature_computation_task : public tbb::task
+            class feature_computation_task /*: public tbb::task*/
             {
             private:
                 using apply_type = nifty::features::ApplyFilters<DIM>;

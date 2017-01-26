@@ -19,7 +19,7 @@ namespace nifty
         namespace ilastik_backend
         {
             template<unsigned DIM>
-            class random_forest_prediction_task : public tbb::task 
+            class random_forest_prediction_task /*: public tbb::task */
             {
             public:
                 // typedefs
