@@ -340,7 +340,7 @@ namespace detail_fastfilters {
                 const std::vector<std::string> & filterNames,
                 const double outerScale = 0.) : sigmas_(sigmas), filters_() {
             
-            fastfilters_init(); // FIXME this might cause problems if we init more than one ApplyFilters
+            //fastfilters_init(); // FIXME this might cause problems if we init more than one ApplyFilters
                 
             // init the vector with filter_type pointers
             for(const auto & filtName : filterNames) {

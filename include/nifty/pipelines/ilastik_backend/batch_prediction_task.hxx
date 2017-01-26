@@ -161,6 +161,10 @@ namespace ilastik_backend{
             
             init();
 
+
+#if 0
+
+
             // feature output for debugging only
             auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
             size_t feat_shape[] = {128,128,128,2};
@@ -199,6 +203,41 @@ namespace ilastik_backend{
                 out_->writeSubarray(outBegin.begin(), outView);
                 std::cout << "Processing block " << blockId << " done!" << std::endl;
             }
+#endif
+	    //std::mutex m;
+
+	    tbb::parallel_for(tbb::blocked_range<size_t>(0,blocking_->numberOfBlocks()), [this/*,&m*/](const tbb::blocked_range<size_t> &range) {
+		for( size_t blockId=range.begin(); blockId!=range.end(); ++blockId ) {
+
+                std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
+
+                auto handle = (*predictionCache_)[blockId];
+                auto outView = handle.value();
+                //std::cout << "handle with caution" << std::endl;
+
+                auto block = blocking_->getBlock(blockId);
+                coordinate blockBegin = block.begin();
+
+                // need to attach the channel coordinate
+                //multichan_coordinate outBegin;
+                //for(int d = 0; d < DIM; ++d)
+                //    outBegin[d] = blockBegin[d];
+                //outBegin[DIM] = 0;
+
+                //std::cout << "Write start" << std::endl;
+                //std::cout << outBegin << std::endl;
+
+                //std::cout << "Prediction shape" << std::endl;
+                //for(int dd = 0; dd < outView.dimension(); ++dd)
+                    //std::cout << outView.shape(dd) << std::endl;
+
+		//std::lock_guard<std::mutex> lock(m);
+                //out_->writeSubarray(outBegin.begin(), outView);
+                //std::cout << "Processing block " << blockId << " done!" << std::endl;
+
+		}		
+	    });
+
             
             // TODO close the rawFile and outFile -> we need the filehandles
             return NULL;
