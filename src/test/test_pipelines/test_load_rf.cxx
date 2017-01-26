@@ -10,10 +10,14 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
 {
     using namespace nifty::pipelines::ilastik_backend;
 
-    const std::string rf_file = "./testPC.ilp";
-    const std::string rf_key = "/PixelClassification/ClassifierForests/Forest";
+    using data_type = float;
+    
+    using coordinate = nifty::array::StaticArray<int64_t, 4>;
+    using coordinate_flatten = nifty::array::StaticArray<int64_t,2>;
 
-    const std::string feature_file = "";
+    const std::string rf_file = "./testPC.ilp";
+    const std::string rf_key = "/PixelClassification/ClassifierForests/Forest0000";
+
     const std::string feature_key  = "exported_data";
 
     // load the features
@@ -28,47 +32,51 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
         start.push_back(0);
     }
 
-    nifty::marray::Marray<float> feature_array(shape.begin(), shape.end());
+    nifty::marray::Marray<data_type> feature_array(shape.begin(), shape.end());
     features.readSubarray(start.begin(), feature_array);
 
-    auto features_squeezed = feature_array.squeezedView();
+    auto in = feature_array.squeezedView();
     
-    std::vector<size_t> shapeSq;
-    std::vector<size_t> chunks;
-    for(int d = 0; d < features_squeezed.dimension(); ++d) {
-        shapeSq.push_back(features_squeezed.shape(d));
-        chunks.push_back( std::min( size_t(64), features_squeezed.shape(d)) );
+    coordinate shapeSq;
+    coordinate chunks;
+    for(int d = 0; d < in.dimension(); ++d) {
+        shapeSq[d] = in.shape(d);
+        chunks[d]  = std::min(size_t(64), in.shape(d));
     }
     
     // load the rf
-    RandomForestVectorType rf_vec;
-    get_rfs_from_file(rf_vec, rf_file, rf_key, 4);
+    auto rf = get_rf_from_file(rf_file, rf_key);
                     
-    size_t num_labels   = rf_vec[0].class_count();
-    size_t num_features = rf_vec[0].feature_count();
+    size_t num_labels   = rf.num_classes();
+    size_t num_features = rf.num_features();
 
-    // transform to vigra features and predict the rf
-    
     size_t pixel_count = 1;
     for(int d = 0; d < 3; ++d) {
-        pixel_count *= features_squeezed.shape(d);
+        pixel_count *= in.shape(d);
     }
-
-    vigra::MultiArrayView<2,float> vigra_in(vigra::Shape2(pixel_count, num_features), &features_squeezed(0));
-    vigra::MultiArray<2, float> prediction_map_view(vigra::Shape2(pixel_count, num_labels));
+            
+    coordinate_flatten feature_shape(   {pixel_count, num_labels});
+    coordinate_flatten prediction_shape({pixel_count, num_features});
+            
+    // FIXME TODO copy for now, but we should be able to do this w/o
+    //std::cout << "Flattened shape:" << std::endl;
+    //auto in_flatten    = in.reshapedView(feature_shape.begin(), feature_shape.end());
+    nifty::marray::Marray<data_type> in_flatten(feature_shape.begin(), feature_shape.end());
+    nifty::tools::forEachCoordinate(shapeSq, [&in, &in_flatten](const coordinate & coord)
+    {
+        size_t pixel = coord[0] + coord[1] * in.shape(0) + coord[2] * (in.shape(0) * in.shape(1));
+        in_flatten(pixel, coord[3]) = in(coord.asStdArray());
+    });
+    
+    for(int d = 0; d < in_flatten.dimension(); ++d)
+        std::cout << in_flatten.shape(d) << std::endl;
+    
+    nifty::marray::Marray<data_type> prediction(prediction_shape.begin(), prediction_shape.end());
 
     // loop over all random forests for prediction probabilities
-    std::cout << "rf_task::compute predicting" << std::endl;
-    for(size_t rf = 0; rf < rf_vec.size(); ++rf)
-    {
-        vigra::MultiArray<2, float> prediction_temp(pixel_count, num_labels);
-        rf_vec[rf].predictProbabilities(vigra_in, prediction_temp);
-        prediction_map_view += prediction_temp;
-        std::cout << "Prediction done for rf: " << rf << std::endl;
-    }
-    std::cout << "rf_task::compute prediction done" << std::endl;
+    rf.predict_probs(in_flatten, prediction);
+    prediction /= rf.num_trees();
 
-    using coordinate = nifty::array::StaticArray<int64_t, 4>;
     coordinate out_shape;
     coordinate out_start;
     
@@ -76,18 +84,16 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
         out_shape[d] = shapeSq[d];
         out_start[d] = 0;
     }
-    nifty::marray::Marray<float> out_array(out_shape.begin(), out_shape.end());
+    nifty::marray::Marray<data_type> out_array(out_shape.begin(), out_shape.end());
                     
-    // TODO check the output
-    nifty::tools::forEachCoordinate(out_shape, [&out_array, &out_shape, &prediction_map_view](const coordinate & coord)
+    nifty::tools::forEachCoordinate(out_shape, [&prediction, &out_array](const coordinate& coord)
     {
-        //size_t pixelRow = coord[0] * (out_shape[1] + out_shape[2]) + coord[1] * (out_shape[2]);
-        size_t pixelRow = coord[0] * (out_shape[1] + out_shape[2] + out_shape[3]) + coord[1] * (out_shape[2] + out_shape[3]) + coord[2] * out_shape[3];
-        out_array(coord.asStdArray()) = prediction_map_view(pixelRow, coord[3]);
+        size_t pixel = coord[0] + coord[1] * out_array.shape(0) + coord[2] * (out_array.shape(0) * out_array.shape(1));
+        out_array(coord.asStdArray()) = prediction(pixel, coord[3]);
     });
 
     auto out_file = nifty::hdf5::createFile("./out_rf.h5");
-    nifty::hdf5::Hdf5Array<float> prediction(out_file, "data", shapeSq.begin(), shapeSq.end(), chunks.begin() );
+    nifty::hdf5::Hdf5Array<float> out(out_file, "data", shapeSq.begin(), shapeSq.end(), chunks.begin() );
 
-    prediction.writeSubarray(out_start.begin(), out_array);
+    out.writeSubarray(out_start.begin(), out_array);
 }

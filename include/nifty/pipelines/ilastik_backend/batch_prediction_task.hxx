@@ -1,9 +1,8 @@
 #pragma once
 
-#include "nifty/pipelines/ilastik_backend/interactive_pixel_classification.hxx"
 #include "nifty/pipelines/ilastik_backend/feature_computation_task.hxx"
 #include "nifty/pipelines/ilastik_backend/random_forest_prediction_task.hxx"
-#include "nifty/pipelines/ilastik_backend/random_forest_3_loader.hxx"
+#include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
 
 namespace nifty{
 namespace pipelines{
@@ -25,7 +24,7 @@ namespace ilastik_backend{
         // TODO does not really make sense to have to identical typedefs here
         using feature_cache    = tbb::concurrent_lru_cache<size_t, float_array, std::function<float_array(size_t)>>;
         using prediction_cache = tbb::concurrent_lru_cache<size_t, float_array, std::function<float_array(size_t)>>;
-        using random_forest_vector = RandomForestVectorType;
+        using random_forest = RandomForestType;
 
         using blocking = tools::Blocking<DIM>;
         
@@ -57,7 +56,7 @@ namespace ilastik_backend{
             selectedFeatures_(selected_features),
             blockShape_(block_shape),
             maxNumCacheEntries_(max_num_cache_entries),
-            rfVectors_()
+            rf_()
         {
             //init();
         }
@@ -114,9 +113,7 @@ namespace ilastik_backend{
             
             featureCache_ = std::make_unique<feature_cache>(retrieve_features_for_caching, maxNumCacheEntries_);
             
-            // TODO use vigra rf 3 instead !
-            //get_rfs_from_file(rfVectors_, rfFile_, rfKey_, 4);
-            rfVectors_.emplace_back( get_rf_from_file(rfFile_, rfKey_) );
+            rf_ = get_rf_from_file(rfFile_, rfKey_);
             
             size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
             
@@ -131,10 +128,10 @@ namespace ilastik_backend{
                     predictionShape[d] = this->blockShape_[d];
                 float_array out_array(predictionShape.begin(), predictionShape.end());
                 
-                random_forest_prediction_task<DIM> task(blockId, *(this->featureCache_), out_array, this->rfVectors_);
+                random_forest_prediction_task<DIM> task(blockId, *(this->featureCache_), out_array, this->rf_);
                 task.execute();
 
-                //random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *(this->featureCache_), out_array, this->rfVectors_);
+                //random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *(this->featureCache_), out_array, this->rf_);
                 // TODO why ref count 2
                 //this->set_ref_count(2);
                 // TODO spawn or spawn_and_wait
@@ -254,7 +251,7 @@ namespace ilastik_backend{
         selection_type selectedFeatures_;
         coordinate blockShape_;
         size_t maxNumCacheEntries_;
-        random_forest_vector rfVectors_;
+        random_forest rf_;
         std::unique_ptr<hdf5::Hdf5Array<data_type>> out_;
     };
     

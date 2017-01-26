@@ -13,17 +13,6 @@ namespace nifty{
 namespace pipelines{
 namespace ilastik_backend{
 
-
-
-
-
-
-
-
-
-
-
-
     
     template<class T, size_t DIM, bool MULTICHANNEL>
     class InputDataBase{

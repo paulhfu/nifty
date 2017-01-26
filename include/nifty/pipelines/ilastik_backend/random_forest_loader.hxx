@@ -3,8 +3,11 @@
 
 #pragma once
 
-#include <vigra/random_forest_hdf5_impex.hxx>
-#include <hdf5_hl.h>
+#include <nifty/marray/marray.hxx>
+
+#include <vigra/random_forest_3.hxx>
+#include <vigra/random_forest_3_hdf5_impex.hxx>
+//#include <hdf5_hl.h>
 
 namespace nifty
 {
@@ -12,9 +15,11 @@ namespace nifty
     {
         namespace ilastik_backend
         {
-            typedef size_t LabelType;
-            typedef vigra::RandomForest<LabelType> RandomForestType;
-            typedef std::vector<RandomForestType> RandomForestVectorType;
+            using LabelType = size_t;
+            using FeatureType = float;
+            using Labels = nifty::marray::View<LabelType>; 
+            using Features = nifty::marray::View<FeatureType>; 
+            using RandomForestType = vigra::rf3::DefaultRF<Features,Labels>::type;
 
             std::string zero_padding(int num, int n_zeros)
             {
@@ -30,8 +35,9 @@ namespace nifty
              *          tree than is available. But that seems to be the easiest option to get all RFs in the group.
              * 
              */
-            bool get_rfs_from_file(
-                RandomForestVectorType& rfs,
+            /*
+            bool get_rf_from_multi_file(
+                RandomForestType& rf,
                 const std::string& fn,
                 const std::string& path_in_file,
                 int n_leading_zeros)
@@ -39,8 +45,9 @@ namespace nifty
                 
                 bool read_successful = true;
                 int n_forests = -1;
-                hid_t h5file = H5Fopen(fn.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-                assert(h5file > 0);
+                auto h5file = vigra::HDF5File(fn);
+                //hid_t h5file = H5Fopen(fn.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+                //assert(h5file > 0);
 
                 do
                 {
@@ -50,9 +57,9 @@ namespace nifty
                     
                     if(rf_group > 0) 
                     {
-                        rfs.push_back(RandomForestType());
-                        read_successful = vigra::rf_import_HDF5(rfs[n_forests], fn, rf_path);
+                        auto rf_tmp = vigra::rf3::random_forest_import_HDF5<Features,Labels>(fn, rf_path);
                         H5Gclose(rf_group);
+                        rf.merge(rf_tmp);
                     }
                     else
                     {
@@ -64,6 +71,15 @@ namespace nifty
                 std::cout << "Read " << n_forests << " Random Forests" << std::endl;
 
                 return n_forests > 0;
+            }
+            */
+            
+            RandomForestType get_rf_from_file(
+                const std::string& fn,
+                const std::string& path_in_file)
+            {
+                auto h5file = vigra::HDF5File(fn);
+                return vigra::rf3::random_forest_import_HDF5<Features,Labels>(h5file, path_in_file);
             }
         }
     }
