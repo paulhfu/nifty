@@ -66,8 +66,14 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
         std::cout << "Prediction done for rf: " << rf << std::endl;
     }
     std::cout << "rf_task::compute prediction done" << std::endl;
-                    
-    // TODO check the output
+
+    //using coordinate = nifty::tools::StaticArray<4, int64_t>;
+    //coordinate out_shape;
+    //
+    //for(int d = 0; d < 4; d++) 
+    //    out_shape[d] = shapeSq[d];
+    //                
+    //// TODO check the output
     //tools::forEachCoordinate(output_shape, [&tmp_out_array, &prediction_map_view, output_shape](const out_shape_type& coord)
     //{
     //    size_t pixelRow = coord[0] * (output_shape[1] + output_shape[2]) + coord[1] * (output_shape[2]);

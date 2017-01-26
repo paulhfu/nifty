@@ -125,8 +125,8 @@ namespace ilastik_backend{
                 // TODO why ref count 2
                 this->set_ref_count(2);
                 // TODO spawn or spawn_and_wait
-                spawn_and_wait_for_all(rf_task);
-                this->spawn(rf_task);
+                this->spawn_and_wait_for_all(rf_task);
+                //this->spawn(rf_task);
                 return out_array;
             };
 
