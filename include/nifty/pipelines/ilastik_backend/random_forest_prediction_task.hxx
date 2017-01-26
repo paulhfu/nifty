@@ -146,10 +146,10 @@ namespace nifty
                     std::cout << "rf_task::compute black copy magic" << std::endl;
                     tools::forEachCoordinate(output_shape, [&tmp_out_array, &prediction_map_view, output_shape](const out_shape_type& coord)
                     {
-                        size_t pixelRow = coord[0] * (output_shape[1] + output_shape[2]) + coord[1] * (output_shape[2]);
+                        size_t pixelRow = coord[0] + coord[1] * (output_shape[0] * output_shape[1]) + coord[2] * (output_shape[0]);
                         if(DIM == 3)
                         {
-                            pixelRow = coord[0] * (output_shape[1] + output_shape[2] + output_shape[3]) + coord[1] * (output_shape[2] + output_shape[3]) + coord[2] * output_shape[3];
+                            size_t pixelRow = coord[0] + coord[1] * (output_shape[0] * output_shape[1] * output_shape[2]) + coord[2] * (output_shape[0] * output_shape[1]) + coord[3] * (output_shape[0]);
                         }
                         tmp_out_array(coord.asStdArray()) = prediction_map_view(pixelRow, coord[DIM]);
                     });
