@@ -481,9 +481,9 @@ namespace detail_fastfilters {
             });
         }
 
+        
         size_t numberOfChannels() const {
             size_t numberOfChannels = 0;
-
             for(size_t filter_index = 0; filter_index < filters_.size(); ++filter_index) {
                 auto filter = filters_[filter_index];
                 for(size_t sigma_index = 0; sigma_index < sigmas_.size(); ++sigma_index) {
@@ -494,7 +494,39 @@ namespace detail_fastfilters {
                     numberOfChannels += filter->isMultiChannel() ? DIM : 1;
                 }
             }
+            return numberOfChannels;
+        }
+        
+        static size_t numberOfChannels(const std::vector<FeatureWithSigmaSelectionType> & selected_features,
+                const std::vector<double> & sigmas) {
+            
+            size_t numberOfChannels = 0;
 
+            for(size_t filter_index = 0; filter_index < selected_features.size(); ++filter_index) {
+
+                const auto & filterName = selected_features[filter_index].first;
+                const auto & selected_sigmas = selected_features[filter_index].second;
+                
+                size_t nChan = 0;
+                if(filterName == "GaussianSmoothing")
+                    nChan = 1;
+                else if(filterName == "LaplacianOfGaussian")
+                    nChan = 1;
+                else if(filterName == "GaussianGradientMagnitude")
+                    nChan = 1;
+                else if(filterName == "HessianOfGaussianEigenvalues")
+                    nChan = DIM;
+                else if(filterName == "StructureTensorEigenvalues")
+                    nChan = DIM;
+                else
+                    throw std::runtime_error("Invalid feature name");
+
+                for(size_t sigma_index = 0; sigma_index < sigmas.size(); ++sigma_index ) {
+                    if(!selected_sigmas[sigma_index])
+                        continue;
+                    numberOfChannels += nChan;
+                }
+            }
             return numberOfChannels;
         }
             

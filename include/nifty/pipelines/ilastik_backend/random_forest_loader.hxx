@@ -76,10 +76,11 @@ namespace ilastik_backend
     
     RandomForestType get_rf_from_file(
         const std::string& fn,
-        const std::string& path_in_file)
+        const std::string& path_in_file,
+        const size_t n_threads = -1)
     {
         auto h5file = vigra::HDF5File(fn);
-        return vigra::rf3::random_forest_import_HDF5<Features,Labels>(h5file, path_in_file);
+        return vigra::rf3::random_forest_import_HDF5<Features,Labels>(h5file, path_in_file, n_threads);
     }
 }
 }

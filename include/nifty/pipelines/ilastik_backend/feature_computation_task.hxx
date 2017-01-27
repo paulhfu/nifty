@@ -108,6 +108,10 @@ namespace ilastik_backend {
             return ret;
         }
 
+        static size_t numberOfChannels(const selected_feature_type & selected_features) {
+            return apply_type::numberOfChannels(selected_features.first, selected_features.second);
+        }
+
     private:
 	    static std::mutex s_mutex;
         size_t blockId_;

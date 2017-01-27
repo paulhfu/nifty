@@ -74,7 +74,7 @@ namespace ilastik_backend{
             // TODO handle the roi shapes in python
             // init the blocking
             coordinate roiShape = roiEnd_ - roiBegin_;
-            blocking_ = std::make_unique<blocking>(roiBegin_, roiShape, blockShape_);
+            blocking_ = std::make_unique<blocking>(roiBegin_, roiEnd_, blockShape_);
 
             // init the feature cache
             std::function<float_array(size_t)> retrieve_features_for_caching = [this](size_t blockId) -> float_array {
@@ -89,14 +89,14 @@ namespace ilastik_backend{
                 const auto & outerBlock = blockWithHalo.outerBlock();
                 const auto & outerBlockShape = outerBlock.shape();
 
-                // TODO FIXME this should not be hard-coded, but we need some static method that calculate this given the selected features
-                size_t nChannels = 2;
+                size_t nChannels = feature_computation_task<DIM>::numberOfChannels(this->selectedFeatures_);
                 multichan_coordinate filterShape;
                 filterShape[0] = nChannels;
                 // TODO once we have halos, we need them here -> this can also be wrapped into a static method
                 for(int d = 0; d < DIM; ++d)
                     filterShape[d+1] = outerBlockShape[d];
 
+                //std::cout << filterShape << std::endl;
                 float_array out_array(filterShape.begin(), filterShape.end());
 
 		        feature_computation_task<DIM> task(
@@ -123,19 +123,19 @@ namespace ilastik_backend{
                 coreBegin[DIM] = 0;
                 coreShape[DIM]   = out_array.shape(DIM);
 
-                std::cout << "inner block bounds" << std::endl;
-                std::cout << coreBegin << std::endl;
-                std::cout << coreShape << std::endl;
-                
-                std::cout << "feature array before cropping" << std::endl;
-                for(int d = 0; d < DIM+1; ++d)
-                    std::cout << out_array.shape(d) << std::endl;
+                //std::cout << "inner block bounds" << std::endl;
+                //std::cout << coreBegin << std::endl;
+                //std::cout << coreShape << std::endl;
+                //
+                //std::cout << "feature array before cropping" << std::endl;
+                //for(int d = 0; d < DIM+1; ++d)
+                //    std::cout << out_array.shape(d) << std::endl;
 
                 float_array res = out_array.view(coreBegin.begin(), coreShape.begin());
 
-                std::cout << "feature array after cropping" << std::endl;
-                for(int d = 0; d < DIM+1; ++d)
-                    std::cout << res.shape(d) << std::endl;
+                //std::cout << "feature array after cropping" << std::endl;
+                //for(int d = 0; d < DIM+1; ++d)
+                //    std::cout << res.shape(d) << std::endl;
 
                 /*feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
                         blockId,
@@ -154,19 +154,24 @@ namespace ilastik_backend{
             
             featureCache_ = std::make_unique<feature_cache>(retrieve_features_for_caching, maxNumCacheEntries_);
             
-            rf_ = get_rf_from_file(rfFile_, rfKey_);
+            // TODO make rf single threaded
+            rf_ = get_rf_from_file(rfFile_, rfKey_, 1);
             
-            size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
+            size_t n_classes = rf_.num_classes();
             
             // init the prediction cache
             std::function<float_array(size_t)> retrieve_prediction_for_caching = [this](size_t blockId) -> float_array {
                 
-                size_t n_classes = 2; // TODO FIXME don't hardcode, get from rf
+                size_t n_classes = rf_.num_classes();
+                const auto & block = this->blocking_->getBlock(blockId);
+                const auto & outBlockShape = block.shape();
                 
                 multichan_coordinate predictionShape;
                 predictionShape[DIM] = n_classes;
                 for(int d = 0; d < DIM; ++d)
-                    predictionShape[d] = this->blockShape_[d];
+                    predictionShape[d] = outBlockShape[d];
+
+                //std::cout << predictionShape << std::endl;
                 float_array out_array(predictionShape.begin(), predictionShape.end());
                 
                 random_forest_prediction_task<DIM> task(blockId, *(this->featureCache_), out_array, this->rf_);
@@ -192,7 +197,8 @@ namespace ilastik_backend{
             }
             out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( hdf5::createFile("./out.h5"), "data", outShape.begin(), outShape.end(), chunkShape.begin() );
         }
- 
+
+
         tbb::task* execute() {
             
             std::cout << "batch_prediction_task::execute called" << std::endl;
@@ -200,10 +206,10 @@ namespace ilastik_backend{
             init();
 #if 0
             // feature output for debugging only
-            auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
-            size_t feat_shape[] = {128,128,128,2};
-            size_t chunk_shape[] = {64,64,64,1};
-            nifty::hdf5::Hdf5Array<float> feats(feat_tmp, "data", feat_shape, feat_shape + 4, chunk_shape );
+            //auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
+            //size_t feat_shape[] = {128,128,128,2};
+            //size_t chunk_shape[] = {64,64,64,1};
+            //nifty::hdf5::Hdf5Array<float> feats(feat_tmp, "data", feat_shape, feat_shape + 4, chunk_shape );
             
             // TODO spawn the tasks to batch process the complete volume
             for(size_t blockId = 0; blockId < blocking_->numberOfBlocks(); ++blockId) {
@@ -211,7 +217,7 @@ namespace ilastik_backend{
                 std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
                 
                 auto block = blocking_->getBlock(blockId);
-                coordinate blockBegin = block.begin();
+                coordinate blockBegin = block.begin() - roiBegin_;
                 
                 // need to attach the channel coordinate
                 multichan_coordinate outBegin;
@@ -220,17 +226,22 @@ namespace ilastik_backend{
                 outBegin[DIM] = 0;
 
                 // write the features, debugging only
-                auto featHandlde = (*featureCache_)[blockId];
-                auto featView = featHandlde.value();
-                feats.writeSubarray(outBegin.begin(), featView);
+                //auto featHandlde = (*featureCache_)[blockId];
+                //auto featView = featHandlde.value();
+                //feats.writeSubarray(outBegin.begin(), featView);
                 
+                //std::cout << "Handle 1" << std::endl;
                 auto handle = (*predictionCache_)[blockId];
+                //std::cout << "Handle 2" << std::endl;
                 auto outView = handle.value();
+                //std::cout << "Handle 3" << std::endl;
 
-                std::cout << "Write start" << std::endl;
-                std::cout << outBegin << std::endl;
-                
-                //std::cout << "Prediction shape" << std::endl;
+                //std::cout << "Vol shape" << std::endl;
+                //for(int dd = 0; dd < out_->dimension(); ++dd)
+                //    std::cout << out_->shape(dd) << std::endl;
+                //std::cout << "Write start" << std::endl;
+                //std::cout << outBegin << std::endl;
+                //std::cout << "Write shape" << std::endl;
                 //for(int dd = 0; dd < outView.dimension(); ++dd)
                 //    std::cout << outView.shape(dd) << std::endl;
                 
@@ -251,7 +262,7 @@ namespace ilastik_backend{
                     //std::cout << "handle with caution" << std::endl;
 
                     auto block = blocking_->getBlock(blockId);
-                    coordinate blockBegin = block.begin();
+                    coordinate blockBegin = block.begin() - roiBegin_;
 
                     // need to attach the channel coordinate
                     multichan_coordinate outBegin;

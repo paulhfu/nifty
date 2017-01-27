@@ -90,17 +90,16 @@ namespace ilastik_backend
                 in_flatten(pixel, coord[DIM]) = in(coord.asStdArray());
             });
             
-            for(int d = 0; d < in_flatten.dimension(); ++d)
-                std::cout << in_flatten.shape(d) << std::endl;
+            //std::cout << "Flattened shape" << std::endl;
+            //for(int d = 0; d < in_flatten.dimension(); ++d)
+            //    std::cout << in_flatten.shape(d) << std::endl;
             
             marray::Marray<data_type> prediction(prediction_shape.begin(), prediction_shape.end());
 
             // loop over all random forests for prediction probabilities
-            random_forest_.predict_probabilities(in_flatten, prediction);
-            //prediction /= random_forest_.num_trees();
-
-            //auto miMa = std::minmax_element(prediction.begin(), prediction.end());
-            //std::cout << "MinMax predition " << *miMa.first << " " << *miMa.second << std::endl;
+            //std::cout << "Predicting..." << std::endl;
+            random_forest_.predict_probabilities(in_flatten, prediction, 1);
+            //std::cout << "...done" << std::endl;
 
             // transform back to marray
             out_shape_type output_shape;
@@ -111,15 +110,18 @@ namespace ilastik_backend
             output_shape[DIM] = num_classes;
             //float_array_view & tmp_out_array = prediction.reshapedView(output_shape.begin(), output_shape.end());
             //out_array_ = prediction.reshapedView(output_shape.begin(), output_shape.end());
+            //std::cout << output_shape << std::endl;
             
-            tools::forEachCoordinate(output_shape, [&prediction, this](const out_shape_type& coord)
+            //std::cout << "Copying..." << std::endl;
+            tools::forEachCoordinate(output_shape, [&prediction, this, pixel_count](const out_shape_type& coord)
             {
                 size_t pixel = (DIM == 2) ? coord[0] + coord[1]*this->out_array_.shape(0) 
                     : coord[0] + coord[1] * this->out_array_.shape(0) + coord[2] * (this->out_array_.shape(0) * this->out_array_.shape(1));
                 this->out_array_(coord.asStdArray()) = prediction(pixel, coord[DIM]);
             });
+            //std::cout << "...done" << std::endl;
             
-            std::cout << "rf_task::compute done" << std::endl;
+            //std::cout << "rf_task::compute done" << std::endl;
         }
 
     private:

@@ -22,31 +22,36 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
     using coordinate = nifty::array::StaticArray<int64_t, dim>;
 
     // load random forests
-    const std::string rf_filename = "./testPC.ilp";
-    const std::string rf_path = "/PixelClassification/ClassifierForests/Forest0000";
+    //const std::string rf_filename = "./testPC.ilp";
+    //const std::string rf_path = "/PixelClassification/ClassifierForests/Forest0000";
     
-    //const std::string rf_filename = "/home/consti/Work/data_neuro/ilastik_hackathon/hackathon_flyem_forest.h5";
-    //const std::string rf_path     = "Forest0000";
+    const std::string rf_filename = "/home/consti/Work/data_neuro/ilastik_hackathon/hackathon_flyem_forest.h5";
+    const std::string rf_path     = "Forest0000";
 
-    std::string raw_file = "./testraw.h5";
-    //std::string raw_file = "/home/consti/Work/data_neuro/ilastik_hackathon/data_200_8bit.h5";
+    //std::string raw_file = "./testraw.h5";
+    std::string raw_file = "/home/consti/Work/data_neuro/ilastik_hackathon/data_200_8bit_squeezed.h5";
     
-    coordinate roiBegin({0,0,0});
-    coordinate roiEnd({128,128,128});
+    //coordinate roiBegin({0,0,0});
+    //coordinate roiEnd({128,128,128});
     
-    //coordinate roiBegin({2500,2600,0});
-    //coordinate roiEnd({2800,2900,200});
+    coordinate roiBegin({2500,2600,0});
+    coordinate roiEnd({2800,2900,200});
     
-    coordinate block_shape({64,64,64});
-    //coordinate block_shape({128,128,128});
+    //coordinate block_shape({80,80,80});
+    coordinate block_shape({100, 100, 100});
 
     auto selected_features = std::make_pair(
-        std::vector<std::pair<std::string, std::vector<bool>>>({std::make_pair<std::string, std::vector<bool> >("GaussianSmoothing", {true, true})}),
-        std::vector<double>({2.,3.5})
+        std::vector<std::pair<std::string, std::vector<bool>>>(
+            {std::make_pair<std::string,std::vector<bool>>("GaussianSmoothing",         {true, true, true,  true, true, true}),
+             std::make_pair<std::string,std::vector<bool>>("LaplacianOfGaussian",       {false,true, false, true, false,true}),
+             std::make_pair<std::string,std::vector<bool>>("GaussianGradientMagnitude", {false,false,true, false, true, false}),
+             std::make_pair<std::string,std::vector<bool>>("HessianOfGaussianEigenvalues",{false,false,true, false, true, false})}
+                                                                                                                            ),
+                                                                    std::vector<double>({0.3,  1.0,  1.6,   3.5,  5.0,  10.0})
     );
 
     batch_prediction_task<dim>& batch = *new(tbb::task::allocate_root()) batch_prediction_task<dim>(
-            raw_file, "exported_data",
+            raw_file, "data",
             rf_filename, rf_path,
             selected_features,
             block_shape, max_num_entries,
