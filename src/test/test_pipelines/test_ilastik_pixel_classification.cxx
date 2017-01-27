@@ -24,11 +24,25 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
     // load random forests
     const std::string rf_filename = "./testPC.ilp";
     const std::string rf_path = "/PixelClassification/ClassifierForests/Forest0000";
+    
+    //const std::string rf_filename = "/home/consti/Work/data_neuro/ilastik_hackathon/hackathon_flyem_forest.h5";
+    //const std::string rf_path     = "Forest0000";
 
     std::string raw_file = "./testraw.h5";
+    //std::string raw_file = "/home/consti/Work/data_neuro/ilastik_hackathon/data_200_8bit.h5";
+    
+    coordinate roiBegin({0,0,0});
+    coordinate roiEnd({128,128,128});
+    
+    //coordinate roiBegin({2500,2600,0});
+    //coordinate roiEnd({2800,2900,200});
+    
     coordinate block_shape({64,64,64});
     //coordinate block_shape({128,128,128});
 
+    //auto selected_features = std::make_pair(std::vector<std::string>({"GaussianSmoothing"}),
+    //        std::vector<double>({2.,3.5}));
+    
     auto selected_features = std::make_pair(std::vector<std::string>({"GaussianSmoothing"}),
             std::vector<double>({2.,3.5}));
 
@@ -36,7 +50,8 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
             raw_file, "exported_data",
             rf_filename, rf_path,
             selected_features,
-            block_shape, max_num_entries);
+            block_shape, max_num_entries,
+            roiBegin, roiEnd);
     std::cout << "Spawning Main Task" << std::endl;
     tbb::task::spawn_root_and_wait(batch);
     std::cout << "Main Task done" << std::endl;
