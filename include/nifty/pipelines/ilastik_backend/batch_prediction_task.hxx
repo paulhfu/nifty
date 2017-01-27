@@ -76,6 +76,16 @@ namespace ilastik_backend{
 
             // init the feature cache
             std::function<float_array(size_t)> retrieve_features_for_caching = [this](size_t blockId) -> float_array {
+            
+                auto halo = feature_computation_task<DIM>::get_halo(this->selectedFeatures_);
+
+                //std::cout << "Commander Chief" << std::endl;
+                //std::cout << halo << std::endl;
+                
+                // compute coordinates from blockIds!
+                auto blockWithHalo = blocking_->getBlockWithHalo(blockId, halo);
+                const auto & outerBlock = blockWithHalo.outerBlock();
+                const auto & outerBlockShape = outerBlock.shape();
 
                 // TODO FIXME this should not be hard-coded, but we need some static method that calculate this given the selected features
                 size_t nChannels = 2;
@@ -83,7 +93,7 @@ namespace ilastik_backend{
                 filterShape[0] = nChannels;
                 // TODO once we have halos, we need them here -> this can also be wrapped into a static method
                 for(int d = 0; d < DIM; ++d)
-                    filterShape[d+1] = blockShape_[d];
+                    filterShape[d+1] = outerBlockShape[d];
 
                 float_array out_array(filterShape.begin(), filterShape.end());
 
@@ -92,9 +102,38 @@ namespace ilastik_backend{
                         *(this->rawCache_),
                         out_array,
                         this->selectedFeatures_,
-                        *(this->blocking_));
+                        *(this->blocking_),
+                        blockWithHalo);
 
 		        task.execute();
+            
+                // resize the out array to cut the halo
+                const auto & localCore  = blockWithHalo.innerBlockLocal();
+                const auto & localBegin = localCore.begin();
+                const auto & localShape = localCore.shape();
+
+                multichan_coordinate coreBegin;
+                multichan_coordinate coreShape;
+                for(int d = 0; d < DIM; d++){
+                    coreBegin[d] = localBegin[d];
+                    coreShape[d]  = localShape[d];
+                }
+                coreBegin[DIM] = 0;
+                coreShape[DIM]   = out_array.shape(DIM);
+
+                std::cout << "inner block bounds" << std::endl;
+                std::cout << coreBegin << std::endl;
+                std::cout << coreShape << std::endl;
+                
+                std::cout << "feature array before cropping" << std::endl;
+                for(int d = 0; d < DIM+1; ++d)
+                    std::cout << out_array.shape(d) << std::endl;
+
+                float_array res = out_array.view(coreBegin.begin(), coreShape.begin());
+
+                std::cout << "feature array after cropping" << std::endl;
+                for(int d = 0; d < DIM+1; ++d)
+                    std::cout << res.shape(d) << std::endl;
 
                 /*feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
                         blockId,
@@ -108,7 +147,7 @@ namespace ilastik_backend{
                 //this->spawn_and_wait_for_all(feat_task);
                 //spawn(feat_task);
                 // TODO spawn or spawn_and_wait
-                return out_array;
+                return res;
             };
             
             featureCache_ = std::make_unique<feature_cache>(retrieve_features_for_caching, maxNumCacheEntries_);
@@ -160,8 +199,6 @@ namespace ilastik_backend{
 
 
 #if 0
-
-
             // feature output for debugging only
             auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
             size_t feat_shape[] = {128,128,128,2};
@@ -201,35 +238,35 @@ namespace ilastik_backend{
                 std::cout << "Processing block " << blockId << " done!" << std::endl;
             }
 #endif
-	    std::mutex m;
+	        std::mutex m;
 
-        // TODO FIXME why two loops ?!
-	    tbb::parallel_for(tbb::blocked_range<size_t>(0,blocking_->numberOfBlocks()), [this, &m](const tbb::blocked_range<size_t> &range) {
-		for( size_t blockId=range.begin(); blockId!=range.end(); ++blockId ) {
+            // TODO FIXME why two loops ?!
+	        tbb::parallel_for(tbb::blocked_range<size_t>(0,blocking_->numberOfBlocks()), [this, &m](const tbb::blocked_range<size_t> &range) {
+		    for( size_t blockId=range.begin(); blockId!=range.end(); ++blockId ) {
 
-                std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
+                    std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
 
-                auto handle = (*predictionCache_)[blockId];
-                auto outView = handle.value();
-                //std::cout << "handle with caution" << std::endl;
+                    auto handle = (*predictionCache_)[blockId];
+                    auto outView = handle.value();
+                    //std::cout << "handle with caution" << std::endl;
 
-                auto block = blocking_->getBlock(blockId);
-                coordinate blockBegin = block.begin();
+                    auto block = blocking_->getBlock(blockId);
+                    coordinate blockBegin = block.begin();
 
-                // need to attach the channel coordinate
-                multichan_coordinate outBegin;
-                for(int d = 0; d < DIM; ++d)
-                    outBegin[d] = blockBegin[d];
-                outBegin[DIM] = 0;
+                    // need to attach the channel coordinate
+                    multichan_coordinate outBegin;
+                    for(int d = 0; d < DIM; ++d)
+                        outBegin[d] = blockBegin[d];
+                    outBegin[DIM] = 0;
 
-                //std::cout << "Write start" << std::endl;
-                //std::cout << outBegin << std::endl;
+                    //std::cout << "Write start" << std::endl;
+                    //std::cout << outBegin << std::endl;
 
-		        std::lock_guard<std::mutex> lock(m);
-                out_->writeSubarray(outBegin.begin(), outView);
-                //std::cout << "Processing block " << blockId << " done!" << std::endl;
-		}		
-	    });
+		            std::lock_guard<std::mutex> lock(m);
+                    out_->writeSubarray(outBegin.begin(), outView);
+                    //std::cout << "Processing block " << blockId << " done!" << std::endl;
+		    }		
+	        });
 
             
             // TODO close the rawFile and outFile -> we need the filehandles

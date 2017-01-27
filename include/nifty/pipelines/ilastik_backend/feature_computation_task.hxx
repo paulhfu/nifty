@@ -5,6 +5,7 @@
 #include <tbb/concurrent_lru_cache.h>
 
 #include <tuple>
+#include <algorithm>
 
 #include <tbb/flow_graph.h>
 
@@ -30,7 +31,9 @@ namespace ilastik_backend {
         using in_array_view = nifty::marray::View<in_data_type>;
         using selected_feature_type = std::pair<std::vector<std::string>, std::vector<double>>;
         using coordinate = array::StaticArray<int64_t,DIM>;
+        using multichan_coordinate = array::StaticArray<int64_t,DIM+1>;
         using blocking_type = nifty::tools::Blocking<DIM, int64_t>;
+        using block_with_halo = nifty::tools::BlockWithHalo<DIM>;
 
     public:
         feature_computation_task(
@@ -38,41 +41,37 @@ namespace ilastik_backend {
                 raw_cache & rc,
                 out_array_view & out,
                 const selected_feature_type & selected_features,
-                const blocking_type& blocking) :
+                const blocking_type& blocking,
+                const block_with_halo & halo_block,
+                const double window_ratio = 2.):
             blockId_(block_id),
             rawCache_(rc),
             outArray_(out),
             apply_(selected_features.second, selected_features.first), // TODO need to rethink if we want to apply different outer scales for the structure tensor eigenvalues
-            blocking_(blocking)
+            blocking_(blocking),
+            halo_block_(halo_block),
+            window_ratio_(window_ratio)
         {
         }
         
         tbb::task* execute()
         {
             // ask for the raw data
-            // TODO get the proper halo and pass it to the cache !!
-            coordinate haloBegin;
-            coordinate haloEnd;
-            for(int d = 0; d < DIM; ++d) {
-                haloBegin[d] = 0L;
-                haloEnd[d] = 0L;
-            }
-            // compute coordinates from blockIds!
-            auto blockWithHalo = blocking_.getBlockWithHalo(blockId_, haloBegin, haloEnd);
-            auto outerBlock = blockWithHalo.outerBlock();
-            auto outerBlockBegin = outerBlock.begin();
-            auto outerBlockEnd = outerBlock.end();
-            auto outerBlockShape = outerBlock.shape();
+            const auto & outerBlock = halo_block_.outerBlock();
+            const auto & outerBlockBegin = outerBlock.begin();
+            const auto & outerBlockEnd = outerBlock.end();
+            const auto & outerBlockShape = outerBlock.shape();
+            
             nifty::marray::Marray<in_data_type> in(outerBlockShape.begin(), outerBlockShape.end());
             {
             std::lock_guard<std::mutex> lock(s_mutex);
             rawCache_.readSubarray(outerBlockBegin.begin(), in);
             }
-            compute(in, outerBlock);
+            compute(in);
             return NULL;
         }
 
-        void compute(const in_array_view & in, const tools::BlockWithHalo<DIM> & outerBlock)
+        void compute(const in_array_view & in)
         {
             // TODO set the correct window ratios
             //copy input data from uint8 to float
@@ -83,13 +82,15 @@ namespace ilastik_backend {
             tools::forEachCoordinate(in_shape, [&](const coordinate & coord){
                 in_float(coord.asStdArray()) = in(coord.asStdArray());    
             });
+
+            // TODO set the window ratio
+            apply_.setWindowRatio(window_ratio_);
             
             // apply the filter via the functor
             // TODO consider passing the tbb threadpool here
             //apply_(in_float, outTransposedView);
             apply_(in_float, outArray_);
-            // TODO cut the halo
-            
+
             size_t permutation[outArray_.dimension()];
             permutation[DIM] = 0;
             for(int d = 0; d < DIM; ++d)
@@ -98,13 +99,24 @@ namespace ilastik_backend {
 
         }
 
+        // TODO also use the type of the selected features
+        static coordinate get_halo(const selected_feature_type & selected_features) {
+            const auto & sigmas = selected_features.second;
+            size_t halo_size = size_t( round(3.5 * *std::max_element(sigmas.begin(), sigmas.end())));
+            coordinate ret;
+            std::fill(ret.begin(), ret.end(), halo_size);
+            return ret;
+        }
+
     private:
-	static std::mutex s_mutex;
+	    static std::mutex s_mutex;
         size_t blockId_;
         raw_cache & rawCache_;
         out_array_view & outArray_;
         apply_type apply_; // the functor for applying the filters
-        const blocking_type blocking_;
+        const blocking_type & blocking_;
+        const block_with_halo & halo_block_;
+        double window_ratio_;
     };
     
     template <unsigned DIM>

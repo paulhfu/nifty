@@ -62,7 +62,7 @@ namespace ilastik_backend
             std::cout << "rf_task::compute for block " << blockId_ << std::endl;
             size_t num_classes = random_forest_.num_classes();
             size_t num_features = random_forest_.num_features();
-            assert(num_features == in.shape(0));
+            assert(num_features == in.shape(DIM));
 
             //std::cout << "Filters" << std::endl;
             //std::cout << in(0) << std::endl;

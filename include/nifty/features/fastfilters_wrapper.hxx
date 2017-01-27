@@ -368,6 +368,11 @@ namespace detail_fastfilters {
                 delete filter;
         }
 
+        void setWindowRatio(const double windowRatio) {
+            for(auto & filter : filters_)
+                filter->set_window_ratio(windowRatio);
+        }
+
         // apply filters sequential
         void operator()(const marray::View<float> & in, marray::View<float> & out) const{
 
