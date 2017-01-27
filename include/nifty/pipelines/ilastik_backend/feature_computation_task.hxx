@@ -22,14 +22,14 @@ namespace ilastik_backend {
     template<unsigned DIM>
     class feature_computation_task /*: public tbb::task*/
     {
-    private:
+    public:
         using apply_type = nifty::features::ApplyFilters<DIM>;
         using in_data_type = uint8_t;
         using out_data_type = float;
         using raw_cache = hdf5::Hdf5Array<in_data_type>;
         using out_array_view = nifty::marray::View<out_data_type>;
         using in_array_view = nifty::marray::View<in_data_type>;
-        using selected_feature_type = std::pair<std::vector<std::string>, std::vector<double>>;
+        using selected_feature_type = std::pair<std::vector<std::pair<std::string, std::vector<bool> > >, std::vector<double>>;
         using coordinate = array::StaticArray<int64_t,DIM>;
         using multichan_coordinate = array::StaticArray<int64_t,DIM+1>;
         using blocking_type = nifty::tools::Blocking<DIM, int64_t>;

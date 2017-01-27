@@ -3,6 +3,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <iostream> 
+#include <tuple>
 
 #include "nifty/tools/runtime_check.hxx"
 #include "nifty/features/fastfilters_wrapper.hxx"
@@ -53,7 +54,11 @@ BOOST_AUTO_TEST_CASE(FastfiltersWrapperTest2D)
 
     // fastfilters segfault for larger sigmas for a 5x5 array
     std::vector<double> sigmas({1.});
-    std::vector<std::string> filters({"GaussianSmoothing","LaplacianOfGaussian","HessianOfGaussianEigenvalues"});
+    std::vector<ApplyFilters<3>::FeatureWithSigmaSelectionType> filters({
+        std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("GaussianSmoothing", {true}),
+        std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("LaplacianOfGaussian", {true}),
+        std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("HessianOfGaussianEigenvalues", {true})
+    });
     ApplyFilters<2> functor(sigmas, filters);
     
     std::vector<size_t> shapeOut({functor.numberOfChannels(),shapeIn[0],shapeIn[1]});
@@ -187,7 +192,11 @@ BOOST_AUTO_TEST_CASE(FastfiltersWrapperTest3D)
 
     // fastfilters segfault for larger sigmas for a 5x5 array
     std::vector<double> sigmas({1.});
-    std::vector<std::string> filters({"GaussianSmoothing","LaplacianOfGaussian","HessianOfGaussianEigenvalues"});
+    std::vector<ApplyFilters<3>::FeatureWithSigmaSelectionType> filters({
+        std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("GaussianSmoothing", {true}),
+        std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("LaplacianOfGaussian", {true}),
+        std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("HessianOfGaussianEigenvalues", {true})
+    });
     ApplyFilters<3> functor(sigmas, filters);
     
     std::vector<size_t> shapeOut({functor.numberOfChannels(),shapeIn[0],shapeIn[1],shapeIn[2]});
@@ -212,4 +221,33 @@ BOOST_AUTO_TEST_CASE(FastfiltersWrapperTest3D)
         }
     }
 
+}
+
+
+BOOST_AUTO_TEST_CASE(FastfiltersWrapperTestFilterSelection)
+{
+    using namespace nifty::features;
+
+    {
+        std::vector<double> sigmas({1., 3.5});
+        std::vector<ApplyFilters<3>::FeatureWithSigmaSelectionType> filters({std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("GaussianSmoothing", {true, false}),
+            std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("LaplacianOfGaussian", {false, true}),
+            std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("HessianOfGaussianEigenvalues", {true, true})
+        });
+        ApplyFilters<3> functor(sigmas, filters);
+        
+        // test shapes
+        NIFTY_TEST_OP(functor.numberOfChannels(),==,8);
+    }
+    {
+        std::vector<double> sigmas({1., 3.5});
+        std::vector<ApplyFilters<3>::FeatureWithSigmaSelectionType> filters({std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("GaussianSmoothing", {true, true}),
+            std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("LaplacianOfGaussian", {true, true}),
+            std::make_pair<std::string, ApplyFilters<3>::SigmaSelectionType>("HessianOfGaussianEigenvalues", {false, false})
+        });
+        ApplyFilters<3> functor(sigmas, filters);
+        
+        // test shapes
+        NIFTY_TEST_OP(functor.numberOfChannels(),==,4);
+    }
 }

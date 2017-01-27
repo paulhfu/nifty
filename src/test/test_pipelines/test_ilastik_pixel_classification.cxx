@@ -29,8 +29,10 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
     coordinate block_shape({64,64,64});
     //coordinate block_shape({128,128,128});
 
-    auto selected_features = std::make_pair(std::vector<std::string>({"GaussianSmoothing"}),
-            std::vector<double>({2.,3.5}));
+    auto selected_features = std::make_pair(
+        std::vector<std::pair<std::string, std::vector<bool>>>({std::make_pair<std::string, std::vector<bool> >("GaussianSmoothing", {true, true})}),
+        std::vector<double>({2.,3.5})
+    );
 
     batch_prediction_task<dim>& batch = *new(tbb::task::allocate_root()) batch_prediction_task<dim>(
             raw_file, "exported_data",

@@ -18,13 +18,13 @@ int main()
     const std::string rf_file = "myfile.h5";
     const std::string rf_key = "/somewhere";
 
-    auto feature_selection = std::make_pair( std::vector<std::string>({"GaussianSmoothing"}), std::vector<double>( {1.,2.}) );
+    // auto feature_selection = std::make_pair( std::vector<std::string>({"GaussianSmoothing"}), std::vector<double>( {1.,2.}) );
 
-    coordinate block_shape({64,64,64}); 
+    // coordinate block_shape({64,64,64}); 
 
-    batch_prediction_task<dim> batch(
-            in_file, in_key,
-            rf_file, rf_key,
-            feature_selection,
-            block_shape, max_num_entries);
+    // batch_prediction_task<dim> batch(
+    //         in_file, in_key,
+    //         rf_file, rf_key,
+    //         feature_selection,
+    //         block_shape, max_num_entries);
 }

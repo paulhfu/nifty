@@ -334,30 +334,41 @@ namespace detail_fastfilters {
         FastfiltersArrayType;
 
         typedef array::StaticArray<int64_t, DIM+1> Coord;
+        typedef std::vector<bool> SigmaSelectionType;
+        typedef std::pair<std::string, SigmaSelectionType> FeatureWithSigmaSelectionType;
         
         // construct from given sigmas and filter names
         ApplyFilters(const std::vector<double> & sigmas,
-                const std::vector<std::string> & filterNames,
+                const std::vector<FeatureWithSigmaSelectionType> & filterConfigs,
                 const double outerScale = 0.) : sigmas_(sigmas), filters_() {
             
+            if(sigmas.size() == 0)
+                throw std::runtime_error("Did not select any sigmas!");
+            if(filterConfigs.size() == 0)
+                throw std::runtime_error("Did not select any filters!");
             //fastfilters_init(); // FIXME this might cause problems if we init more than one ApplyFilters
                 
             // init the vector with filter_type pointers
-            for(const auto & filtName : filterNames) {
-                if(filtName == "GaussianSmoothing")
+            for(const auto & filterConfig : filterConfigs) {
+                if(filterConfig.second.size() != sigmas.size())
+                    throw std::runtime_error("Filter " + filterConfig.first + " did not specify enough sigmas in selection");
+
+                if(filterConfig.first == "GaussianSmoothing")
                     filters_.emplace_back(new GaussianSmoothing());
-                else if(filtName == "LaplacianOfGaussian")
+                else if(filterConfig.first == "LaplacianOfGaussian")
                     filters_.emplace_back(new LaplacianOfGaussian());
-                else if(filtName == "GaussianGradientMagnitude")
+                else if(filterConfig.first == "GaussianGradientMagnitude")
                     filters_.emplace_back(new GaussianGradientMagnitude());
-                else if(filtName == "HessianOfGaussianEigenvalues")
+                else if(filterConfig.first == "HessianOfGaussianEigenvalues")
                     filters_.emplace_back(new HessianOfGaussianEigenvalues());
-                else if(filtName == "StructureTensorEigenvalues") {
+                else if(filterConfig.first == "StructureTensorEigenvalues") {
                     filters_.emplace_back(new StructureTensorEigenvalues()); // TODO we don't use structure tensor for now, but we leave it in as an option
                     filters_.back()->setOuterScale(outerScale); // TODO check that this is non-zero, but maybe rethink for different outer scales
                 }
                 else
                     throw std::runtime_error("Unknown filter type!");
+
+                selected_sigmas_per_filter_.emplace_back(filterConfig.second);
             }
         }
             
@@ -398,9 +409,14 @@ namespace detail_fastfilters {
             FastfiltersArrayType ff;
             detail_fastfilters::convertMarray2ff(in, ff);
             
-            for( auto filter : filters_ ) {
-                for( auto sigma : sigmas_) {
+            for(size_t filter_index = 0; filter_index < filters_.size(); ++filter_index) {
+                auto filter = filters_[filter_index];
+                for(size_t sigma_index = 0; sigma_index < sigmas_.size(); ++sigma_index) {
+                    // skip if this sigma was not selected for the filter
+                    if(!selected_sigmas_per_filter_[filter_index][sigma_index])
+                        continue;
 
+                    auto sigma = sigmas_[sigma_index];
                     const auto & shapeView = filter->isMultiChannel() ? shapeMultiChannel : shapeSingleChannel;
                     auto view = out.view(base.begin(), shapeView.begin()).squeezedView();
                     (*filter)(ff, view, sigma);
@@ -439,7 +455,12 @@ namespace detail_fastfilters {
             std::vector<Coord> bases;
             int64_t channelStart = 0;
             for( int filterId = 0; filterId < filters_.size(); ++filterId  ) {
-                for( auto sigma : sigmas_ ) {
+                for(size_t sigma_index = 0; sigma_index < sigmas_.size(); ++sigma_index) {
+                    // skip if this sigma was not selected for the filter
+                    if(!selected_sigmas_per_filter_[filterId][sigma_index])
+                        continue;
+
+                    auto sigma = sigmas_[sigma_index];
                     filterIdAndSigmas.push_back(std::make_pair(filterId, sigma));
                     Coord channelBase = base;
                     channelBase[0] = channelStart;
@@ -462,15 +483,26 @@ namespace detail_fastfilters {
 
         size_t numberOfChannels() const {
             size_t numberOfChannels = 0;
-            for(auto filter : filters_)
-                numberOfChannels += filter->isMultiChannel() ? DIM : 1;
-            return numberOfChannels * sigmas_.size();
+
+            for(size_t filter_index = 0; filter_index < filters_.size(); ++filter_index) {
+                auto filter = filters_[filter_index];
+                for(size_t sigma_index = 0; sigma_index < sigmas_.size(); ++sigma_index) {
+                    // skip if this sigma was not selected for the filter
+                    if(!selected_sigmas_per_filter_[filter_index][sigma_index])
+                        continue;
+
+                    numberOfChannels += filter->isMultiChannel() ? DIM : 1;
+                }
+            }
+
+            return numberOfChannels;
         }
             
         
     private:
         std::vector<double> sigmas_;
         std::vector<FilterBase*> filters_;
+        std::vector<SigmaSelectionType> selected_sigmas_per_filter_;
     };
     
     
