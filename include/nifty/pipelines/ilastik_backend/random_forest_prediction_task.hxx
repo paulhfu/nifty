@@ -96,8 +96,8 @@ namespace ilastik_backend
             marray::Marray<data_type> prediction(prediction_shape.begin(), prediction_shape.end());
 
             // loop over all random forests for prediction probabilities
-            random_forest_.predict_probs(in_flatten, prediction);
-            prediction /= random_forest_.num_trees();
+            random_forest_.predict_probabilities(in_flatten, prediction);
+            //prediction /= random_forest_.num_trees();
 
             //auto miMa = std::minmax_element(prediction.begin(), prediction.end());
             //std::cout << "MinMax predition " << *miMa.first << " " << *miMa.second << std::endl;

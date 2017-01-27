@@ -44,8 +44,10 @@ namespace ilastik_backend{
                 const std::string & rf_file,
                 const std::string & rf_key,
                 const selection_type & selected_features,
-                const coordinate  & block_shape,
-                const size_t max_num_cache_entries) :
+                const coordinate & block_shape,
+                const size_t max_num_cache_entries,
+                const coordinate & roiBegin,
+                const coordinate & roiEnd) :
             blocking_(),
             rfFile_(rf_file),
             rfKey_(rf_key),
@@ -56,7 +58,9 @@ namespace ilastik_backend{
             selectedFeatures_(selected_features),
             blockShape_(block_shape),
             maxNumCacheEntries_(max_num_cache_entries),
-            rf_()
+            rf_(),
+            roiBegin_(roiBegin),
+            roiEnd_(roiEnd)
         {
             //init();
         }
@@ -67,12 +71,10 @@ namespace ilastik_backend{
             std::cout << "batch_prediction_task::init called" << std::endl;
             rawCache_ = std::make_unique<raw_cache>( hdf5::openFile(in_file_), in_key_ );
 
+            // TODO handle the roi shapes in python
             // init the blocking
-            coordinate volBegin = coordinate({0,0,0});
-            coordinate volShape;
-            for(size_t i = 0; i < DIM; i++)
-                volShape[i] = rawCache_->shape(i);
-            blocking_ = std::make_unique<blocking>(volBegin, volShape, blockShape_);
+            coordinate roiShape = roiEnd_ - roiBegin_;
+            blocking_ = std::make_unique<blocking>(roiBegin_, roiShape, blockShape_);
 
             // init the feature cache
             std::function<float_array(size_t)> retrieve_features_for_caching = [this](size_t blockId) -> float_array {
@@ -185,7 +187,7 @@ namespace ilastik_backend{
             outShape[DIM] = n_classes;
             chunkShape[DIM] = 1;
             for(int d = 0; d < DIM; ++d) {
-                outShape[d] = volShape[d];
+                outShape[d] = roiShape[d];
                 chunkShape[d] = blockShape_[d];
             }
             out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( hdf5::createFile("./out.h5"), "data", outShape.begin(), outShape.end(), chunkShape.begin() );
@@ -196,8 +198,6 @@ namespace ilastik_backend{
             std::cout << "batch_prediction_task::execute called" << std::endl;
             
             init();
-
-
 #if 0
             // feature output for debugging only
             auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
@@ -268,7 +268,6 @@ namespace ilastik_backend{
 		    }		
 	        });
 
-            
             // TODO close the rawFile and outFile -> we need the filehandles
             return NULL;
         }
@@ -290,6 +289,8 @@ namespace ilastik_backend{
         size_t maxNumCacheEntries_;
         random_forest rf_;
         std::unique_ptr<hdf5::Hdf5Array<data_type>> out_;
+        coordinate roiBegin_;
+        coordinate roiEnd_;
     };
     
 } // namespace ilastik_backend
