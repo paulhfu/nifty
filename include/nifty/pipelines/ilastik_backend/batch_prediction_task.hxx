@@ -36,7 +36,7 @@ namespace ilastik_backend{
     public:
 
         // TODO we want to change the strings here to some simpler flags at some point
-        using selection_type = std::pair<std::vector<std::string>,std::vector<double>>;
+        using selection_type = typename feature_computation_task<DIM>::selected_feature_type;
         
         // construct batch prediction for single input
         batch_prediction_task(const std::string & in_file,
