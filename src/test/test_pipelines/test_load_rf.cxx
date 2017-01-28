@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
     }
     
     // load the rf
-    auto rf = get_rf_from_file(rf_file, rf_key);
+    auto rf = get_rf3_from_file(rf_file, rf_key);
                     
     size_t num_labels   = rf.num_classes();
     size_t num_features = rf.num_features();
@@ -74,8 +74,7 @@ BOOST_AUTO_TEST_CASE(RandomForestLoadingTest)
     nifty::marray::Marray<data_type> prediction(prediction_shape.begin(), prediction_shape.end());
 
     // loop over all random forests for prediction probabilities
-    rf.predict_probs(in_flatten, prediction);
-    prediction /= rf.num_trees();
+    rf.predict_probabilities(in_flatten, prediction);
 
     coordinate out_shape;
     coordinate out_start;

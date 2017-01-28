@@ -1,7 +1,7 @@
 #pragma once
 
-#include "nifty/pipelines/ilastik_backend/feature_computation_task.hxx"
-#include "nifty/pipelines/ilastik_backend/random_forest_prediction_task.hxx"
+#include "nifty/pipelines/ilastik_backend/feature_computation.hxx"
+#include "nifty/pipelines/ilastik_backend/random_forest_prediction.hxx"
 #include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
 
 namespace nifty{
@@ -19,24 +19,15 @@ namespace ilastik_backend{
         
         using float_array = nifty::marray::Marray<data_type>;
         using float_array_view = nifty::marray::View<data_type>;
+        using uint_array = nifty::marray::Marray<in_data_type>;
+        using uint_array_view = nifty::marray::View<in_data_type>;
         
         using raw_cache = hdf5::Hdf5Array<in_data_type>;
-        // TODO does not really make sense to have to identical typedefs here
-        using feature_cache    = tbb::concurrent_lru_cache<size_t, float_array, std::function<float_array(size_t)>>;
-        using prediction_cache = tbb::concurrent_lru_cache<size_t, float_array, std::function<float_array(size_t)>>;
-        using random_forest = RandomForestType;
-
+        using random_forest = RandomForest2Type;
         using blocking = tools::Blocking<DIM>;
+        using selection_type = selected_feature_type;
         
-        // empty constructor doing nothig
-        //batch_prediction_task() :
-        //{}
-        
-
     public:
-
-        // TODO we want to change the strings here to some simpler flags at some point
-        using selection_type = typename feature_computation_task<DIM>::selected_feature_type;
         
         // construct batch prediction for single input
         batch_prediction_task(const std::string & in_file,
@@ -45,7 +36,6 @@ namespace ilastik_backend{
                 const std::string & rf_key,
                 const selection_type & selected_features,
                 const coordinate & block_shape,
-                const size_t max_num_cache_entries,
                 const coordinate & roiBegin,
                 const coordinate & roiEnd) :
             blocking_(),
@@ -53,11 +43,8 @@ namespace ilastik_backend{
             rfKey_(rf_key),
             in_file_(in_file),
             in_key_(in_key),
-            featureCache_(),
-            predictionCache_(),
             selectedFeatures_(selected_features),
             blockShape_(block_shape),
-            maxNumCacheEntries_(max_num_cache_entries),
             rf_(),
             roiBegin_(roiBegin),
             roiEnd_(roiEnd)
@@ -67,135 +54,94 @@ namespace ilastik_backend{
 
         
         void init() {
-
-            std::cout << "batch_prediction_task::init called" << std::endl;
             rawCache_ = std::make_unique<raw_cache>( hdf5::openFile(in_file_), in_key_ );
-
+            
             // TODO handle the roi shapes in python
             // init the blocking
             coordinate roiShape = roiEnd_ - roiBegin_;
-            blocking_ = std::make_unique<blocking>(roiBegin_, roiEnd_, blockShape_);
-
-            // init the feature cache
-            std::function<float_array(size_t)> retrieve_features_for_caching = [this](size_t blockId) -> float_array {
-            
-                auto halo = feature_computation_task<DIM>::get_halo(this->selectedFeatures_);
-
-                //std::cout << "Commander Chief" << std::endl;
-                //std::cout << halo << std::endl;
-                
-                // compute coordinates from blockIds!
-                auto blockWithHalo = blocking_->getBlockWithHalo(blockId, halo);
-                const auto & outerBlock = blockWithHalo.outerBlock();
-                const auto & outerBlockShape = outerBlock.shape();
-
-                size_t nChannels = feature_computation_task<DIM>::numberOfChannels(this->selectedFeatures_);
-                multichan_coordinate filterShape;
-                filterShape[0] = nChannels;
-                // TODO once we have halos, we need them here -> this can also be wrapped into a static method
-                for(int d = 0; d < DIM; ++d)
-                    filterShape[d+1] = outerBlockShape[d];
-
-                //std::cout << filterShape << std::endl;
-                float_array out_array(filterShape.begin(), filterShape.end());
-
-		        feature_computation_task<DIM> task(
-                        blockId,
-                        *(this->rawCache_),
-                        out_array,
-                        this->selectedFeatures_,
-                        *(this->blocking_),
-                        blockWithHalo);
-
-		        task.execute();
-            
-                // resize the out array to cut the halo
-                const auto & localCore  = blockWithHalo.innerBlockLocal();
-                const auto & localBegin = localCore.begin();
-                const auto & localShape = localCore.shape();
-
-                multichan_coordinate coreBegin;
-                multichan_coordinate coreShape;
-                for(int d = 0; d < DIM; d++){
-                    coreBegin[d] = localBegin[d];
-                    coreShape[d]  = localShape[d];
-                }
-                coreBegin[DIM] = 0;
-                coreShape[DIM]   = out_array.shape(DIM);
-
-                //std::cout << "inner block bounds" << std::endl;
-                //std::cout << coreBegin << std::endl;
-                //std::cout << coreShape << std::endl;
-                //
-                //std::cout << "feature array before cropping" << std::endl;
-                //for(int d = 0; d < DIM+1; ++d)
-                //    std::cout << out_array.shape(d) << std::endl;
-
-                float_array res = out_array.view(coreBegin.begin(), coreShape.begin());
-
-                //std::cout << "feature array after cropping" << std::endl;
-                //for(int d = 0; d < DIM+1; ++d)
-                //    std::cout << res.shape(d) << std::endl;
-
-                /*feature_computation_task<DIM> & feat_task = *new(tbb::task::allocate_child()) feature_computation_task<DIM>(
-                        blockId,
-                        *(this->rawCache_),
-                        out_array,
-                        this->selectedFeatures_,
-                        *(this->blocking_));*/
-                
-                // TODO why ref-count 2
-                //this->set_ref_count(2);
-                //this->spawn_and_wait_for_all(feat_task);
-                //spawn(feat_task);
-                // TODO spawn or spawn_and_wait
-                return res;
-            };
-            
-            featureCache_ = std::make_unique<feature_cache>(retrieve_features_for_caching, maxNumCacheEntries_);
             
             // TODO make rf single threaded
-            rf_ = get_rf_from_file(rfFile_, rfKey_, 1);
+            rf_ = get_rf2_from_file(rfFile_, rfKey_);
+            blocking_ = std::make_unique<blocking>(roiBegin_, roiEnd_, blockShape_);
+
+            //nClasses_ = rf_.num_classes();
+            nClasses_ = rf_.class_count();
             
-            size_t n_classes = rf_.num_classes();
-            
-            // init the prediction cache
-            std::function<float_array(size_t)> retrieve_prediction_for_caching = [this](size_t blockId) -> float_array {
-                
-                size_t n_classes = rf_.num_classes();
-                const auto & block = this->blocking_->getBlock(blockId);
-                const auto & outBlockShape = block.shape();
-                
-                multichan_coordinate predictionShape;
-                predictionShape[DIM] = n_classes;
-                for(int d = 0; d < DIM; ++d)
-                    predictionShape[d] = outBlockShape[d];
-
-                //std::cout << predictionShape << std::endl;
-                float_array out_array(predictionShape.begin(), predictionShape.end());
-                
-                random_forest_prediction_task<DIM> task(blockId, *(this->featureCache_), out_array, this->rf_);
-                task.execute();
-
-                //random_forest_prediction_task<DIM> & rf_task = *new(tbb::task::allocate_child()) random_forest_prediction_task<DIM>(blockId, *(this->featureCache_), out_array, this->rf_);
-                // TODO why ref count 2
-                //this->set_ref_count(2);
-                // TODO spawn or spawn_and_wait
-                //this->spawn_and_wait_for_all(rf_task);
-                //this->spawn(rf_task);
-                return out_array;
-            };
-
-            predictionCache_ = std::make_unique<prediction_cache>(retrieve_prediction_for_caching, maxNumCacheEntries_);
-
             multichan_coordinate outShape, chunkShape; 
-            outShape[DIM] = n_classes;
+            outShape[DIM] = nClasses_;
             chunkShape[DIM] = 1;
             for(int d = 0; d < DIM; ++d) {
                 outShape[d] = roiShape[d];
                 chunkShape[d] = blockShape_[d];
             }
+            
             out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( hdf5::createFile("./out.h5"), "data", outShape.begin(), outShape.end(), chunkShape.begin() );
+        }
+
+        
+        void process_single_block(const size_t blockId, float_array_view & out_view) {
+                
+            std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
+
+            // compute features    
+            const auto halo = getHaloShape<DIM>(this->selectedFeatures_);
+
+            // compute coordinates from blockId
+            const auto & blockWithHalo = blocking_->getBlockWithHalo(blockId, halo);
+            const auto & outerBlock = blockWithHalo.outerBlock();
+            const auto & outerBlockShape = outerBlock.shape();
+
+            // load the raw data
+            uint_array raw(outerBlockShape.begin(), outerBlockShape.end());
+            {
+		    std::lock_guard<std::mutex> lock(s_mutex);
+            rawCache_->readSubarray(outerBlock.begin().begin(), raw);
+            }
+
+            // allocate the feature array
+            size_t nChannels = getNumberOfChannels<DIM>(this->selectedFeatures_);
+            multichan_coordinate filterShape;
+            filterShape[0] = nChannels;
+            for(int d = 0; d < DIM; ++d)
+                filterShape[d+1] = outerBlockShape[d];
+            float_array feature_array(filterShape.begin(), filterShape.end());
+
+		    feature_computation<DIM>(
+                    blockId,
+                    raw,
+                    feature_array,
+                    this->selectedFeatures_);
+
+            // resize the out array to cut the halo
+            const auto & localCore  = blockWithHalo.innerBlockLocal();
+            const auto & localBegin = localCore.begin();
+            const auto & localShape = localCore.shape();
+
+            multichan_coordinate coreBegin;
+            multichan_coordinate coreShape;
+            for(int d = 1; d < DIM+1; d++){
+                coreBegin[d] = localBegin[d-1];
+                coreShape[d]  = localShape[d-1];
+            }
+            coreBegin[0] = 0;
+            coreShape[0] = feature_array.shape(0);
+
+            //float_array_view feature_view = feature_array.view(coreBegin.begin(), coreShape.begin());
+            feature_array = feature_array.view(coreBegin.begin(), coreShape.begin());
+            
+            // predict the random forest
+            const auto & block = blockWithHalo.innerBlock();
+            const auto & outBlockShape = block.shape();
+            
+            multichan_coordinate predictionShape;
+            predictionShape[DIM] = nClasses_;
+            for(int d = 0; d < DIM; ++d)
+                predictionShape[d] = outBlockShape[d];
+
+            float_array prediction_array(predictionShape.begin(), predictionShape.end());
+            random_forest2_prediction<DIM>(blockId, feature_array, out_view, this->rf_, 1);
+            
+            std::cout << "Block " << blockId << " / " << blocking_->numberOfBlocks() << " done" << std::endl;
         }
 
 
@@ -214,78 +160,69 @@ namespace ilastik_backend{
             // TODO spawn the tasks to batch process the complete volume
             for(size_t blockId = 0; blockId < blocking_->numberOfBlocks(); ++blockId) {
 
-                std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
-                
                 auto block = blocking_->getBlock(blockId);
                 coordinate blockBegin = block.begin() - roiBegin_;
+                const coordinate & blockShape = block.shape();
                 
-                // need to attach the channel coordinate
-                multichan_coordinate outBegin;
-                for(int d = 0; d < DIM; ++d)
+                // allocate the output data
+                multichan_coordinate outBegin, outShape;
+                for(int d = 0; d < DIM; ++d) {
                     outBegin[d] = blockBegin[d];
+                    outShape[d] = blockShape[d];
+                }
+                
                 outBegin[DIM] = 0;
-
-                // write the features, debugging only
-                //auto featHandlde = (*featureCache_)[blockId];
-                //auto featView = featHandlde.value();
-                //feats.writeSubarray(outBegin.begin(), featView);
+                outShape[DIM] = nClasses_;
+                float_array out(outShape.begin(), outShape.end());
                 
-                //std::cout << "Handle 1" << std::endl;
-                auto handle = (*predictionCache_)[blockId];
-                //std::cout << "Handle 2" << std::endl;
-                auto outView = handle.value();
-                //std::cout << "Handle 3" << std::endl;
-
-                //std::cout << "Vol shape" << std::endl;
-                //for(int dd = 0; dd < out_->dimension(); ++dd)
-                //    std::cout << out_->shape(dd) << std::endl;
-                //std::cout << "Write start" << std::endl;
-                //std::cout << outBegin << std::endl;
-                //std::cout << "Write shape" << std::endl;
-                //for(int dd = 0; dd < outView.dimension(); ++dd)
-                //    std::cout << outView.shape(dd) << std::endl;
-                
-                out_->writeSubarray(outBegin.begin(), outView);
-                std::cout << "Processing block " << blockId << " done!" << std::endl;
+                process_single_block(blockId, out);
+                out_->writeSubarray(outBegin.begin(), out);
+    
+                //size_t permutation[feat_array.dimension()];
+                //permutation[DIM] = 0;
+                //for(int d = 0; d < DIM; ++d)
+                //    permutation[d] = d+1;
+                //feat_array.permute(permutation);
+                //feats.writeSubarray(outBegin.begin(), feat_array);
             }
-#endif
-	        std::mutex m;
-
+#else
             // TODO FIXME why two loops ?!
-	        tbb::parallel_for(tbb::blocked_range<size_t>(0,blocking_->numberOfBlocks()), [this, &m](const tbb::blocked_range<size_t> &range) {
+	        tbb::parallel_for(tbb::blocked_range<size_t>(0,blocking_->numberOfBlocks()), [this](const tbb::blocked_range<size_t> &range) {
 		    for( size_t blockId=range.begin(); blockId!=range.end(); ++blockId ) {
 
-                    std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
+                auto block = blocking_->getBlock(blockId);
+                coordinate blockBegin = block.begin() - roiBegin_;
+                const coordinate & blockShape = block.shape();
+                
+                // allocate the output data
+                multichan_coordinate outBegin, outShape;
+                for(int d = 0; d < DIM; ++d) {
+                    outBegin[d] = blockBegin[d];
+                    outShape[d] = blockShape[d];
+                }
+                outBegin[DIM] = 0;
+                outShape[DIM] = nClasses_;
+                float_array out(outShape.begin(), outShape.end());
+                
+                process_single_block(blockId, out);
 
-                    auto handle = (*predictionCache_)[blockId];
-                    auto outView = handle.value();
-                    //std::cout << "handle with caution" << std::endl;
-
-                    auto block = blocking_->getBlock(blockId);
-                    coordinate blockBegin = block.begin() - roiBegin_;
-
-                    // need to attach the channel coordinate
-                    multichan_coordinate outBegin;
-                    for(int d = 0; d < DIM; ++d)
-                        outBegin[d] = blockBegin[d];
-                    outBegin[DIM] = 0;
-
-                    //std::cout << "Write start" << std::endl;
-                    //std::cout << outBegin << std::endl;
-
-		            std::lock_guard<std::mutex> lock(m);
-                    out_->writeSubarray(outBegin.begin(), outView);
-                    //std::cout << "Processing block " << blockId << " done!" << std::endl;
+                {
+		        std::lock_guard<std::mutex> lock(this->s_mutex);
+                out_->writeSubarray(outBegin.begin(), out);
+                }
 		    }		
 	        });
+#endif
 
             // TODO close the rawFile and outFile -> we need the filehandles
             return NULL;
+        
         }
 
 
 
     private:
+	    static std::mutex s_mutex;
         // global blocking
         std::unique_ptr<blocking> blocking_;
         std::unique_ptr<raw_cache> rawCache_;
@@ -293,16 +230,17 @@ namespace ilastik_backend{
         std::string in_key_;
         std::string rfFile_;
         std::string rfKey_;
-        std::unique_ptr<feature_cache> featureCache_;
-        std::unique_ptr<prediction_cache> predictionCache_;
         selection_type selectedFeatures_;
         coordinate blockShape_;
-        size_t maxNumCacheEntries_;
         random_forest rf_;
         std::unique_ptr<hdf5::Hdf5Array<data_type>> out_;
         coordinate roiBegin_;
         coordinate roiEnd_;
+        size_t nClasses_;
     };
+    
+    template <unsigned DIM>
+    std::mutex batch_prediction_task<DIM>::s_mutex;
     
 } // namespace ilastik_backend
 } // namepsace pipelines
