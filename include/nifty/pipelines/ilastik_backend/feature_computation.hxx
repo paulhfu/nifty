@@ -1,13 +1,7 @@
-#ifndef _OPERATORS_FILTEROPERATOR_H_
-#define _OPERATORS_FILTEROPERATOR_H_
-
-#define TBB_PREVIEW_CONCURRENT_LRU_CACHE 1
-#include <tbb/concurrent_lru_cache.h>
+#pragma once
 
 #include <tuple>
 #include <algorithm>
-
-#include <tbb/flow_graph.h>
 
 #include "nifty/marray/marray.hxx"
 #include "nifty/features/fastfilters_wrapper.hxx"
@@ -84,6 +78,3 @@ size_t getNumberOfChannels(const selected_feature_type & selected_features) {
 } // namespace ilastik_backend
 } // namespace pipelines
 } // namespace nifty
-
-
-#endif // _OPERATORS_FILTEROPERATOR_H_

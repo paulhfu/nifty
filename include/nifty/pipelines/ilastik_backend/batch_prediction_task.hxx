@@ -4,6 +4,8 @@
 #include "nifty/pipelines/ilastik_backend/random_forest_prediction.hxx"
 #include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
 
+#include <tbb/tbb.h>
+
 namespace nifty{
 namespace pipelines{
 namespace ilastik_backend{
@@ -218,7 +220,6 @@ namespace ilastik_backend{
             return NULL;
         
         }
-
 
 
     private:

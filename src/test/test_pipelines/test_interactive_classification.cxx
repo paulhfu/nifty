@@ -1,11 +1,11 @@
-#define BOOST_TEST_MODULE pipelines_ilastik_pixel_classification
+#define BOOST_TEST_MODULE pipelines_ilastik_interacitve_classification
 
 #include <tbb/tbb.h>
 #include <boost/test/unit_test.hpp>
 
-#include "nifty/pipelines/ilastik_backend/batch_prediction_task.hxx"
+#include "nifty/pipelines/ilastik_backend/interactive_classification_task.hxx"
 
-BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
+BOOST_AUTO_TEST_CASE(InteractiveClassificationTest)
 {   
     using namespace nifty::pipelines::ilastik_backend;
     
@@ -59,14 +59,13 @@ BOOST_AUTO_TEST_CASE(PixelClassificationPredictionTest)
         std::vector<double>({2.,3.5}));
     }
 
-    batch_prediction_task<dim>& batch = *new(tbb::task::allocate_root()) batch_prediction_task<dim>(
+    interactive_classification_task<dim>& batch = *new(tbb::task::allocate_root()) interactive_classification_task<dim>(
             raw_file, raw_key,
             rf_filename, rf_path,
             selected_features,
-            blockShape,
+            blockShape, max_num_entries,
             roiBegin, roiEnd);
     std::cout << "Spawning Main Task" << std::endl;
     tbb::task::spawn_root_and_wait(batch);
     std::cout << "Main Task done" << std::endl;
 }
-

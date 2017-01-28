@@ -1,6 +1,3 @@
-#ifndef _RANDOM_FOREST_LOADER_HXX_
-#define _RANDOM_FOREST_LOADER_HXX_
-
 #pragma once
 
 #include <nifty/marray/marray.hxx>
@@ -48,5 +45,3 @@ namespace ilastik_backend
 }
 }
 }
-
-#endif // _RANDOM_FOREST_LOADER_HXX_

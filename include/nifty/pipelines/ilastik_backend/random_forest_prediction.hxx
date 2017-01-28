@@ -1,12 +1,7 @@
-#ifndef _RANDOM_FOREST_PREDICTION_TASK_H_
-#define _RANDOM_FOREST_PREDICTION_TASK_H_
-
-#define TBB_PREVIEW_CONCURRENT_LRU_CACHE 1
-#include <tbb/concurrent_lru_cache.h>
+#pragma once
 
 #include <algorithm>
 
-#include <tbb/tbb.h>
 #include "nifty/pipelines/ilastik_backend/random_forest_loader.hxx"
 #include <nifty/marray/marray.hxx>
 
@@ -149,5 +144,3 @@ void random_forest2_prediction(
 } // namespace ilastik_backend
 } // namespace pipelines
 } // namespace nifty
-
-#endif // _RANDOM_FOREST_PREDICTION_TASK_H_
