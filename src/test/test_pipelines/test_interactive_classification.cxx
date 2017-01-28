@@ -59,13 +59,17 @@ BOOST_AUTO_TEST_CASE(InteractiveClassificationTest)
         std::vector<double>({2.,3.5}));
     }
 
-    interactive_classification_task<dim>& batch = *new(tbb::task::allocate_root()) interactive_classification_task<dim>(
+    std::string out_filename = "./out.h5";
+    std::string out_key = "data";
+
+    interactive_classification_task<dim>& interactive_training = *new(tbb::task::allocate_root()) interactive_classification_task<dim>(
             raw_file, raw_key,
             rf_filename, rf_path,
+            out_filename, out_key,
             selected_features,
             blockShape, max_num_entries,
             roiBegin, roiEnd);
     std::cout << "Spawning Main Task" << std::endl;
-    tbb::task::spawn_root_and_wait(batch);
+    tbb::task::spawn_root_and_wait(interactive_training);
     std::cout << "Main Task done" << std::endl;
 }

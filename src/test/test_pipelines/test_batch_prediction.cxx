@@ -57,10 +57,14 @@ BOOST_AUTO_TEST_CASE(BatchPredictionTest)
         std::vector<std::pair<std::string, std::vector<bool>>>({std::make_pair<std::string,std::vector<bool>>("GaussianSmoothing", {true, true})}),
         std::vector<double>({2.,3.5}));
     }
+    
+    std::string out_filename = "./out.h5";
+    std::string out_key = "data";
 
     batch_prediction_task<dim>& batch = *new(tbb::task::allocate_root()) batch_prediction_task<dim>(
             raw_file, raw_key,
             rf_filename, rf_path,
+            out_filename, out_key,
             selected_features,
             blockShape,
             roiBegin, roiEnd);

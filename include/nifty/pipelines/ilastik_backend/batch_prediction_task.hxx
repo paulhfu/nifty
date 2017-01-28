@@ -36,15 +36,19 @@ namespace ilastik_backend{
                 const std::string & in_key,
                 const std::string & rf_file,
                 const std::string & rf_key,
+                const std::string & out_file,
+                const std::string & out_key,
                 const selection_type & selected_features,
                 const coordinate & block_shape,
                 const coordinate & roiBegin,
                 const coordinate & roiEnd) :
             blocking_(),
+            in_key_(in_key),
             rfFile_(rf_file),
             rfKey_(rf_key),
-            in_file_(in_file),
-            in_key_(in_key),
+            rawHandle_(hdf5::openFile(in_file)),
+            outHandle_(hdf5::createFile(out_file)),
+            outKey_(out_key),
             selectedFeatures_(selected_features),
             blockShape_(block_shape),
             rf_(),
@@ -56,7 +60,7 @@ namespace ilastik_backend{
 
         
         void init() {
-            rawCache_ = std::make_unique<raw_cache>( hdf5::openFile(in_file_), in_key_ );
+            rawCache_ = std::make_unique<raw_cache>( rawHandle_, in_key_ );
             
             // TODO handle the roi shapes in python
             // init the blocking
@@ -77,7 +81,7 @@ namespace ilastik_backend{
                 chunkShape[d] = blockShape_[d];
             }
             
-            out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( hdf5::createFile("./out.h5"), "data", outShape.begin(), outShape.end(), chunkShape.begin() );
+            out_ = std::make_unique<hdf5::Hdf5Array<data_type>>( outHandle_, outKey_, outShape.begin(), outShape.end(), chunkShape.begin() );
         }
 
         
@@ -216,7 +220,9 @@ namespace ilastik_backend{
 	        });
 #endif
 
-            // TODO close the rawFile and outFile -> we need the filehandles
+            // close the rawFile and outFile
+            hdf5::closeFile(rawHandle_);
+            hdf5::closeFile(outHandle_);
             return NULL;
         
         }
@@ -227,10 +233,12 @@ namespace ilastik_backend{
         // global blocking
         std::unique_ptr<blocking> blocking_;
         std::unique_ptr<raw_cache> rawCache_;
-        std::string in_file_;
         std::string in_key_;
         std::string rfFile_;
         std::string rfKey_;
+        hid_t rawHandle_;
+        hid_t outHandle_;
+        std::string outKey_;
         selection_type selectedFeatures_;
         coordinate blockShape_;
         random_forest rf_;
