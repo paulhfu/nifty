@@ -35,6 +35,21 @@ namespace ilastik_backend
         return rf;
     }
     
+    std::vector<RandomForest2Type> get_multiple_rf2_from_file(
+        const std::string& fn,
+        const std::vector<std::string> & paths_in_file)
+    {
+        hid_t h5file = H5Fopen(fn.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        assert(h5file > 0);
+        std::vector<RandomForest2Type> rf_vector( paths_in_file.size(), RandomForest2Type() );
+        for(int i = 0; i < paths_in_file.size(); ++i) {
+            const auto & key = paths_in_file[i];
+            vigra::rf_import_HDF5(rf_vector[i], fn, key);
+        }
+        H5Fclose(h5file);
+        return rf_vector;
+    }
+    
     RandomForest3Type get_rf3_from_file(
         const std::string& fn,
         const std::string& path_in_file)

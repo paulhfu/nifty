@@ -22,7 +22,8 @@ void feature_computation(
     const marray::View<IN_DATA_TYPE> & in,
     marray::View<OUT_DATA_TYPE> & out,
     selected_feature_type selected_features,
-    const double window_ratio = 2.) {
+    const double window_ratio = 2.,
+    const int n_threads = 1) {
     
     std::cout << "feature_computation for block " << blockId << std::endl;
     
@@ -49,7 +50,7 @@ void feature_computation(
     // apply the filter via the functor
     // TODO consider passing the tbb threadpool here
     //apply_(in_float, outTransposedView);
-    applyFilters(in_float, out);
+    applyFilters(in_float, out, n_threads);
     
     // For now we do not permute the dimensions here, but in the rf
     //size_t permutation[out.dimension()];

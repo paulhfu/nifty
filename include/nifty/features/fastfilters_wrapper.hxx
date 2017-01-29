@@ -427,6 +427,18 @@ namespace detail_fastfilters {
         
         // apply filters in parallel
         // TODO use tbb threadpool!
+        void operator()(const marray::View<float> & in, marray::View<float> & out, const int nThreads) const{
+            if(nThreads > 1) {
+                parallel::ThreadPool threadpool(nThreads);
+                operator()(in, out, threadpool);
+            }
+            else {
+                operator()(in, out);
+            }
+        }
+        
+        // apply filters in parallel
+        // TODO use tbb threadpool!
         void operator()(const marray::View<float> & in, marray::View<float> & out, parallel::ThreadPool & threadpool) const{
     
             NIFTY_CHECK_OP(in.dimension(),==,DIM,"Input needs to be of correct dimension.")

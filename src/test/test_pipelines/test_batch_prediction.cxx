@@ -25,8 +25,11 @@ BOOST_AUTO_TEST_CASE(BatchPredictionTest)
     std::string raw_file = "/home/consti/Work/data_neuro/ilastik_hackathon/data_200_8bit_squeezed.h5";
     std::string raw_key  = "data";
     
-    std::string rf_filename = "/home/consti/Work/data_neuro/ilastik_hackathon/hackathon_flyem_forest.h5";
-    std::string rf_path     = "Forest0000";
+    std::string rf_filename = "/home/consti/Work/data_neuro/ilastik_hackathon/RandomForest_MaxDepth8_NThreads1.h5";
+    std::vector<std::string> rf_paths({"rf_0"});
+    
+    //std::string rf_filename = "/home/consti/Work/data_neuro/ilastik_hackathon/RandomForest_MaxDepth8_NThreads8.h5";
+    //std::vector<std::string> rf_paths({"rf_0","rf_1","rf_2","rf_3","rf_4","rf_5","rf_6","rf_7"});
     
     coordinate roiBegin({2500,2600,0});
     coordinate roiEnd({2800,2900,200});
@@ -43,11 +46,12 @@ BOOST_AUTO_TEST_CASE(BatchPredictionTest)
     );
 
     if(use_small_data) {
-        rf_filename = "./testPC.ilp";
-        rf_path = "/PixelClassification/ClassifierForests/Forest0000";
         
         raw_file = "./testraw.h5";
         raw_key  = "exported_data";
+        
+        rf_filename = "./testPC.ilp";
+        rf_paths = std::vector<std::string>({"/PixelClassification/ClassifierForests/Forest0000"});
 
         roiBegin = coordinate({0,0,0});
         roiEnd   = coordinate({128,128,128});
@@ -63,7 +67,7 @@ BOOST_AUTO_TEST_CASE(BatchPredictionTest)
 
     batch_prediction_task<dim>& batch = *new(tbb::task::allocate_root()) batch_prediction_task<dim>(
             raw_file, raw_key,
-            rf_filename, rf_path,
+            rf_filename, rf_paths,
             out_filename, out_key,
             selected_features,
             blockShape,

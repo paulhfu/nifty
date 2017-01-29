@@ -35,7 +35,7 @@ namespace ilastik_backend{
         batch_prediction_task(const std::string & in_file,
                 const std::string & in_key,
                 const std::string & rf_file,
-                const std::string & rf_key,
+                const std::vector<std::string> & rf_keys,
                 const std::string & out_file,
                 const std::string & out_key,
                 const selection_type & selected_features,
@@ -45,13 +45,12 @@ namespace ilastik_backend{
             blocking_(),
             in_key_(in_key),
             rfFile_(rf_file),
-            rfKey_(rf_key),
+            rfKeys_(rf_keys),
             rawHandle_(hdf5::openFile(in_file)),
             outHandle_(hdf5::createFile(out_file)),
             outKey_(out_key),
             selectedFeatures_(selected_features),
             blockShape_(block_shape),
-            rf_(),
             roiBegin_(roiBegin),
             roiEnd_(roiEnd)
         {
@@ -67,11 +66,11 @@ namespace ilastik_backend{
             coordinate roiShape = roiEnd_ - roiBegin_;
             
             // TODO make rf single threaded
-            rf_ = get_rf2_from_file(rfFile_, rfKey_);
+            rfVector_ = get_multiple_rf2_from_file(rfFile_, rfKeys_);
             blocking_ = std::make_unique<blocking>(roiBegin_, roiEnd_, blockShape_);
 
             //nClasses_ = rf_.num_classes();
-            nClasses_ = rf_.class_count();
+            nClasses_ = rfVector_[0].class_count();
             
             multichan_coordinate outShape, chunkShape; 
             outShape[DIM] = nClasses_;
@@ -85,7 +84,7 @@ namespace ilastik_backend{
         }
 
         
-        void process_single_block(const size_t blockId, float_array_view & out_view) {
+        void process_single_block(const size_t blockId, float_array_view & out_view, const int n_threads = 1) {
                 
             std::cout << "Processing block " << blockId << " / " << blocking_->numberOfBlocks() << std::endl;
 
@@ -116,7 +115,9 @@ namespace ilastik_backend{
                     blockId,
                     raw,
                     feature_array,
-                    this->selectedFeatures_);
+                    this->selectedFeatures_,
+                    2., // window ratio
+                    n_threads);
 
             // resize the out array to cut the halo
             const auto & localCore  = blockWithHalo.innerBlockLocal();
@@ -145,7 +146,10 @@ namespace ilastik_backend{
                 predictionShape[d] = outBlockShape[d];
 
             float_array prediction_array(predictionShape.begin(), predictionShape.end());
-            random_forest2_prediction<DIM>(blockId, feature_array, out_view, this->rf_, 1);
+            if(n_threads > 1)
+                random_forest2_prediction<DIM>(blockId, feature_array, out_view, rfVector_, n_threads);
+            else
+                random_forest2_prediction<DIM>(blockId, feature_array, out_view, rfVector_[0]);
             
             std::cout << "Block " << blockId << " / " << blocking_->numberOfBlocks() << " done" << std::endl;
         }
@@ -156,14 +160,10 @@ namespace ilastik_backend{
             std::cout << "batch_prediction_task::execute called" << std::endl;
             
             init();
+
+// run subblocks in serial and parallelize over the subblock calculations
 #if 0
-            // feature output for debugging only
-            //auto feat_tmp = nifty::hdf5::createFile("./feat_tmp.h5");
-            //size_t feat_shape[] = {128,128,128,2};
-            //size_t chunk_shape[] = {64,64,64,1};
-            //nifty::hdf5::Hdf5Array<float> feats(feat_tmp, "data", feat_shape, feat_shape + 4, chunk_shape );
-            
-            // TODO spawn the tasks to batch process the complete volume
+            int n_threads = 8;
             for(size_t blockId = 0; blockId < blocking_->numberOfBlocks(); ++blockId) {
 
                 auto block = blocking_->getBlock(blockId);
@@ -181,16 +181,11 @@ namespace ilastik_backend{
                 outShape[DIM] = nClasses_;
                 float_array out(outShape.begin(), outShape.end());
                 
-                process_single_block(blockId, out);
+                process_single_block(blockId, out, n_threads);
                 out_->writeSubarray(outBegin.begin(), out);
-    
-                //size_t permutation[feat_array.dimension()];
-                //permutation[DIM] = 0;
-                //for(int d = 0; d < DIM; ++d)
-                //    permutation[d] = d+1;
-                //feat_array.permute(permutation);
-                //feats.writeSubarray(outBegin.begin(), feat_array);
             }
+
+// run over subblocks in parallel
 #else
             // TODO FIXME why two loops ?!
 	        tbb::parallel_for(tbb::blocked_range<size_t>(0,blocking_->numberOfBlocks()), [this](const tbb::blocked_range<size_t> &range) {
@@ -233,15 +228,15 @@ namespace ilastik_backend{
         // global blocking
         std::unique_ptr<blocking> blocking_;
         std::unique_ptr<raw_cache> rawCache_;
-        std::string in_key_;
-        std::string rfFile_;
-        std::string rfKey_;
+        const std::string & in_key_;
+        const std::string & rfFile_;
+        const std::vector<std::string> & rfKeys_;
         hid_t rawHandle_;
         hid_t outHandle_;
-        std::string outKey_;
-        selection_type selectedFeatures_;
+        const std::string & outKey_;
+        const selection_type & selectedFeatures_;
         coordinate blockShape_;
-        random_forest rf_;
+        std::vector<random_forest> rfVector_;
         std::unique_ptr<hdf5::Hdf5Array<data_type>> out_;
         coordinate roiBegin_;
         coordinate roiEnd_;
