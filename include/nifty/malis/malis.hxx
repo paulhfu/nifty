@@ -55,7 +55,7 @@ void compute_malis_gradient(const marray::View<DATA_TYPE> & affinities,
             overlaps[pixelIndex].insert( std::make_pair(gtId,1) );
     });
 
-    // sort all edges in increasing order
+    // sort all edges in decreasing order
     AffinityCoord affinityShape;
     for(int d = 0; d < DIM+1; ++d)
         affinityShape[d] = affinities.shape(d);
@@ -65,17 +65,18 @@ void compute_malis_gradient(const marray::View<DATA_TYPE> & affinities,
     // initialize the pqueu as [0,1,2,3,...,numberOfEdges]
     std::vector<size_t> pqueue(numberOfEdges);
     std::iota(pqueue.begin(), pqueue.end(), 0);
-    // sort pqueue in increasing order
+    // sort pqueue in decreasing order
     std::sort(pqueue.begin(), pqueue.end(),
             [&flatView](const size_t ind1, const size_t ind2){
-        return (flatView(ind1)>flatView(ind2));         
+        return (flatView(ind1) > flatView(ind2)); // TODO which one      
+        //return (flatView(ind1) < flatView(ind2));         
     });
 
     // run kruskals
     size_t edgeIndex, channel;
     LabelType setU, setV;
     size_t nPair = 0;
-    Coord gtCoordU, gtCoordV;
+    size_t nodeU, nodeV;
     AffinityCoord affCoord;
     typename std::map<LabelType,size_t>::iterator itU, itV;
 
@@ -89,28 +90,37 @@ void compute_malis_gradient(const marray::View<DATA_TYPE> & affinities,
         for(int d = 1; d < DIM+1; ++d) {
             affCoord[d] = (edgeIndex % affinities.strides(d-1) ) / affinities.strides(d);
         }
-        
-        // first, we copy the spatial coordinates of the affinity pixel for both gt coords
+        channel = affCoord[DIM];
+
+        // find the node indices associated with the edge
+        nodeU = 0;
+        nodeV = 0;
         for(int d = 0; d < DIM; ++d) {
-            gtCoordU[d] = affCoord[d];
-            gtCoordV[d] = affCoord[d];
+            nodeU += affCoord[d] * groundtruth.strides(d);
+            nodeV += affCoord[d] * groundtruth.strides(d);
         }
         
-        // we increase the V coordinate for the given channel (=correspondign coordinate)
+        // we increase the V node by stride of the corresponding coordinate 
         // only if this results in a valid coordinate
-        channel = affCoord[DIM];
-        if(gtCoordV[channel] < pixelShape[channel] - 1) {
-            ++gtCoordV[affCoord[DIM]];
+        if(affCoord[channel] < pixelShape[channel] - 1) {
+            nodeV += groundtruth.strides(channel);
         }
         else {
             continue;
         }
-        setU = sets.find( groundtruth(gtCoordU.asStdArray()) ) ;
-        setV = sets.find( groundtruth(gtCoordV.asStdArray()) ) ;
+        setU = sets.find( nodeU ) ;
+        setV = sets.find( nodeV ) ;
 
         // only do stuff if the two segments are not merged yet
         if(setU != setV) {
             sets.merge(setU, setV);
+            
+            // debug output
+            //std::cout << "Queue nr. " << i << " edge: " << edgeIndex << std::endl;
+            //std::cout << "Weight: "   << flatView(edgeIndex) << std::endl;
+            //std::cout << "AffinityCoord:" << affCoord << std::endl;
+            //std::cout << "PixelNodes " << nodeU << " , " << nodeV << std::endl;
+            //std::cout << "Sets "    << setU << " , " << setV << std::endl;
 
             // compute the number of pairs merged by this edge
             for (itU = overlaps[setU].begin(); itU != overlaps[setU].end(); ++itU) {
@@ -124,14 +134,22 @@ void compute_malis_gradient(const marray::View<DATA_TYPE> & affinities,
                     // we add nPairs if we join two nodes in the same gt segment
                     if (itU->first == itV->first) {
                         positiveGradients(affCoord.asStdArray()) += nPair;
+                        //debug output
+                        //std::cout << "Gt-labels: " << itU->first << " , " << itV->first << std::endl;
+                        //std::cout << "Positive gradient added: " << nPair << std::endl;
                     }
                     // for negative gradient,
                     // we add nPairs if we join two nodes in different gt segments
                     else if (itU->first != itV->first) {
                         negativeGradients(affCoord.asStdArray()) += nPair;
+                        //debug output
+                        //std::cout << "Gt-labels: " << itU->first << " , " << itV->first << std::endl;
+                        //std::cout << "Negative gradient added: " << nPair << std::endl;
                     }
                 }
             }
+            // debug output
+            //std::cout << std::endl;
             
             // move the pixel bags of the non-representative to the representative
             if (sets.find(setU) == setV) // make setU the rep to keep and setV the rep to empty

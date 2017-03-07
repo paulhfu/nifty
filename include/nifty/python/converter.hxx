@@ -208,16 +208,20 @@ namespace marray
         }
 
 
-
-
+        template <class ShapeIterator>
+        PyView(ShapeIterator begin, ShapeIterator end, DataType initVal) {
+            this->assignFromShape(begin, end);
+            this->initWithValue(initVal);
+        }
+        
+        
         template <class ShapeIterator>
         PyView(ShapeIterator begin, ShapeIterator end)
         {
-            
-            //std::cout<<"-----\n";
             this->assignFromShape(begin, end);
         }
 
+        
         template <class ShapeIterator>
         void reshapeIfEmpty(ShapeIterator begin, ShapeIterator end){
             if(this->size() == 0){
@@ -279,6 +283,17 @@ namespace marray
                 strides[i] /= sizeof(VALUE_TYPE);
             }
             this->assign(begin, end, strides.begin(), ptr, FirstMajorOrder);
+        }
+
+        void initWithValue(const DataType initVal) {
+            typedef nifty::array::StaticArray<int64_t,DIM> Coord;
+            Coord shape;
+            for(int d = 0; d < DIM; ++d) {
+                shape[d] = this->shape(d);
+            }
+            tools::forEachCoordinate(shape, [&](const Coord & coord){
+                (*this)(coord.asStdArray()) = initVal;
+            });
         }
 
     public:

@@ -24,8 +24,8 @@ namespace malis {
                 Coord shape;
                 for(int d = 0; d < DIM+1; ++d)
                     shape[d] = affinities.shape(d);
-                nifty::marray::PyView<size_t, DIM+1> positiveGradients(shape.begin(), shape.end());
-                nifty::marray::PyView<size_t, DIM+1> negativeGradients(shape.begin(), shape.end());
+                nifty::marray::PyView<size_t, DIM+1> positiveGradients(shape.begin(), shape.end(), 0);
+                nifty::marray::PyView<size_t, DIM+1> negativeGradients(shape.begin(), shape.end(), 0);
                 {
                     py::gil_scoped_release allowThreads;
                     compute_malis_gradient<DIM>(affinities, groundtruth, positiveGradients, negativeGradients);
