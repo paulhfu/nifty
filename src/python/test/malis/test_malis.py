@@ -32,11 +32,24 @@ def test_malis():
     x,y = toy_data_small()
     pos_grads, neg_grads = nifty.malis.malis_gradient(x, y)
 
-    view_res(x, y,
-            pos_grads.astype('float32'),
-            neg_grads.astype('float32'))
+    ## view
+    #view_res(x, y,
+    #        pos_grads.astype('float32'),
+    #        neg_grads.astype('float32'))
 
-    # TODO assert
+    ## test
+    i_max = neg_grads.shape[0]
+    j_max = neg_grads.shape[1]
+    for i in xrange(i_max):
+        for j in xrange(j_max):
+            if i == i_max / 2 and j == j_max / 2:
+                assert neg_grads[i,j,0] == 0
+                assert neg_grads[i,j,1] > 0
+            else:
+                assert neg_grads[i,j,0] == 0
+                assert neg_grads[i,j,1] == 0
+
+    print "Passed"
 
 if __name__ == '__main__':
     test_malis()
