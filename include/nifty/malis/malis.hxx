@@ -39,40 +39,48 @@ void compute_malis_gradient(const marray::View<DATA_TYPE> & affinities,
     Coord pixelShape;
     for(int d = 0; d < DIM; ++d)
         pixelShape[d] = groundtruth.shape(d);
-    // init union find and overlaps
+    
+    //
+    // initialize the union find and the vector storing the overlaps 
+    // of each node with each groundtruth segment
+    //
+    
     ufd::Ufd<LabelType> sets(numberOfNodes);
     std::vector<std::map<LabelType,size_t>> overlaps(numberOfNodes);
-    int pixelIndex;
+    int pixelIndex = 0;
     tools::forEachCoordinate(pixelShape, [&](Coord coord) {
         auto gtId = groundtruth(coord.asStdArray());
-        
-        pixelIndex = 0;
-        for(int d = 0; d < DIM; ++d) {
-            pixelIndex += coord[d] * groundtruth.strides(d);
-        }
-        
         if( gtId != 0)  
             overlaps[pixelIndex].insert( std::make_pair(gtId,1) );
+        ++pixelIndex;
     });
 
-    // sort all edges in decreasing order
+    //
+    // sort the edge indices in decreasing order of affinities
+    //
+
     AffinityCoord affinityShape;
     for(int d = 0; d < DIM+1; ++d)
         affinityShape[d] = affinities.shape(d);
+    
     // get a flattened view to the marray
     size_t flatShape[] = {affinities.size()};
     auto flatView = affinities.reshapedView(flatShape, flatShape+1);
+    
     // initialize the pqueu as [0,1,2,3,...,numberOfEdges]
     std::vector<size_t> pqueue(numberOfEdges);
     std::iota(pqueue.begin(), pqueue.end(), 0);
+    
     // sort pqueue in decreasing order
     std::sort(pqueue.begin(), pqueue.end(),
             [&flatView](const size_t ind1, const size_t ind2){
-        return (flatView(ind1) > flatView(ind2)); // TODO which one      
-        //return (flatView(ind1) < flatView(ind2));         
+        return (flatView(ind1) > flatView(ind2));
     });
 
-    // run kruskals
+    //
+    // run kruskals, computing gradients for all merges in the spanning tree
+    //
+    
     size_t edgeIndex, channel;
     LabelType setU, setV;
     size_t nPair = 0;
@@ -108,8 +116,8 @@ void compute_malis_gradient(const marray::View<DATA_TYPE> & affinities,
         else {
             continue;
         }
-        setU = sets.find( nodeU ) ;
-        setV = sets.find( nodeV ) ;
+        setU = sets.find( nodeU );
+        setV = sets.find( nodeV );
 
         // only do stuff if the two segments are not merged yet
         if(setU != setV) {
