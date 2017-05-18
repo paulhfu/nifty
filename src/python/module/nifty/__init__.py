@@ -15,6 +15,7 @@ import sys
 from . import graph
 from . import tools
 from . import ufd
+from . import cgp
 #from . import deep_learning
 
 
