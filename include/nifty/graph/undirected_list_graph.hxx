@@ -142,6 +142,12 @@ public:
         std::vector<EDGE_INTERANL_TYPE> & innerEdgesOut,
         std::vector<EDGE_INTERANL_TYPE> & outerEdgesOut) const;
 
+    // helper function to transform a node-path (e.g. from shortest path)
+    // to vector of correspoding edges
+    bool edgesFromNodePath(
+            const std::vector<NodeInteralType> & nodePath,
+            std::vector<EdgeInternalType> & edgesOut) const;
+
 protected:
 
     bool insertEdgeOnlyInNodeAdj(const int64_t u, const int64_t v);
@@ -489,6 +495,33 @@ extractSubgraphFromNodes(
     }
 
     return subgraphOut;
+}
+    
+template<class EDGE_INTERANL_TYPE, class NODE_INTERNAL_TYPE>
+bool UndirectedGraph<EDGE_INTERANL_TYPE, NODE_INTERNAL_TYPE>::
+edgesFromNodePath(
+    const std::vector<NODE_INTERNAL_TYPE> & nodePath,
+    std::vector<EDGE_INTERANL_TYPE> & edgesOut) const {
+
+    bool pathFound = true;
+    edgesOut.clear();
+    
+    auto lastNode = nodePath[0];
+    for(int i = 1; i < nodePath.size(); ++i) {
+        
+        auto node   = nodePath[i];     
+        auto edgeId = this->findEdge(lastNode, node);
+        edgesOut.push_back(edgeId);
+
+        if(edgeId == -1) {
+            pathFound = false;
+            break;
+        }
+        
+        lastNode = node;
+    }
+
+    return pathFound;
 }
 
 } // namespace nifty::graph

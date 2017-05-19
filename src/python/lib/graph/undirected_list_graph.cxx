@@ -72,7 +72,7 @@ namespace graph{
                 }
             )
             .def("extractSubgraphFromNodes",
-                []( Graph & g, const marray::PyView<int64_t,1> nodeList) {
+                [](Graph & g, const marray::PyView<int64_t,1> nodeList) {
                     
                     std::vector<int64_t> innerEdgesVec;  
                     std::vector<int64_t> outerEdgesVec;  
@@ -82,6 +82,20 @@ namespace graph{
                         subgraph = g.extractSubgraphFromNodes(nodeList, innerEdgesVec, outerEdgesVec);
                     }
                     return std::make_tuple(innerEdgesVec, outerEdgesVec, subgraph);
+                }
+            )
+            .def("edgesFromNodePaths",
+                [](Graph & g, const std::vector<std::vector<int64_t>> & nodePaths) {
+
+                    std::vector<std::vector<int64_t>> edges(nodePaths.size());
+                    std::vector<bool> pathsFound(nodePaths.size());
+                    {
+                        py::gil_scoped_release allowThreads;
+                        for(size_t i = 0; i < nodePaths.size(); ++i) {
+                            pathsFound[i] = g.edgesFromNodePath(nodePaths[i], edges[i]);
+                        }
+                    }
+                    return std::make_tuple(pathsFound, edges);
                 }
             )
         ;
