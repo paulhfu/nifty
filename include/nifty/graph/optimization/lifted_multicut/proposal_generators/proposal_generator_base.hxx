@@ -1,7 +1,5 @@
 
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_LIFTED_PROPOSAL_GENERATORS_PROPOSAL_GENERATOR_BASE_HXX2
-#define NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_LIFTED_PROPOSAL_GENERATORS_PROPOSAL_GENERATOR_BASE_HXX2
 
 
 #include <memory>
@@ -9,6 +7,7 @@
 
 namespace nifty{
 namespace graph{
+namespace optimization{
 namespace lifted_multicut{
 
 
@@ -36,5 +35,5 @@ namespace lifted_multicut{
 }
 }
 }
+}
 
-#endif //NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_LIFTED_PROPOSAL_GENERATORS_PROPOSAL_GENERATOR_BASE_HXX2

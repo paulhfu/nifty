@@ -1,14 +1,12 @@
 #pragma once
-#ifndef NIFTY_PYTHON_GRAPH_MULTICUT_OBJECTIVE_NAME_HXX
-#define NIFTY_PYTHON_GRAPH_MULTICUT_OBJECTIVE_NAME_HXX
 
 #include "nifty/graph/optimization/multicut/multicut_objective.hxx"
 #include "nifty/python/graph/graph_name.hxx"
 
 namespace nifty{
 namespace graph{
-
-
+namespace optimization{
+namespace multicut{
 
     template<class OBJECTIVE>
     struct MulticutObjectiveName;
@@ -23,8 +21,9 @@ namespace graph{
             return std::string("MulticutObjective") + GraphName<GRAPH>::name();
         }
     };
-    
+ 
+} // namespace multicut 
+} // namespace optimization   
 }
 }
 
-#endif /* NIFTY_PYTHON_GRAPH_MULTICUT_OBJECTIVE_NAME_HXX */

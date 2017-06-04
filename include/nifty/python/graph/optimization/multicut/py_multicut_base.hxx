@@ -1,13 +1,11 @@
 #pragma once
-#ifndef NIFTY_PYTHON_GRAPH_MULTICUT_MULTICUT_BASE_HXX
-#define NIFTY_PYTHON_GRAPH_MULTICUT_MULTICUT_BASE_HXX
 
 #include "nifty/graph/optimization/multicut/multicut_base.hxx"
 
 namespace nifty {
 namespace graph {
-
-
+namespace optimization{
+namespace multicut{
 
 
 
@@ -71,8 +69,8 @@ public:
     }
 };
 
-
+} // namespace multicut
+} // namespace optimization
 } // namespace graph
 } // namespace nifty
 
-#endif /* NIFTY_PYTHON_GRAPH_MULTICUT_MULTICUT_BASE_HXX */

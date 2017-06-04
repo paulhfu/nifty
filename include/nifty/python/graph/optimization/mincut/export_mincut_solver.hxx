@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_PYTHON_GRAPH_MULTICUT_EXPORT_MULTICUT_SOLVER_HXX
-#define NIFTY_PYTHON_GRAPH_MULTICUT_EXPORT_MULTICUT_SOLVER_HXX
 
 
 
@@ -19,7 +17,8 @@ namespace py = pybind11;
 
 namespace nifty{
 namespace graph{
-
+namespace optimization{
+namespace mincut{
 
     template<class SOLVER>
     py::class_<typename SOLVER::Settings>  exportMincutSolver(
@@ -127,10 +126,10 @@ namespace graph{
     }
 
     */
-
+} // namespace mincut
+} // namespace optimization
 }
 }
 
 
 
-#endif /* NIFTY_PYTHON_GRAPH_MULTICUT_EXPORT_MULTICUT_SOLVER_HXX */

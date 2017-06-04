@@ -1,11 +1,10 @@
 #pragma once
-#ifndef NIFTY_PYTHON_GRAPH_LIFTED_MULTICUT_LIFTED_MULTICUT_BASE_HXX
-#define NIFTY_PYTHON_GRAPH_LIFTED_MULTICUT_LIFTED_MULTICUT_BASE_HXX
 
 #include "nifty/graph/optimization/lifted_multicut/lifted_multicut_base.hxx"
 
 namespace nifty {
 namespace graph {
+namespace optimization{
 namespace lifted_multicut{
 
 
@@ -73,7 +72,7 @@ public:
 
 
 } // namespace lifted_mutlcut
+} // namespace optimization
 } // namespace graph
 } // namespace nifty
 
-#endif /* NIFTY_PYTHON_GRAPH_LIFTED_MULTICUT_LIFTED_MULTICUT_BASE_HXX */

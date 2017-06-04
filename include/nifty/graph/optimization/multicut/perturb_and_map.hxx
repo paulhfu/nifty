@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_PERTURB_AND_MAP_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_MULTICUT_PERTURB_AND_MAP_HXX
 
 #include <iostream>
 #include <string>
@@ -15,7 +13,8 @@
 
 namespace nifty {
 namespace graph {
-
+namespace optimization{
+namespace multicut{
 
     template<class OBJECTIVE>
     class PerturbAndMap{
@@ -260,23 +259,8 @@ namespace graph {
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+} // namespace nifty::graph::optimization::multicut
+} // namespace nifty::graph::optimization
 } // namespace graph
 } // namespace nifty
 
-#endif // #ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_PERTURB_AND_MAP_HXX

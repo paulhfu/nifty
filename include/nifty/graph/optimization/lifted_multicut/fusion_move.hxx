@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_FUSION_MOVE_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_FUSION_MOVE_HXX
 
 #include <mutex>          // std::mutex
 #include <memory>
@@ -16,6 +14,7 @@
 
 namespace nifty{
 namespace graph{
+namespace optimization{
 namespace lifted_multicut{
 
 
@@ -218,7 +217,7 @@ namespace lifted_multicut{
 
 
 } // namespace nifty::graph::lifted_multicut
+} // namespace nifty::graph::optimization
 } // namespace nifty::graph
 } // namespace nifty
 
-#endif  // NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_FUSION_MOVE_HXX

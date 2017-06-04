@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_WATERSHED_PROPOSALS_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_MULTICUT_WATERSHED_PROPOSALS_HXX
 
 #include <string>
 #include <random>
@@ -12,7 +10,8 @@
 
 namespace nifty{
 namespace graph{
-
+namespace optimization{
+namespace multicut{
 
     template<class OBJECTIVE>
     class WatershedProposals{
@@ -132,9 +131,8 @@ namespace graph{
 
 
 
-
-
+} // namespace nifty::graph::optimization::multicut
+} // namespace nifty::graph::optimization
 } // namespace nifty::graph
 } // namespace nifty
 
-#endif  // NIFTY_GRAPH_OPTIMIZATION_MULTICUT_WATERSHED_PROPOSALS_HXX

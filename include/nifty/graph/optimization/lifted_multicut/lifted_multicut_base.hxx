@@ -11,6 +11,7 @@
 
 namespace nifty {
 namespace graph {
+namespace optimization{
 namespace lifted_multicut{
 
 
@@ -71,10 +72,10 @@ namespace lifted_multicut{
             return obj.evalNodeLabels(nl);
         }
     };
-
     #endif
 
 } // namespace lifted_multicut
+} // namespace nifty::graph::optimization
 } // namespace graph
 } // namespace nifty
 

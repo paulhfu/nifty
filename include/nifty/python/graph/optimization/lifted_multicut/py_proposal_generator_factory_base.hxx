@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_PYTHON_GRAPH_LIFTED_MULTICUT_PY_PROPOSAL_GENERATOR_FACTORY_BASE_HXX
-#define NIFTY_PYTHON_GRAPH_LIFTED_MULTICUT_PY_PROPOSAL_GENERATOR_FACTORY_BASE_HXX
 
 #include "nifty/graph/optimization/lifted_multicut/lifted_multicut_base.hxx"
 #include "nifty/graph/optimization/lifted_multicut/lifted_multicut_factory.hxx"
@@ -9,6 +7,7 @@
 
 namespace nifty {
 namespace graph {
+namespace optimization{
 namespace lifted_multicut{
 
 
@@ -45,7 +44,7 @@ public:
 
 
 } // namespace lifted_mutlicut
+} // namespace optimization
 } // namespace graph
 } // namespace nifty
 
-#endif /* NIFTY_PYTHON_GRAPH_LIFTED_MULTICUT_PY_PROPOSAL_GENERATOR_FACTORY_BASE_HXX */

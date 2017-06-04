@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_PYTHON_GRAPH_MULTICUT_MULTICUT_VISITOR_BASE_HXX
-#define NIFTY_PYTHON_GRAPH_MULTICUT_MULTICUT_VISITOR_BASE_HXX
 
 #include <string>
 #include <initializer_list>
@@ -9,6 +7,7 @@
 
 namespace nifty {
 namespace graph {
+namespace optimization{
 namespace lifted_multicut{
 
 
@@ -79,7 +78,7 @@ public:
 };
 
 } // namespace lifted_multicut
+} // namespace optimization
 } // namespace graph
 } // namespace nifty
 
-#endif /* NIFTY_PYTHON_GRAPH_MULTICUT_MULTICUT_VISITOR_BASE_HXX */

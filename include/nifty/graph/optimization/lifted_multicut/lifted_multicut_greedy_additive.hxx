@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_LIFTED_MULTICUT_GREEDY_ADDITIVE_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_LIFTED_MULTICUT_GREEDY_ADDITIVE_HXX
 
 
 #include <random>
@@ -15,6 +13,7 @@
 
 namespace nifty{
 namespace graph{
+namespace optimization{
 namespace lifted_multicut{
 
     // \cond SUPPRESS_DOXYGEN
@@ -357,7 +356,7 @@ namespace lifted_multicut{
 
     
 } // lifted_multicut
+} // namespace nifty::graph::optimization
 } // namespace nifty::graph
 } // namespace nifty
 
-#endif  // NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_LIFTED_MULTICUT_GREEDY_ADDITIVE_HXX

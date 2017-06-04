@@ -1,6 +1,4 @@
-#ifndef NIFTY_TOOLS_BLOCK_ACCESS_HXX
-#define NIFTY_TOOLS_BLOCK_ACCESS_HXX
-
+#pragma once
 #include "nifty/marray/marray.hxx"
 #include "nifty/array/arithmetic_array.hxx"
 #include "nifty/parallel/threadpool.hxx"
@@ -12,8 +10,8 @@ namespace tools{
 template<class T>
 class BlockStorage{
 public:
-    typedef marray::Marray<T> ArrayType;
-    typedef marray::View<T> ViewType;
+    typedef nifty::marray::Marray<T> ArrayType;
+    typedef nifty::marray::View<T> ViewType;
     template<class SHAPE>
     BlockStorage(
         const SHAPE & maxShape,  
@@ -54,7 +52,7 @@ private:
 template<class T>
 class BlockView{
 public:
-    typedef marray::View<T> ViewType;
+    typedef nifty::marray::View<T> ViewType;
 
 
     template<class SHAPE>
@@ -108,4 +106,3 @@ struct BlockStorageSelector<marray::Marray<T, A> >
 } // end namespace nifty::tools
 } // end namespace nifty
 
-#endif /*NIFTY_TOOLS_BLOCK_ACCESS_HXX*/

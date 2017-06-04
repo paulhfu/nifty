@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_MULTICUT_BASE_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_MULTICUT_MULTICUT_BASE_HXX
 
 #include <string>
 #include <initializer_list>
@@ -11,8 +9,8 @@
 
 namespace nifty {
 namespace graph {
-
-
+namespace optimization{
+namespace multicut{
 
     
     template<class OBJECTIVE>
@@ -64,8 +62,8 @@ namespace graph {
 
 
     };
-
+} // namespace nifty::graph::optimization::multicut
+} // namespace nifty::graph::optimization
 } // namespace graph
 } // namespace nifty
 
-#endif // #ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_MULTICUT_BASE_HXX

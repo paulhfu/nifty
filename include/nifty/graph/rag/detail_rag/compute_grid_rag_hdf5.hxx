@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_RAG_DETAIL_RAG_COMPUTE_GRID_RAG_HDF5_HXX
-#define NIFTY_GRAPH_RAG_DETAIL_RAG_COMPUTE_GRID_RAG_HDF5_HXX
 
 #include <vector>
 
@@ -69,7 +67,7 @@ struct ComputeRag< GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > > {
             blockShapeWithBorder[d] = std::min(settings.blockShape[d]+1, shape[d]);
         }
         struct PerThreadData{
-            marray::Marray<LABEL_TYPE> blockLabels;
+            nifty::marray::Marray<LABEL_TYPE> blockLabels;
             std::vector< container::BoostFlatSet<uint64_t> > adjacency;
         };
         std::vector<PerThreadData> perThreadDataVec(nThreads);
@@ -167,4 +165,3 @@ struct ComputeRag< GridRag<DIM,  Hdf5Labels<DIM, LABEL_TYPE> > > {
 } // end namespace nifty
 
 
-#endif /* NIFTY_GRAPH_RAG_DETAIL_RAG_COMPUTE_GRID_RAG_HDF5_HXX */

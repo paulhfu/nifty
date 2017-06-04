@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_PROPOSALS_GREEDY_ADDITIVE_PROPOSALS_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_MULTICUT_PROPOSALS_GREEDY_ADDITIVE_PROPOSALS_HXX
 
 #include <string>
 
@@ -11,7 +9,8 @@
 
 namespace nifty{
 namespace graph{
-
+namespace optimization{
+namespace multicut{
 
     template<class OBJECTIVE>
     class GreedyAdditiveProposals{
@@ -95,9 +94,8 @@ namespace graph{
 
 
 
-
-
+} // namespace nifty::graph::optimization::multicut
+} // namespace nifty::graph::optimization
 } // namespace nifty::graph
 } // namespace nifty
 
-#endif  // NIFTY_GRAPH_OPTIMIZATION_MULTICUT_PROPOSALS_GREEDY_ADDITIVE_PROPOSALS_HXX

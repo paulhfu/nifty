@@ -27,7 +27,9 @@
 *.out
 *.app
 
-
+#
+*.DS_Store
+.DS_Store
 
 *.pyc
 !docs
@@ -43,3 +45,5 @@ CMakeFiles
 src/python/examples/graph/12003.jpg
 
 
+# this is MINE!
+mysandbox

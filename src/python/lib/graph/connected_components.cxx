@@ -7,8 +7,6 @@
 #include "nifty/python/graph/undirected_grid_graph.hxx"
 
 #include "nifty/graph/components.hxx"
-
-
 #include "nifty/python/converter.hxx"
 
 namespace py = pybind11;
@@ -20,22 +18,62 @@ namespace graph{
     template<class GRAPH>
     void exportConnectedComponentsT(py::module & module) {
 
-        // function
+
         module.def("connectedComponentsFromNodeLabels",
         [](
             const GRAPH & graph,
             nifty::marray::PyView<uint64_t,1> nodeLabels,
-            const bool dense = true
+            const bool dense = true,
+            const bool ignoreBackground = false
         ){
        
             nifty::marray::PyView<uint64_t> ccLabels({nodeLabels.shape(0)});
             ComponentsUfd<GRAPH> componentsUfd(graph);
             componentsUfd.buildFromLabels(nodeLabels);
+
             for(const auto node : graph.nodes()){
                 ccLabels[node] = componentsUfd.componentLabel(node);
             }
-            if(dense){
+
+
+            if(dense  && ignoreBackground){
+                std::unordered_map<uint64_t, uint64_t> mapping;
+                for(const auto node: graph.nodes()){
+
+                    const auto nl = nodeLabels[node];
+                    const auto ccl = ccLabels[node];
+                    if(nl != 0 ){
+                        const auto fr = mapping.find(ccl);
+                        if(fr==mapping.end()){
+                            mapping.emplace(ccl, mapping.size());
+                        }
+                    }
+                }
+                for(const auto node: graph.nodes()){
+                    const auto nl = nodeLabels[node];
+                    const auto ccl = ccLabels[node];
+                    if(nl != 0 ){
+                        ccLabels[node] = mapping.find(ccl)->second;
+                    }
+                    else{
+                        ccLabels[node] = 0;
+                    }
+                }
+                
+            }
+            else if(dense  && !ignoreBackground){
                 componentsUfd.denseRelabeling(ccLabels);
+            }
+            else if(ignoreBackground){
+                for(const auto node : graph.nodes()){
+                    const auto nl = nodeLabels[node];
+                    if(nl == uint64_t(0)){
+                        ccLabels[node] = 0;
+                    }
+                    else{
+                        ccLabels[node] += 1;
+                    }  
+                }
             }
             return ccLabels;
 
@@ -43,14 +81,24 @@ namespace graph{
             py::arg("graph"),
             py::arg("nodeLabels"),
             py::arg("dense")=true,
+            py::arg("ignoreBackground")=true,
             "compute connected component labels of a node labeling\n\n"
+            ""
+            "All nodes which have zero as nodeLabel will keep a zero"
+            ""
             "Arguments:\n\n"
             "  graph : the input graph\n"
             "   nodeLabels (numpy.ndarray): node labeling\n"
             "   dense (bool): should the returned labeling be dense (default {True})\n\n"
+            "   ignoreBackground (bool): if true, all input zeros are mapped to zeros (default {False})\n\n"
             "Returns:\n\n"
             "   numpy.ndarray : connected components labels"
         );
+
+
+
+
+
 
         typedef GRAPH GraphType;
         typedef ComponentsUfd<GraphType> ComponentsType;

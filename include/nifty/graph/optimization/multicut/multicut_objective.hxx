@@ -1,6 +1,4 @@
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_MULTICUT_MULTICUT_OBJECTIVE_HXX
-#define NIFTY_GRAPH_OPTIMIZATION_MULTICUT_MULTICUT_OBJECTIVE_HXX
 
 #include "nifty/tools/runtime_check.hxx"
 #include "nifty/graph/subgraph_mask.hxx"
@@ -8,7 +6,8 @@
 
 namespace nifty{
 namespace graph{
-
+namespace optimization{
+namespace multicut{
 
     template<class CHILD_OBJECTIVE, class GRAPH, class WEIGHT_TYPE>
     class MulticutObjectiveBase{
@@ -77,7 +76,8 @@ namespace graph{
         WeightsMap weights_;
     };
 
+} // namespace nifty::graph::optimization::multicut    
+} // namespace nifty::graph::optimization
 } // namespace nifty::graph
 } // namespace nifty
 
-#endif  // NIFTY_GRAPH_OPTIMIZATION_MULTICUT_MULTICUT_OBJECTIVE_HXX

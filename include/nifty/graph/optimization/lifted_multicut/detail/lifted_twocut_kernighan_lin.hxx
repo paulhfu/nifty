@@ -2,7 +2,6 @@
 // https://github.com/bjoern-andres/graph
 
 #pragma once
-#ifndef NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_DETAIL_LIFTED_TWOCUT_KERNIGHAN_LIN_HXX
 #define NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_DETAIL_LIFTED_TWOCUT_KERNIGHAN_LIN_HXX
 
 
@@ -23,6 +22,7 @@
 
 namespace nifty{
 namespace graph{
+namespace optimization{
 namespace lifted_multicut{
 
 // \cond SUPPRESS_DOXYGEN
@@ -340,7 +340,7 @@ namespace detail_kernighang_lin{
 // \endcond
 
 } // lifted_multicut
+} // namespace nifty::graph::optimization
 } // namespace nifty::graph
 } // namespace nifty
 
-#endif  // NIFTY_GRAPH_OPTIMIZATION_LIFTED_MULTICUT_DETAIL_LIFTED_TWOCUT_KERNIGHAN_LIN_HXX
