@@ -17,11 +17,11 @@ namespace nifty{
 namespace graph{
 namespace optimization{
 namespace multicut{
-    
+
     template<class OBJECTIVE>
     class MulticutMp : public MulticutBase<OBJECTIVE>
     {
-    public: 
+    public:
 
         typedef OBJECTIVE Objective;
         typedef MulticutBase<OBJECTIVE> Base;
@@ -30,7 +30,7 @@ namespace multicut{
         typedef typename Base::EdgeLabels EdgeLabels;
         typedef typename Base::NodeLabels NodeLabels;
         typedef typename Objective::Graph Graph;
-        
+
         // factory for the lp_mp primal rounder
         typedef MulticutFactoryBase<Objective> McFactoryBase;
 
@@ -46,7 +46,7 @@ namespace multicut{
 
             // TODO do we have to call by value here due to using async or could we also use a call by refernce?
             // TODO need to change between between edge and node labelings -> could be done more efficient ?!
-            std::vector<char> operator()(GraphType g, std::vector<double> edgeValues) {
+            std::vector<char> operator()(GraphType && g, std::vector<double> && edgeValues) {
 
                 std::vector<char> labeling(g.numberOfEdges(), 0);
                 if(g.numberOfEdges() > 0) {
