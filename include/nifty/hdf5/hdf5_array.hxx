@@ -113,10 +113,15 @@ namespace hdf5{
 
             this->loadShape(shape_);
             this->loadChunkShape(chunkShape_);
-            // need to set correct effective shape too
+            // need to set correct effective shape and initialise offsets
             effectiveShape_.resize(dimension());
-            for(size_t d = 0; d < dimension(); ++d)
+            offsetFront_.resize(dimension());
+            offsetBack_.resize(dimension());
+            for(size_t d = 0; d < dimension(); ++d) {
                 effectiveShape_[d] = shape_[d];
+                offsetFront_[d] = 0;
+                offsetBack_[d] = 0;
+            }
         }
 
         int setCache(){
