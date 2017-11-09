@@ -4,7 +4,9 @@
 
 #include "nifty/python/converter.hxx"
 
-
+// #include <iostream>
+#include <array>
+#include <algorithm>
 
 
 #ifdef WITH_HDF5
@@ -21,6 +23,11 @@
 #include "nifty/graph/rag/grid_rag_accumulate.hxx"
 
 
+#include "nifty/python/graph/undirected_grid_graph.hxx"
+#include "nifty/python/graph/undirected_list_graph.hxx"
+#include "nifty/python/graph/edge_contraction_graph.hxx"
+
+
 
 namespace py = pybind11;
 
@@ -31,6 +38,286 @@ namespace graph{
 
 
     using namespace py;
+
+    template<std::size_t DIM, class RAG, class DATA_T>
+    void exportAccumulateAffinitiesMeanAndLength(
+        py::module & ragModule
+    ){
+        ragModule.def("accumulateAffinitiesMeanAndLength",
+        [](
+            const RAG & rag,
+            nifty::marray::PyView<DATA_T, DIM+1> affinities,
+            nifty::marray::PyView<int, 2>      offsets
+        ){
+
+
+            const auto & labels = rag.labelsProxy().labels();
+            const auto & shape = rag.labelsProxy().shape();
+
+            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+            typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
+
+            NumpyArrayType accAff({uint64_t(rag.edgeIdUpperBound()+1)});
+
+            // std::vector<size_t> counter(uint64_t(rag.edgeIdUpperBound()+1), 0);
+            NumpyArrayType counter({uint64_t(rag.edgeIdUpperBound()+1)});
+
+            std::fill(accAff.begin(), accAff.end(), 0);
+            std::fill(counter.begin(), counter.end(), 0);
+
+
+            for(auto x=0; x<shape[0]; ++x){
+                for(auto y=0; y<shape[1]; ++y){
+                    if (DIM==3){
+                        for(auto z=0; z<shape[2]; ++z){
+
+                            const auto u = labels(x,y,z);
+
+                            for(auto i=0; i<offsets.shape(0); ++i){
+                                const auto ox = offsets(i, 0);
+                                const auto oy = offsets(i, 1);
+                                const auto oz = offsets(i, 2);
+                                const auto xx = ox +x ;
+                                const auto yy = oy +y ;
+                                const auto zz = oz +z ;
+
+
+                                if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1] && zz >=0 && zz<shape[2]){
+                                    const auto v = labels(xx,yy,zz);
+                                    if(u != v){
+                                        const auto edge = rag.findEdge(u,v);
+                                        if(edge >=0 ){
+                                            counter[edge] += 1.;
+                                            // accAff[edge] = 0.;
+                                            accAff[edge] += affinities(x,y,z,i);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if(DIM==2) {
+                        const auto u = labels(x,y);
+
+                        for(auto i=0; i<offsets.shape(0); ++i){
+                            const auto ox = offsets(i, 0);
+                            const auto oy = offsets(i, 1);
+
+                            const auto xx = ox +x ;
+                            const auto yy = oy +y ;
+
+                            if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1]){
+                                const auto v = labels(xx,yy);
+                                if(u != v){
+                                    const auto edge = rag.findEdge(u,v);
+                                    if(edge >=0 ){
+                                        counter[edge] +=1.;
+                                        // accAff[edge] = 0.;
+                                        accAff[edge] += affinities(x,y,i);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Normalize:
+            for(auto i=0; i<uint64_t(rag.edgeIdUpperBound()+1); ++i){
+                if(counter[i]!=0){
+                    accAff[i] /= counter[i];
+                }
+            }
+            return OutType(accAff, counter);;
+
+        },
+        py::arg("rag"),
+        py::arg("affinities"),
+        py::arg("offsets")
+        );
+    }
+
+    template<std::size_t DIM, class RAG, class DATA_T>
+    void exportMapFeaturesToBoundaries(
+        py::module & ragModule
+    ){
+        ragModule.def("mapFeaturesToBoundaries",
+        [](
+            const RAG & rag,
+            nifty::marray::PyView<DATA_T, 2> edgeFeatures,
+            nifty::marray::PyView<int, 2> offsets
+        ){
+
+
+            const auto & labels = rag.labelsProxy().labels();
+            const auto & shape = rag.labelsProxy().shape();
+
+            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+
+            std::array<int,DIM+2> shapeFeatureImage;
+            std::copy(shape.begin(), shape.end(), shapeFeatureImage.begin());
+            shapeFeatureImage[DIM] = offsets.shape(0);
+            shapeFeatureImage[DIM+1] = edgeFeatures.shape(1);
+
+            NumpyArrayType featureImage(shapeFeatureImage.begin(), shapeFeatureImage.end());
+
+            std::fill(featureImage.begin(), featureImage.end(), 0.);
+
+
+            for(auto x=0; x<shape[0]; ++x){
+                for(auto y=0; y<shape[1]; ++y){
+                    if (DIM==3){
+                        for(auto z=0; z<shape[2]; ++z){
+
+                            const auto u = labels(x,y,z);
+
+                            for(auto i=0; i<offsets.shape(0); ++i){
+                                const auto ox = offsets(i, 0);
+                                const auto oy = offsets(i, 1);
+                                const auto oz = offsets(i, 2);
+                                const auto xx = ox +x ;
+                                const auto yy = oy +y ;
+                                const auto zz = oz +z ;
+
+
+                                if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1] && zz >=0 && zz<shape[2]){
+                                    const auto v = labels(xx,yy,zz);
+                                    if(u != v){
+                                        const auto edge = rag.findEdge(u,v);
+                                        if(edge >=0 ){
+                                            for(auto f=0; f<edgeFeatures.shape(1); ++f){
+                                                featureImage(x,y,z,i,f) = edgeFeatures(edge,f);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if(DIM==2) {
+                        const auto u = labels(x,y);
+
+                        for(auto i=0; i<offsets.shape(0); ++i){
+                            const auto ox = offsets(i, 0);
+                            const auto oy = offsets(i, 1);
+
+                            const auto xx = ox +x ;
+                            const auto yy = oy +y ;
+
+                            if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1]){
+                                const auto v = labels(xx,yy);
+                                if(u != v){
+                                    const auto edge = rag.findEdge(u,v);
+                                    if(edge >=0 ){
+                                        for(auto f=0; f<edgeFeatures.shape(1); ++f){
+                                            featureImage(x,y,i,f) = edgeFeatures(edge,f);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return featureImage;
+
+        },
+        py::arg("rag"),
+        py::arg("edgeFeatures"),
+        py::arg("offsets")
+        );
+    }
+
+
+
+
+
+    template<std::size_t DIM, class RAG, class DATA_T>
+    void exportBoundaryMaskLongRange(
+        py::module & ragModule
+    ){
+        ragModule.def("boundaryMaskLongRange",
+        [](
+            const RAG & rag,
+            nifty::marray::PyView<int, 2>      offsets
+        ){
+
+
+            const auto & labels = rag.labelsProxy().labels();
+            const auto & shape = rag.labelsProxy().shape();
+
+            typedef nifty::marray::PyView<int, DIM+1> NumpyArrayInt;
+
+
+            std::array<int,DIM+1> new_shape;
+            std::copy(shape.begin(), shape.end(), new_shape.begin());
+            new_shape.back() = offsets.shape(0);
+
+            NumpyArrayInt boundMask(new_shape.begin(), new_shape.end());
+
+            std::fill(boundMask.begin(), boundMask.end(), 0);
+
+
+            for(auto x=0; x<shape[0]; ++x){
+                for(auto y=0; y<shape[1]; ++y){
+                    if (DIM==3){
+                        for(auto z=0; z<shape[2]; ++z){
+
+                            const auto u = labels(x,y,z);
+
+                            for(auto i=0; i<offsets.shape(0); ++i){
+                                const auto ox = offsets(i, 0);
+                                const auto oy = offsets(i, 1);
+                                const auto oz = offsets(i, 2);
+                                const auto xx = ox +x ;
+                                const auto yy = oy +y ;
+                                const auto zz = oz +z ;
+
+
+                                if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1] && zz >=0 && zz<shape[2]){
+                                    const auto v = labels(xx,yy,zz);
+                                    if(u != v){
+                                        const auto edge = rag.findEdge(u,v);
+                                        if(edge >=0 ){
+                                            boundMask(x,y,z,i) = 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if(DIM==2) {
+                        const auto u = labels(x,y);
+
+                        for(auto i=0; i<offsets.shape(0); ++i){
+                            const auto ox = offsets(i, 0);
+                            const auto oy = offsets(i, 1);
+
+                            const auto xx = ox +x ;
+                            const auto yy = oy +y ;
+
+                            if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1]){
+                                const auto v = labels(xx,yy);
+                                if(u != v){
+                                    const auto edge = rag.findEdge(u,v);
+                                    if(edge >=0 ){
+                                        boundMask(x,y,i) = 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return boundMask;
+
+        },
+        py::arg("rag"),
+        py::arg("offsets")
+        );
+    }
+
+
+
+
 
     template<std::size_t DIM, class RAG, class DATA_T>
     void exportAccumulateEdgeMeanAndLength(
@@ -320,12 +607,20 @@ namespace graph{
             typedef ExplicitLabelsGridRag<2, uint32_t> Rag2d;
             typedef ExplicitLabelsGridRag<3, uint32_t> Rag3d;
 
+            typedef PyUndirectedGraph GraphType;
+            typedef PyContractionGraph<PyUndirectedGraph> ContractionGraphType;
+
             exportAccumulateEdgeMeanAndLength<2, Rag2d, float>(ragModule);
             exportAccumulateEdgeMeanAndLength<3, Rag3d, float>(ragModule);
 
+            exportAccumulateAffinitiesMeanAndLength<2, Rag2d, float>(ragModule);
+            exportAccumulateAffinitiesMeanAndLength<3, Rag3d, float>(ragModule);
 
+            exportMapFeaturesToBoundaries<2, Rag2d, float>(ragModule);
+            exportMapFeaturesToBoundaries<3, Rag3d, float>(ragModule);
 
-
+            exportBoundaryMaskLongRange<2, Rag2d, float>(ragModule);
+            exportBoundaryMaskLongRange<3, Rag3d, float>(ragModule);
 
             exportAccumulateMeanAndLength<2, Rag2d, float>(ragModule);
             exportAccumulateMeanAndLength<3, Rag3d, float>(ragModule);
