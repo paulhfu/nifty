@@ -4,9 +4,9 @@
 
 #include "nifty/python/converter.hxx"
 
-// #include <iostream>
 #include <array>
 #include <algorithm>
+#include <iostream>
 
 
 #ifdef WITH_HDF5
@@ -181,8 +181,8 @@ namespace graph{
                                     const auto v = labels(xx,yy,zz);
                                     if(u != v){
                                         const auto edge = rag.findEdge(u,v);
-                                        const auto cEdge = contrGraph.findRepresentativeEdge(edge);
-                                        if(cEdge >=0 ){
+                                        if(edge >=0 ){
+                                            const auto cEdge = contrGraph.findRepresentativeEdge(edge);
                                             counter[cEdge] += 1.;
                                             accAff[cEdge] += affinities(x,y,z,i);
                                         }
@@ -204,8 +204,8 @@ namespace graph{
                                 const auto v = labels(xx,yy);
                                 if(u != v){
                                     const auto edge = rag.findEdge(u,v);
-                                    const auto cEdge = contrGraph.findRepresentativeEdge(edge);
-                                    if(cEdge >=0 ){
+                                    if(edge >=0 ){
+                                        const auto cEdge = contrGraph.findRepresentativeEdge(edge);
                                         counter[cEdge] +=1.;
                                         accAff[cEdge] += affinities(x,y,i);
                                     }
@@ -282,8 +282,8 @@ namespace graph{
                                     const auto v = labels(xx,yy,zz);
                                     if(u != v){
                                         auto edge = rag.findEdge(u,v);
-                                        edge = contrGraph.findRepresentativeEdge(edge);
                                         if(edge >=0 ){
+                                            edge = contrGraph.findRepresentativeEdge(edge);
                                             for(auto f=0; f<edgeFeatures.shape(1); ++f){
                                                 featureImage(x,y,z,i,f) = edgeFeatures(edge,f);
                                             }
@@ -306,8 +306,8 @@ namespace graph{
                                 const auto v = labels(xx,yy);
                                 if(u != v){
                                     auto edge = rag.findEdge(u,v);
-                                    edge = contrGraph.findRepresentativeEdge(edge);
                                     if(edge >=0 ){
+                                        edge = contrGraph.findRepresentativeEdge(edge);
                                         for(auto f=0; f<edgeFeatures.shape(1); ++f){
                                             featureImage(x,y,i,f) = edgeFeatures(edge,f);
                                         }
@@ -438,6 +438,7 @@ namespace graph{
             typedef nifty::marray::PyView<int, DIM+1> NumpyArrayInt;
             typedef std::pair<NumpyArrayInt, NumpyArrayInt>  OutType;
 
+            // std::cout << "Tick 1";
 
             std::array<int,DIM+1> new_shape;
             std::copy(shape.begin(), shape.end(), new_shape.begin());
@@ -449,6 +450,7 @@ namespace graph{
             std::fill(boundMask.begin(), boundMask.end(), 0);
             std::fill(boundMaskIDs.begin(), boundMaskIDs.end(), -1);
 
+            // std::cout << "Tick 2";
 
             for(auto x=0; x<shape[0]; ++x){
                 for(auto y=0; y<shape[1]; ++y){
@@ -456,6 +458,7 @@ namespace graph{
                         for(auto z=0; z<shape[2]; ++z){
 
                             const auto u = labels(x,y,z);
+                            // std::cout << "u" << u;
 
                             for(auto i=0; i<offsets.shape(0); ++i){
                                 const auto ox = offsets(i, 0);
@@ -466,15 +469,21 @@ namespace graph{
                                 const auto zz = oz +z ;
 
 
+
                                 if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1] && zz >=0 && zz<shape[2]){
                                     const auto v = labels(xx,yy,zz);
+                                    // std::cout << "v" << v;
                                     if(u != v){
                                         auto edge = rag.findEdge(u,v);
-                                        edge = contrGraph.findRepresentativeEdge(edge);
+                                        // std::cout << ".";
                                         if(edge >=0 ){
+                                            auto cEdge = contrGraph.findRepresentativeEdge(edge);
+                                            // std::cout << ".";
                                             boundMask(x,y,z,i) = 1;
-                                            if (exportBoundIds==1) {
-                                                boundMaskIDs(x,y,z,i) = edge;
+                                            // std::cout << ".";
+                                            if (exportBoundIds) {
+                                                boundMaskIDs(x,y,z,i) = cEdge;
+                                                // std::cout << "e" << cEdge << " ";
                                             }
                                         }
                                     }
@@ -517,6 +526,7 @@ namespace graph{
 
             std::fill(boundMask.begin(), boundMask.end(), 0);
             std::fill(boundMaskIDs.begin(), boundMaskIDs.end(), -1);
+
 
 
             for(auto x=0; x<shape[0]; ++x){
@@ -577,6 +587,8 @@ namespace graph{
 
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
 
+            // std::cout << "Tick 0";
+
             std::array<int,DIM+1> shapeFeatureImage;
             std::copy(labelArray.shapeBegin(), labelArray.shapeEnd(), shapeFeatureImage.begin());
             shapeFeatureImage.back() = featureArray.shape(1);
@@ -584,6 +596,8 @@ namespace graph{
             NumpyArrayType featureImage(shapeFeatureImage.begin(), shapeFeatureImage.end());
 
             std::fill(featureImage.begin(), featureImage.end(), fillValue);
+
+            // std::cout << "Tick 1";
 
             for(auto x=0; x<labelArray.shape(0); ++x){
                 for(auto y=0; y<labelArray.shape(1); ++y){
@@ -598,8 +612,11 @@ namespace graph{
                     else {
                         for(auto z=0; z<labelArray.shape(2); ++z){
                             if (DIM==3) {
+                                // std::cout << ".";
                                 const auto label = labelArray(x,y,z);
+                                // std::cout << "L"<< label;
                                 if (label!=ignoreLabel && label<featureArray.shape(0)) {
+                                    // std::cout << "!";
                                     for(auto f=0; f<featureArray.shape(1); ++f){
                                         featureImage(x,y,z,f) = featureArray(label,f);
                                     }
@@ -620,6 +637,7 @@ namespace graph{
 
                 }
             }
+            // std::cout << "Tick 2";
 
             return featureImage;
 
