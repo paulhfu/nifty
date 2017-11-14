@@ -9,6 +9,7 @@
 #include "nifty/graph/graph_maps.hxx"
 #include "nifty/graph/agglo/agglomerative_clustering.hxx"
 #include "nifty/graph/agglo/cluster_policies/mala_cluster_policy.hxx"
+#include "nifty/graph/agglo/cluster_policies/constrained_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/edge_weighted_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/node_and_edge_weighted_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/minimum_node_size_cluster_policy.hxx"
@@ -21,6 +22,69 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 namespace nifty{
 namespace graph{
 namespace agglo{
+
+
+    template<class GRAPH, bool WITH_UCM>
+    void exportConstrainedPolicy(py::module & aggloModule) {
+
+        typedef GRAPH GraphType;
+        const auto graphName = GraphName<GraphType>::name();
+        typedef nifty::marray::PyView<float, 1> PyViewFloat1;
+
+        const std::string withUcmStr =  WITH_UCM ? std::string("WithUcm") :  std::string() ;
+
+        {
+            // name and type of cluster operator
+            typedef ConstrainedPolicy<GraphType,WITH_UCM> ClusterPolicyType;
+            const auto clusterPolicyBaseName = std::string("ConstrainedPolicy") +  withUcmStr;
+            const auto clusterPolicyClsName = clusterPolicyBaseName + graphName;
+            const auto clusterPolicyFacName = lowerFirst(clusterPolicyBaseName);
+
+            // the cluster operator cls
+            py::class_<ClusterPolicyType>(aggloModule, clusterPolicyClsName.c_str())
+                //.def_property_readonly("edgeIndicators", &ClusterPolicyType::edgeIndicators)
+                //.def_property_readonly("edgeSizes", &ClusterPolicyType::edgeSizes)
+                    ;
+
+
+            // factory
+//            TODO: how do I add another function to get back the targets, new SP sizes, new GT labels
+            aggloModule.def(clusterPolicyFacName.c_str(),
+                            [](
+                                    const GraphType & graph,
+                                    const PyViewFloat1 & edgeIndicators,
+                                    const PyViewFloat1 & edgeSizes,
+                                    const PyViewFloat1 & nodeSizes,
+                                    const float threshold,
+                                    const uint64_t numberOfNodesStop,
+                                    const int bincount,
+                                    const bool verbose
+                            ){
+                                typename ClusterPolicyType::SettingsType s;
+                                s.numberOfNodesStop = numberOfNodesStop;
+                                s.bincount = bincount;
+                                s.threshold = threshold;
+                                s.verbose = verbose;
+                                auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes, nodeSizes, s);
+                                return ptr;
+                            },
+                            py::return_value_policy::take_ownership,
+                            py::keep_alive<0,1>(), // graph
+                            py::arg("graph"),
+//                          TODO: add contractedGraph, GT labels
+                            py::arg("edgeIndicators"),
+                            py::arg("edgeSizes"),
+                            py::arg("nodeSizes"),
+                            py::arg("threshold") = 0.5,
+                            py::arg("numberOfNodesStop") = 1,
+                            py::arg("bincount") = 40,
+                            py::arg("verbose") = false
+            );
+
+            // export the agglomerative clustering functionality for this cluster operator
+            exportAgglomerativeClusteringTClusterPolicy<ClusterPolicyType>(aggloModule, clusterPolicyBaseName);
+        }
+    }
 
 
     template<class GRAPH, bool WITH_UCM>
@@ -268,6 +332,9 @@ namespace agglo{
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
 
+            exportConstrainedPolicy<GraphType, false>(aggloModule);
+            exportConstrainedPolicy<GraphType, true>(aggloModule);
+
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
@@ -283,6 +350,9 @@ namespace agglo{
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
 
+            exportConstrainedPolicy<GraphType, false>(aggloModule);
+            exportConstrainedPolicy<GraphType, true>(aggloModule);
+
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
@@ -297,6 +367,9 @@ namespace agglo{
 
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
+
+            exportConstrainedPolicy<GraphType, false>(aggloModule);
+            exportConstrainedPolicy<GraphType, true>(aggloModule);
 
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
