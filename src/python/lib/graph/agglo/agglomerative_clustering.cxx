@@ -30,6 +30,7 @@ namespace agglo{
         typedef GRAPH GraphType;
         const auto graphName = GraphName<GraphType>::name();
         typedef nifty::marray::PyView<float, 1> PyViewFloat1;
+        typedef nifty::marray::PyView<int, 1> PyViewInt1;
 
         const std::string withUcmStr =  WITH_UCM ? std::string("WithUcm") :  std::string() ;
 
@@ -55,29 +56,41 @@ namespace agglo{
                                     const PyViewFloat1 & edgeIndicators,
                                     const PyViewFloat1 & edgeSizes,
                                     const PyViewFloat1 & nodeSizes,
+                                    const PyViewInt1  & GTlabels,
                                     const float threshold,
                                     const uint64_t numberOfNodesStop,
                                     const int bincount,
+                                    const int nb_iterations,
+                                    const int ignore_label,
+                                    const bool constrained,
                                     const bool verbose
                             ){
                                 typename ClusterPolicyType::SettingsType s;
                                 s.numberOfNodesStop = numberOfNodesStop;
                                 s.bincount = bincount;
                                 s.threshold = threshold;
+                                s.nb_iterations = nb_iterations;
+                                s.ignore_label = ignore_label;
+                                s.constrained = constrained;
                                 s.verbose = verbose;
-                                auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes, nodeSizes, s);
+                                auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes,
+                                                                 nodeSizes, GTlabels, s);
                                 return ptr;
                             },
                             py::return_value_policy::take_ownership,
                             py::keep_alive<0,1>(), // graph
                             py::arg("graph"),
-//                          TODO: add contractedGraph, GT labels
+//                          TODO: add contractedGraph, offset for time
                             py::arg("edgeIndicators"),
                             py::arg("edgeSizes"),
                             py::arg("nodeSizes"),
+                            py::arg("GTlabels"),
                             py::arg("threshold") = 0.5,
                             py::arg("numberOfNodesStop") = 1,
                             py::arg("bincount") = 40,
+                            py::arg("nb_iterations") = -1,
+                            py::arg("ignore_label") = -1,
+                            py::arg("constrained") = true,
                             py::arg("verbose") = false
             );
 
