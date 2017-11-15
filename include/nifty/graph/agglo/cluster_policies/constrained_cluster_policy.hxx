@@ -72,7 +72,7 @@ private:
 
 public:
 
-//    TODO: why this template?
+//    TODO: why this template? I guess it's for PyBind11 types
     template<class EDGE_INDICATORS, class EDGE_SIZES, class NODE_SIZES, class GT_LABELS>
     ConstrainedPolicy(const GraphType &,
 //                      const EdgeContractionGraphType & ,
@@ -114,12 +114,17 @@ public:
         return nodeSizes_;
     }
 
-    const GTlabelsType & GTlabels() const {
-        return GTlabels_;
+    const EdgeIndicatorsType & loss_targets() const {
+        return loss_targets_;
     }
 
-//    TODO: const after...?
-    bool isReallyDone() {
+    const EdgeIndicatorsType & loss_weights() const {
+        return loss_weights_;
+    }
+
+
+
+    bool isReallyDone() const {
         return isReallyDone_;
     }
 
@@ -147,6 +152,11 @@ private:
 
     MergeTimesType      mergeTimes_;
     GTlabelsType        GTlabels_;
+    EdgeIndicatorsType  loss_targets_;
+    EdgeIndicatorsType  loss_weights_;
+    uint64_t            nb_correct_steps_;
+    uint64_t            nb_wrong_steps_;
+
 
     SettingsType            settings_;
     
@@ -194,6 +204,10 @@ ConstrainedPolicy(
     edgeContractionGraph_(graph, *this),
 //    TODO: change with a contracted graph:
     nb_active_edges_(graph_.numberOfEdges()),
+    nb_correct_steps_(0),
+    nb_wrong_steps_(0),
+    loss_weights_(graph, 0.),
+    loss_targets_(graph, 0.),
     pq_(graph.edgeIdUpperBound()+1),
     histograms_(graph, HistogramType(0,1,settings.bincount)),
     time_(0),
@@ -305,6 +319,12 @@ isDone() {
         // Delete constrained edge from PQ:
         pq_.deleteItem(edgeToContractNext);
         --nb_active_edges_;
+
+        // Remember about correct step:
+        loss_targets_[edgeToContractNext] = -1.; // We should not merge (and we would have)
+        loss_weights_[edgeToContractNext] = 1.; // For the moment all equally weighted
+        ++nb_wrong_steps_;
+
     }
 
     return false;
@@ -317,9 +337,19 @@ ConstrainedPolicy<GRAPH, ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
 ){
+    // This is currently not used. Merge time is done in the agglomeration class:
     mergeTimes_[edgeToContract] = time_;
     std::cout << "Contract edge: " << edgeToContract << "\n";
     ++time_;
+
+    if (settings_.constrained) {
+        // Remember about correct step:
+        loss_targets_[edgeToContract] = 1.; // We should merge (and we did)
+        loss_weights_[edgeToContract] = 1.; // For the moment all equally weighted
+        ++nb_correct_steps_;
+    }
+
+
     pq_.deleteItem(edgeToContract);
     --nb_active_edges_;
 }
