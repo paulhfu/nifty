@@ -525,8 +525,8 @@ collectDataMilestep(
             edgeSizes[edge]     = edgeSizes_[cEdge];
             edgeIndicators[edge] = edgeIndicators_[cEdge];
         } else {
-            edgeSizes[edge]     = 0.;
-            edgeIndicators[edge] = 0.;
+            edgeSizes[edge]     = -2.0;
+            edgeIndicators[edge] = -2.0;
         }
     }
 
