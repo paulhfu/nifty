@@ -22,6 +22,24 @@ public:
     }
 
 
+    // TODO: Bad design, this calles methods only present in the constrained policy, not all policies
+    const bool runMileStep(const int nb_iterations_in_milestep) {
+        clusterPolicy_.resetDataBeforeMilestep(nb_iterations_in_milestep);
+
+        while(!clusterPolicy_.isDone()){
+            const auto edgeToContractNextAndPriority = clusterPolicy_.edgeToContractNext();
+            const auto edgeToContractNext = edgeToContractNextAndPriority.first;
+            const auto priority = edgeToContractNextAndPriority.second;
+//            if(verbose){
+//                const auto & cgraph = clusterPolicy_.edgeContractionGraph();
+//                std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
+//            }
+            clusterPolicy_.edgeContractionGraph().contractEdge(edgeToContractNext);
+        }
+
+        return clusterPolicy_.isReallyDone();
+    }
+
     void run(const bool verbose=false){
         while(!clusterPolicy_.isDone()){
 

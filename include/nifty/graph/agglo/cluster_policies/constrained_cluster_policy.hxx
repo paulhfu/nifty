@@ -3,6 +3,7 @@
 #include <functional>
 #include <array>
 #include <iostream>
+#include <vector>
 
 #include "nifty/histogram/histogram.hxx"
 #include "nifty/tools/changable_priority_queue.hxx"
@@ -34,6 +35,9 @@ private:
     typedef typename GRAPH:: template EdgeMap<double> FloatEdgeMap;
     typedef typename GRAPH:: template NodeMap<double> FloatNodeMap;
     typedef typename GRAPH:: template NodeMap<int> Int64NodeMap;
+    typedef typename GRAPH:: template EdgeMap<bool> BoolEdgeMap;
+    typedef typename GRAPH:: template EdgeMap<std::vector<uint64_t>> VectorEdgeMap;
+
 
 public:
     // input types
@@ -43,14 +47,15 @@ public:
     typedef FloatNodeMap                                NodeSizesType;
 
 
+    typedef BoolEdgeMap                                 EdgeFlagType;
     typedef Int64NodeMap                                GTlabelsType;
     typedef UInt64EdgeMap                               MergeTimesType;
+    typedef VectorEdgeMap                               BacktrackEdgesType;
 
     struct SettingsType : public EdgeWeightedClusterPolicySettings
     {
 
         float threshold{0.5};
-        int nb_iterations{-1};
         int ignore_label{-1};
         bool constrained{true}; // Avoid merging across GT boundary
         int bincount{256};  // This is the parameter that can be passed to the policy
@@ -82,11 +87,30 @@ public:
                               const GT_LABELS & ,
                               const SettingsType & settings = SettingsType());
 
+    template<class NODE_SIZES,
+            class EDGE_SIZES,
+            class EDGE_INDICATORS,
+            class DEND_HIGH,
+            class MERGING_TIME,
+            class LOSS_TARGETS,
+            class LOSS_WEIGHTS>
+    void collectDataMilestep(
+            NODE_SIZES        & ,
+            EDGE_SIZES        & ,
+            EDGE_INDICATORS   & ,
+            DEND_HIGH         & ,
+            MERGING_TIME      & ,
+            LOSS_TARGETS      & ,
+            LOSS_WEIGHTS      &
+    ) const;
+
 
     std::pair<uint64_t, double> edgeToContractNext() const;
     bool isDone();
 
     bool edgeIsConstrained(const uint64_t);
+    void computeFinalTargets();
+    bool runMileStep(const int);
 
     // callback called by edge contraction graph
     
@@ -106,6 +130,11 @@ public:
     const EdgeSizesType & edgeSizes() const {
         return edgeSizes_;
     }
+    const GraphType & graph() const {
+        return graph_;
+    }
+
+
     const MergeTimesType & mergeTimes() const {
         return mergeTimes_;
     }
@@ -114,11 +143,25 @@ public:
         return nodeSizes_;
     }
 
-    const EdgeIndicatorsType & loss_targets() const {
-        return loss_targets_;
-    }
+//    template<class EDGE_MAP>
+//    void lossTargets(EDGE_MAP & edgeMap) const {
+////        const auto & cgraph = edgeContractionGraph_;
+////        const auto & graph = cgraph.graph();
+//        for(const auto edge : graph_.edges()){
+//            const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+//            edgeMap[edge] = loss_targets_[cEdge];
+//        }
+//    }
+//
+//    template<class EDGE_MAP>
+//    void lossWeights(EDGE_MAP & edgeMap) const {
+//        for(const auto edge : graph_.edges()){
+//            const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+//            edgeMap[edge] = loss_weights_[cEdge];
+//        }
+//    }
 
-    const EdgeIndicatorsType & loss_weights() const {
+    const EdgeIndicatorsType & lossWeights() const {
         return loss_weights_;
     }
 
@@ -126,6 +169,15 @@ public:
 
     bool isReallyDone() const {
         return isReallyDone_;
+    }
+
+    void resetDataBeforeMilestep(
+            const int nb_iterations_in_milestep
+    ) {
+        nb_iterations_in_milestep_ = nb_iterations_in_milestep;
+        mileStepTimeOffset_ = time_;
+        std::fill(loss_targets_.begin(), loss_targets_.end(), 0.);
+        std::fill(loss_weights_.begin(), loss_weights_.end(), 0.);
     }
 
 
@@ -148,14 +200,19 @@ private:
     EdgeIndicatorsType  edgeIndicators_;
     EdgeSizesType       edgeSizes_;
     NodeSizesType       nodeSizes_;
-
+    EdgeFlagType        flagAliveEdges_;
+    BacktrackEdgesType  backtrackEdges_;
 
     MergeTimesType      mergeTimes_;
+    EdgeIndicatorsType  dendHeigh_;
     GTlabelsType        GTlabels_;
     EdgeIndicatorsType  loss_targets_;
     EdgeIndicatorsType  loss_weights_;
-    uint64_t            nb_correct_steps_;
-    uint64_t            nb_wrong_steps_;
+    uint64_t            nb_correct_mergers_;
+    uint64_t            nb_wrong_mergers_;
+    uint64_t            nb_correct_splits_;
+    uint64_t            nb_wrong_splits_;
+    int                 nb_iterations_in_milestep_;
 
 
     SettingsType            settings_;
@@ -167,6 +224,7 @@ private:
     EdgeHistogramMap histograms_;
 
     uint64_t time_;
+    uint64_t mileStepTimeOffset_;
     // Keeps track of edges in PQ (some are alive, but deleted from the PQ because constrained
     uint64_t nb_active_edges_;
 
@@ -179,7 +237,6 @@ private:
 
 //    Define the methods:
 
-//        TODO: can I copy this twice with the passed edgeContractionGraph
 template<class GRAPH, bool ENABLE_UCM>
 template<class EDGE_INDICATORS, class EDGE_SIZES, class NODE_SIZES, class GT_LABELS>
 inline ConstrainedPolicy<GRAPH, ENABLE_UCM>::
@@ -197,27 +254,33 @@ ConstrainedPolicy(
     edgeSizes_(graph),
     nodeSizes_(graph),
     mergeTimes_(graph, graph_.numberOfNodes()),
+    flagAliveEdges_(graph, true),
+    // TODO: bad, find better way to initialize this..
+    dendHeigh_(graph, 2.),
     GTlabels_(graph),
     settings_(settings),
-//    TODO: can this work...?
-//    edgeContractionGraph_(contractionGraph),
     edgeContractionGraph_(graph, *this),
-//    TODO: change with a contracted graph:
     nb_active_edges_(graph_.numberOfEdges()),
-    nb_correct_steps_(0),
-    nb_wrong_steps_(0),
+    nb_correct_mergers_(0),
+    nb_wrong_mergers_(0),
+    nb_correct_splits_(0),
+    nb_wrong_splits_(0),
+    nb_iterations_in_milestep_(-1),
     loss_weights_(graph, 0.),
     loss_targets_(graph, 0.),
     pq_(graph.edgeIdUpperBound()+1),
     histograms_(graph, HistogramType(0,1,settings.bincount)),
     time_(0),
+    backtrackEdges_(graph),
+    mileStepTimeOffset_(0),
     isReallyDone_(false)
 {
     graph_.forEachEdge([&](const uint64_t edge){
 
 
         const auto val = edgeIndicators[edge];
-
+        edgeIndicators_[edge] = val;
+        backtrackEdges_[edge].reserve(5);
 
         // currently the value itself
         // is the median
@@ -226,6 +289,7 @@ ConstrainedPolicy(
 
         // put in histogram
         histograms_[edge].insert(val, size);
+
 
         // put in pq
         pq_.push(edge, val);
@@ -265,45 +329,79 @@ edgeIsConstrained(
     const auto reprV = edgeContractionGraph_.findRepresentativeNode(v);
 
     if (GTlabels_[reprU] == GTlabels_[reprV]) {
-         std::cout << "EdgeNC" << edge << "\n";
+//         std::cout << "EdgeNC" << edge << "\n";
         return false;
     } else {
-        std::cout << "EdgeC" << edge << "\n";
+//        std::cout << "EdgeC" << edge << "\n";
         return true;
     }
 }
 
 
+// TODO: optimize me: here we loop over all initial edges...
+// TODO: Move this to computeDataMilestep...?
+template<class GRAPH, bool ENABLE_UCM>
+inline void
+ConstrainedPolicy<GRAPH, ENABLE_UCM>::
+computeFinalTargets() {
+    if (settings_.constrained) {
+        // Loop over all alive edges (only parents ID are fine, we map later):
+        for (const auto edge : graph_.edges()) {
+            const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+            if (flagAliveEdges_[cEdge]) {
+                loss_weights_[edge] = 1.; // For the moment all equally weighted
+                if (this->edgeIsConstrained(edge)) {
+                    loss_targets_[edge] = -1.; // We should not merge (and we did not)
+//                  TODO: find better way to compute these numbers
+//                    ++nb_correct_splits_;
+                } else {
+                    loss_targets_[edge] = 1.; // We should merge (and we did not)
+//                    ++nb_wrong_splits_;
+                }
+            }
+        }
+
+        std::cout << "FINAL STATS HC:\n";
+        std::cout << "Mergers: (+" << nb_correct_mergers_ << ", -" << nb_wrong_mergers_ << ")\n";
+        std::cout << "Final splits: (+" << nb_correct_splits_ << ", -" << nb_wrong_splits_ << ")\n";
+    }
+}
+
 template<class GRAPH, bool ENABLE_UCM>
 inline bool 
 ConstrainedPolicy<GRAPH, ENABLE_UCM>::
 isDone() {
-    if (time_>=settings_.nb_iterations)
+    const auto mileStepTime = time_ - mileStepTimeOffset_;
+    if ( mileStepTime>=nb_iterations_in_milestep_)
         return true;
 
     // Find the next not-constrained edge:
     while (true) {
         if(edgeContractionGraph_.numberOfNodes() <= settings_.numberOfNodesStop) {
             isReallyDone_ = true;
-            std::cout << "1 node, stop\n";
+            this->computeFinalTargets();
+//            std::cout << "1 node, stop\n";
             return true;
         }
         if(edgeContractionGraph_.numberOfEdges() <= settings_.numberOfEdgesStop) {
             isReallyDone_ = true;
-            std::cout << "0 edges, stop\n";
+            this->computeFinalTargets();
+//            std::cout << "0 edges, stop\n";
             return  true;
         }
 
         // All remaining edges could be constrained, so PQ is empty
         // although there are alive edges:
         if (nb_active_edges_<=0) {
-            std::cout << "0 active edges, stop\n";
+//            std::cout << "0 active edges, stop\n";
             isReallyDone_ = true;
+            this->computeFinalTargets();
             return  true;
         }
         if (pq_.topPriority() >= settings_.threshold) {
-            std::cout << "threashold reached, stop" << pq_.topPriority() <<"\n";
+//            std::cout << "threashold reached, stop" << pq_.topPriority() <<"\n";
             isReallyDone_ = true;
+            this->computeFinalTargets();
             return  true;
         }
 
@@ -320,15 +418,65 @@ isDone() {
         pq_.deleteItem(edgeToContractNext);
         --nb_active_edges_;
 
-        // Remember about correct step:
+        // Remember about wrong step:
         loss_targets_[edgeToContractNext] = -1.; // We should not merge (and we would have)
         loss_weights_[edgeToContractNext] = 1.; // For the moment all equally weighted
-        ++nb_wrong_steps_;
+        for(auto it = backtrackEdges_[edgeToContractNext].begin();
+            it != backtrackEdges_[edgeToContractNext].end(); it++ ) {
+            const auto edge = *it;
+            std::cout << "Write mistake in "<< edgeToContractNext<< "to: " << edge << "\n";
+            loss_targets_[edge] = -1.; // We should not merge (and we would have)
+            loss_weights_[edge] = 1.;
+        }
+        ++nb_wrong_mergers_;
 
     }
 
     return false;
 }
+
+// UCM of data after a mileStep:
+template<class GRAPH, bool ENABLE_UCM>
+template<class NODE_SIZES,
+        class EDGE_SIZES,
+        class EDGE_INDICATORS,
+        class DEND_HIGH,
+        class MERGING_TIME,
+        class LOSS_TARGETS,
+        class LOSS_WEIGHTS>
+inline void
+ConstrainedPolicy<GRAPH, ENABLE_UCM>::
+collectDataMilestep(
+    NODE_SIZES        & nodeSizes,
+    EDGE_SIZES        & edgeSizes,
+    EDGE_INDICATORS   & edgeIndicators,
+    DEND_HIGH         & dendHeigh,
+    MERGING_TIME      & mergeTimes,
+    LOSS_TARGETS      & lossTargets,
+    LOSS_WEIGHTS      & lossWeights
+) const {
+    for(const auto edge : graph_.edges()){
+        const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+        dendHeigh[edge] = dendHeigh_[cEdge];
+        mergeTimes[edge] = mergeTimes_[cEdge];
+        lossTargets[edge] = loss_targets_[cEdge];
+        lossWeights[edge] = loss_weights_[cEdge];
+        // Map size and indicators only to alive edges:
+        if (flagAliveEdges_[cEdge]) {
+            edgeSizes[edge]     = edgeSizes_[cEdge];
+            edgeIndicators[edge] = edgeIndicators_[cEdge];
+        } else {
+            edgeSizes[edge]     = 0.;
+            edgeIndicators[edge] = 0.;
+        }
+    }
+
+    for(const auto node : graph_.nodes()) {
+        const auto cNode = edgeContractionGraph_.findRepresentativeNode(node);
+        nodeSizes[node] = nodeSizes_[cNode];
+    }
+}
+
 
 
 template<class GRAPH, bool ENABLE_UCM>
@@ -337,8 +485,9 @@ ConstrainedPolicy<GRAPH, ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
 ){
-    // This is currently not used. Merge time is done in the agglomeration class:
+    // Update data:
     mergeTimes_[edgeToContract] = time_;
+    dendHeigh_[edgeToContract] = pq_.topPriority();
     std::cout << "Contract edge: " << edgeToContract << "\n";
     ++time_;
 
@@ -346,11 +495,12 @@ contractEdge(
         // Remember about correct step:
         loss_targets_[edgeToContract] = 1.; // We should merge (and we did)
         loss_weights_[edgeToContract] = 1.; // For the moment all equally weighted
-        ++nb_correct_steps_;
+        ++nb_correct_mergers_;
     }
 
 
     pq_.deleteItem(edgeToContract);
+    flagAliveEdges_[edgeToContract] = false;
     --nb_active_edges_;
 }
 
@@ -370,6 +520,7 @@ mergeNodes(
     const uint64_t aliveNode, 
     const uint64_t deadNode
 ){
+    nodeSizes_[aliveNode] = nodeSizes_[deadNode] + nodeSizes_[aliveNode];
 }
 
 template<class GRAPH, bool ENABLE_UCM>
@@ -387,7 +538,15 @@ mergeEdges(
     auto & ha = histograms_[aliveEdge];
     auto & hd = histograms_[deadEdge];
     ha.merge(hd);
-    pq_.push(aliveEdge, histogramToMedian(aliveEdge));
+    const auto newEdgeIndicator = histogramToMedian(aliveEdge);
+    pq_.push(aliveEdge, newEdgeIndicator);
+
+    // Update edge-data:
+    edgeIndicators_[aliveEdge] = newEdgeIndicator;
+    const auto newSize = edgeSizes_[aliveEdge] + edgeSizes_[deadEdge];
+    edgeSizes_[aliveEdge] = newSize;
+    // TODO: optimize me. Check size and reserve...?
+    backtrackEdges_[aliveEdge].push_back(deadEdge);
 }
 
 template<class GRAPH, bool ENABLE_UCM>
@@ -413,6 +572,26 @@ histogramToMedian(
 }
 
 
+// TODO: Bad design, this should be moved to the agglomeration class..
+template<class GRAPH, bool ENABLE_UCM>
+inline bool
+ConstrainedPolicy<GRAPH, ENABLE_UCM>::
+runMileStep(const int nb_iterations_in_milestep) {
+    this->resetDataBeforeMilestep(nb_iterations_in_milestep);
+
+    while(!this->isDone()){
+        const auto edgeToContractNextAndPriority = this->edgeToContractNext();
+        const auto edgeToContractNext = edgeToContractNextAndPriority.first;
+        const auto priority = edgeToContractNextAndPriority.second;
+//            if(verbose){
+//                const auto & cgraph = clusterPolicy_.edgeContractionGraph();
+//                std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
+//            }
+        this->edgeContractionGraph().contractEdge(edgeToContractNext);
+    }
+
+    return this->isReallyDone();
+}
 
 
 
