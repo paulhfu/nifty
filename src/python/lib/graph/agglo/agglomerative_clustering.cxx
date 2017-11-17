@@ -39,7 +39,7 @@ namespace agglo{
         {
             // name and type of cluster operator
             typedef ConstrainedPolicy<GraphType,WITH_UCM> ClusterPolicyType;
-            const auto clusterPolicyBaseName = std::string("ConstrainedPolicy") +  withUcmStr;
+            const auto clusterPolicyBaseName = std::string("constrainedIterativeAgglClust") +  withUcmStr;
             const auto clusterPolicyClsName = clusterPolicyBaseName + graphName;
             const auto clusterPolicyFacName = lowerFirst(clusterPolicyBaseName);
 

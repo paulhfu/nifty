@@ -209,6 +209,7 @@ private:
     NodeSizesType       nodeSizes_;
     EdgeFlagType        flagAliveEdges_;
     BacktrackEdgesType  backtrackEdges_;
+    EdgeIndicatorsType  weightedSum_; // Used for the average
 
     MergeTimesType      mergeTimes_;
     EdgeIndicatorsType  dendHeigh_;
@@ -261,6 +262,7 @@ ConstrainedPolicy(
     edgeSizes_(graph),
     nodeSizes_(graph),
     mergeTimes_(graph, graph_.numberOfNodes()),
+    weightedSum_(graph),
     flagAliveEdges_(graph, true),
     // TODO: bad, find better way to initialize this..
     dendHeigh_(graph, 2.),
@@ -298,6 +300,8 @@ ConstrainedPolicy(
         // put in histogram
         histograms_[edge].insert(val, size);
 
+        // Data for average:
+        weightedSum_[edge] = size*val;
 
         // put in pq
         pq_.push(edge, val);
@@ -350,16 +354,24 @@ template<class EDGE_INDICATORS>
 inline void
 ConstrainedPolicy<GRAPH, ENABLE_UCM>::
 updateEdgeIndicators(EDGE_INDICATORS & newEdgeIndicators) {
-    // Reset historgram and edgeIndicatorsMap. Previous statistics in the histogram are lost.
-    auto newHistograms_ = EdgeHistogramMap(graph_, HistogramType(0,1,settings_.bincount));
-    histograms_ = newHistograms_;
-    std::fill(edgeIndicators_.begin(), edgeIndicators_.end(), 0.);
+    // TODO: what does it happen to the old memory...? Clear is
+//    auto newHistograms_ = EdgeHistogramMap(graph_, HistogramType(0,1,settings_.bincount));
+//    histograms_ = newHistograms_;
+//    std::fill(edgeIndicators_.begin(), edgeIndicators_.end(), 0.);
 
-    // Insert updated values in histogram and PQ (only for alive representative edges):
     auto reprEdgesBoolMap = BoolEdgeMap(graph_, false);
+    // Reset this to the number of active edges in the edge_contraction_graph:
+    nb_active_edges_ =  (uint64_t) 0;
     graph_.forEachEdge([&](const uint64_t edge){
+        // Reset historgram and edgeIndicatorsMap. Previous statistics in the histogram are lost.
+        histograms_[edge].clear();
+        edgeIndicators_[edge] = 0.;
+        weightedSum_[edge] = 0.;
+
+        // Insert updated values in histogram and PQ (only for alive representative edges):
         const auto reprEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
         if (flagAliveEdges_[reprEdge] && !reprEdgesBoolMap[reprEdge]) {
+            ++nb_active_edges_;
             const auto val = newEdgeIndicators[reprEdge];
             edgeIndicators_[reprEdge] = val;
 
@@ -367,8 +379,12 @@ updateEdgeIndicators(EDGE_INDICATORS & newEdgeIndicators) {
             edgeSizes_[reprEdge] = size;
 
             // Put in histogram and update values in PQ:
+            std::cout << "(edge = " << reprEdge;
+            std::cout << "; val = " << val;
+            std::cout << "; size = " << size << ")\n";
             histograms_[reprEdge].insert(val, size);
             pq_.push(reprEdge, val);
+            weightedSum_[reprEdge] = val*size;
 
             reprEdgesBoolMap[reprEdge] = true;
         }
@@ -467,6 +483,7 @@ isDone() {
                 loss_targets_[edge] = -1.; // We should not merge (and we would have)
                 loss_weights_[edge] = 1.;
             }
+            std::cout << "Moving to next edge in PQ";
         }
         ++nb_wrong_mergers_;
 
@@ -577,23 +594,34 @@ mergeEdges(
     pq_.deleteItem(deadEdge);
     --nb_active_edges_;
 
-    // merging the histogram is just adding
-    auto & ha = histograms_[aliveEdge];
-    auto & hd = histograms_[deadEdge];
-    ha.merge(hd);
-    const auto newEdgeIndicator = histogramToMedian(aliveEdge);
-    pq_.push(aliveEdge, newEdgeIndicator);
+    std::cout << "Prev: 1 =" << edgeIndicators_[aliveEdge];
+    std::cout << "; 2 = " << edgeIndicators_[deadEdge];
 
-    // Update edge-data:
-    edgeIndicators_[aliveEdge] = newEdgeIndicator;
+    // Update size:
     const auto newSize = edgeSizes_[aliveEdge] + edgeSizes_[deadEdge];
     edgeSizes_[aliveEdge] = newSize;
+
+//    // merging the histogram is just adding
+//    auto & ha = histograms_[aliveEdge];
+//    auto & hd = histograms_[deadEdge];
+//    ha.merge(hd);
+//    const auto newEdgeIndicator = histogramToMedian(aliveEdge);
+
+    const auto newWeightedSum = weightedSum_[aliveEdge] + weightedSum_[deadEdge];
+    weightedSum_[aliveEdge] = newWeightedSum;
+    const auto newEdgeIndicator = newWeightedSum / newSize;
+
+    std::cout << "; post: " << newEdgeIndicator << "\n";
+
+    // Update edge-data:
+    pq_.push(aliveEdge, newEdgeIndicator);
+    edgeIndicators_[aliveEdge] = newEdgeIndicator;
     // TODO: optimize me. Check size and reserve...?
     if (settings_.computeLossData) {
-        const auto cap =  backtrackEdges_[aliveEdge].capacity();
-        const auto size =  backtrackEdges_[aliveEdge].size();
-        if (cap-size==0)
-            backtrackEdges_[aliveEdge].reserve(cap + (uint64_t) 5);
+//        const auto cap =  backtrackEdges_[aliveEdge].capacity();
+//        const auto size =  backtrackEdges_[aliveEdge].size();
+//        if (cap-size==0)
+//            backtrackEdges_[aliveEdge].reserve(cap + (uint64_t) 5);
         backtrackEdges_[aliveEdge].push_back(deadEdge);
     }
 }
