@@ -50,16 +50,18 @@ namespace agglo{
             clusterClass
                     .def("runNextMilestep", [](
                                  ClusterPolicyType * self,
-                                 const int nb_iterations_in_milestep
+                                 const int nb_iterations_in_milestep,
+                                 const PyViewFloat1 & newEdgeIndicators
                          ){
                              bool out;
                              {
                                  py::gil_scoped_release allowThreads;
-                                 out = self->runMileStep(nb_iterations_in_milestep);
+                                 out = self->runMileStep(nb_iterations_in_milestep,newEdgeIndicators);
                              }
                              return out;
                          },
-                         py::arg("nb_iterations_in_milestep") = -1
+                         py::arg("nb_iterations_in_milestep") = -1,
+                         py::arg("new_edge_indicators")
                     )
                     .def("collectDataMilestep", [](
                                  ClusterPolicyType * self
@@ -67,6 +69,7 @@ namespace agglo{
                              const auto graph = self->graph();
                              typedef nifty::marray::PyView<float> marrayFloat;
                              marrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
+                             marrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
                              marrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
                              marrayFloat edgeIndicators({size_t(graph.edgeIdUpperBound()+1)});
                              marrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
@@ -75,11 +78,11 @@ namespace agglo{
                              marrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
                              {
                                  py::gil_scoped_release allowThreds;
-                                 self->collectDataMilestep(nodeSizes,edgeSizes,edgeIndicators,
+                                 self->collectDataMilestep(nodeSizes,nodeLabels,edgeSizes,edgeIndicators,
                                     dendHeigh,mergeTimes,lossTargets,lossWeights);
                              }
-                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,
-                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,edgeSizes,edgeIndicators,
+                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,
+                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,nodeLabels,edgeSizes,edgeIndicators,
                                                                           dendHeigh,mergeTimes,lossTargets,lossWeights);
                          }
                     )
@@ -138,6 +141,7 @@ namespace agglo{
                                     const int bincount,
                                     const int ignore_label,
                                     const bool constrained,
+                                    const bool computeLossData,
                                     const bool verbose
                             ){
                                 typename ClusterPolicyType::SettingsType s;
@@ -146,6 +150,7 @@ namespace agglo{
                                 s.threshold = threshold;
                                 s.ignore_label = ignore_label;
                                 s.constrained = constrained;
+                                s.computeLossData = computeLossData;
                                 s.verbose = verbose;
                                 auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes,
                                                                  nodeSizes, GTlabels, s);
@@ -164,6 +169,7 @@ namespace agglo{
                             py::arg("bincount") = 40,
                             py::arg("ignore_label") = -1,
                             py::arg("constrained") = true,
+                            py::arg("computeLossData") = true,
                             py::arg("verbose") = false
             );
 
