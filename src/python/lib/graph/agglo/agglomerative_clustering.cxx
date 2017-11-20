@@ -86,6 +86,18 @@ namespace agglo{
                                                                           dendHeigh,mergeTimes,lossTargets,lossWeights);
                          }
                     )
+                    .def("time", [] (
+                                 ClusterPolicyType * self
+                         ){
+                            uint64_t time;
+                            {
+                                 py::gil_scoped_release allowThreds;
+                                 time = self->time();
+                             }
+                             return time;
+                         }
+
+                    )
 //                    .def("edgeContractionGraph", [](
 //                                 ClusterPolicyType * self
 //                         ){

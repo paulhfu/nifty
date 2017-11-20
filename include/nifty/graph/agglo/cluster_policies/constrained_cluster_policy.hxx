@@ -168,10 +168,13 @@ public:
 //        }
 //    }
 
-    const EdgeIndicatorsType & lossWeights() const {
-        return loss_weights_;
-    }
+//    const EdgeIndicatorsType & lossWeights() const {
+//        return loss_weights_;
+//    }
 
+    uint64_t time() const {
+        return time_;
+    }
 
 
     bool isReallyDone() const {
