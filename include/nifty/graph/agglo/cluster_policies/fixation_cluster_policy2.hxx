@@ -89,12 +89,7 @@ public:
     void contractEdgeDone(const uint64_t edgeToContract);
 
     bool isMergeAllowed(const uint64_t edge){
-        if(isLocalEdge_[edge]){
-           return mergePrios_[edge] > notMergePrios_[edge];
-        }
-        else{
-            return false;
-        }
+        return mergePrios_[edge] > notMergePrios_[edge];
     }
     
 
@@ -158,11 +153,17 @@ FixationClusterPolicy2(
 {
     //std::cout<<"constructor\n";
     graph_.forEachEdge([&](const uint64_t edge){
-        mergePrios_[edge] = mergePrios[edge];
-        notMergePrios_[edge] = notMergePrios[edge];
-        isLocalEdge_[edge] = isLocalEdge[edge]; 
+        if (isLocalEdge[edge]) {
+            mergePrios_[edge] = mergePrios[edge];
+            notMergePrios_[edge] = -1.0;
+        } else {
+            mergePrios_[edge] = -1.0;
+            notMergePrios_[edge] = notMergePrios[edge];
+        }
         edgeSizes_[edge] = edgeSizes[edge];
-        pq_.push(edge, this->pqMergePrio(edge));
+        pq_.push(edge, mergePrios_[edge]);
+        // This is longer used:
+        isLocalEdge_[edge] = isLocalEdge[edge];
     });
 }
 
@@ -188,16 +189,11 @@ isDone()     {
     else{
         while(pq_.topPriority() > -0.0000001 ){
             const auto nextActioneEdge = pq_.top();
-            if(isLocalEdge_[nextActioneEdge]){
-                if(this->isMergeAllowed(nextActioneEdge)){
-                    edgeToContractNext_ = nextActioneEdge;
-                    edgeToContractNextMergePrio_ = pq_.topPriority();
-                    //std::cout<<"not done\n";
-                    return false;
-                }
-                else{
-                    pq_.push(nextActioneEdge, -1.0);
-                }
+            if(this->isMergeAllowed(nextActioneEdge)){
+                edgeToContractNext_ = nextActioneEdge;
+                edgeToContractNextMergePrio_ = pq_.topPriority();
+                //std::cout<<"not done\n";
+                return false;
             }
             else{
                 pq_.push(nextActioneEdge, -1.0);
@@ -217,6 +213,8 @@ pqMergePrio(
 ) const {
     return isLocalEdge_[edge] ?  double(mergePrios_[edge]) : -1.0; 
 }
+
+
 
 template<class GRAPH, bool ENABLE_UCM>
 inline void 
@@ -275,10 +273,10 @@ mergeEdges(
     const auto s = sa + sd;
 
 
-    const auto deadIsLocalEdge = isLocalEdge_[deadEdge];
-    auto & aliveIsLocalEdge = isLocalEdge_[aliveEdge];
-    
-    aliveIsLocalEdge = deadIsLocalEdge || aliveIsLocalEdge;
+//    const auto deadIsLocalEdge = isLocalEdge_[deadEdge];
+//    auto & aliveIsLocalEdge = isLocalEdge_[aliveEdge];
+//
+//    aliveIsLocalEdge = deadIsLocalEdge || aliveIsLocalEdge;
 
     mergePrios_[aliveEdge]    = std::max(mergePrios_[aliveEdge]    , mergePrios_[deadEdge]);
     notMergePrios_[aliveEdge] = std::max(notMergePrios_[aliveEdge] , notMergePrios_[deadEdge]);
@@ -286,7 +284,7 @@ mergeEdges(
     
     // update prios
     
-    pq_.push(aliveEdge, this->pqMergePrio(aliveEdge));
+    pq_.push(aliveEdge, mergePrios_[aliveEdge]);
     
 }
 
