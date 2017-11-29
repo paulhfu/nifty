@@ -34,7 +34,7 @@ private:
     typedef typename GRAPH:: template EdgeMap<uint64_t> UInt64EdgeMap;
     typedef typename GRAPH:: template EdgeMap<double> FloatEdgeMap;
     typedef typename GRAPH:: template NodeMap<double> FloatNodeMap;
-    typedef typename GRAPH:: template NodeMap<int> Int64NodeMap;
+    typedef typename GRAPH:: template NodeMap<uint64_t> UInt64NodeMap;
     typedef typename GRAPH:: template EdgeMap<bool> BoolEdgeMap;
     typedef typename GRAPH:: template EdgeMap<std::vector<uint64_t>> VectorEdgeMap;
 
@@ -48,7 +48,7 @@ public:
 
 
     typedef BoolEdgeMap                                 EdgeFlagType;
-    typedef Int64NodeMap                                GTlabelsType;
+    typedef UInt64NodeMap                               GTlabelsType;
     typedef UInt64EdgeMap                               MergeTimesType;
     typedef VectorEdgeMap                               BacktrackEdgesType;
 
@@ -56,7 +56,7 @@ public:
     {
 
         float threshold{0.5};
-        int ignore_label{-1};
+        uint64_t ignore_label{(uint64_t) -1};
         bool constrained{true}; // Avoid merging across GT boundary
         bool computeLossData{true}; // Option to avoid edge UF backtracking
         int bincount{256};  // This is the parameter that can be passed to the policy
@@ -293,7 +293,7 @@ ConstrainedPolicy(
         const auto val = edgeIndicators[edge];
         edgeIndicators_[edge] = val;
         if (settings_.computeLossData)
-            backtrackEdges_[edge].reserve(5);
+            backtrackEdges_[edge].push_back(edge);
 
         // currently the value itself
         // is the median
@@ -382,9 +382,9 @@ updateEdgeIndicators(EDGE_INDICATORS & newEdgeIndicators) {
             edgeSizes_[reprEdge] = size;
 
             // Put in histogram and update values in PQ:
-            std::cout << "(edge = " << reprEdge;
-            std::cout << "; val = " << val;
-            std::cout << "; size = " << size << ")\n";
+//            std::cout << "(edge = " << reprEdge;
+//            std::cout << "; val = " << val;
+//            std::cout << "; size = " << size << ")\n";
             histograms_[reprEdge].insert(val, size);
             pq_.push(reprEdge, val);
             weightedSum_[reprEdge] = val*size;
@@ -482,11 +482,11 @@ isDone() {
             for (auto it = backtrackEdges_[edgeToContractNext].begin();
                  it != backtrackEdges_[edgeToContractNext].end(); it++) {
                 const auto edge = *it;
-                std::cout << "Write mistake in " << edgeToContractNext << "to: " << edge << "\n";
+//                std::cout << "Write mistake in " << edgeToContractNext << "to: " << edge << "\n";
                 loss_targets_[edge] = -1.; // We should not merge (and we would have)
                 loss_weights_[edge] = 1.;
             }
-            std::cout << "Moving to next edge in PQ";
+//            std::cout << "Moving to next edge in PQ";
         }
         ++nb_wrong_mergers_;
 
@@ -551,7 +551,7 @@ contractEdge(
     // Update data:
     mergeTimes_[edgeToContract] = time_;
     dendHeigh_[edgeToContract] = pq_.topPriority();
-    std::cout << "Contract edge: " << edgeToContract << "\n";
+//    std::cout << "Contract edge: " << edgeToContract << "\n";
     ++time_;
 
     if (settings_.constrained) {
@@ -593,12 +593,12 @@ mergeEdges(
     const uint64_t aliveEdge, 
     const uint64_t deadEdge
 ){
-    std::cout << "Merge edges: " << aliveEdge << " "<< deadEdge << "\n";
+//    std::cout << "Merge edges: " << aliveEdge << " "<< deadEdge << "\n";
     pq_.deleteItem(deadEdge);
     --nb_active_edges_;
 
-    std::cout << "Prev: 1 =" << edgeIndicators_[aliveEdge];
-    std::cout << "; 2 = " << edgeIndicators_[deadEdge];
+//    std::cout << "Prev: 1 =" << edgeIndicators_[aliveEdge];
+//    std::cout << "; 2 = " << edgeIndicators_[deadEdge];
 
     // Update size:
     const auto newSize = edgeSizes_[aliveEdge] + edgeSizes_[deadEdge];
@@ -614,7 +614,7 @@ mergeEdges(
     weightedSum_[aliveEdge] = newWeightedSum;
     const auto newEdgeIndicator = newWeightedSum / newSize;
 
-    std::cout << "; post: " << newEdgeIndicator << "\n";
+//    std::cout << "; post: " << newEdgeIndicator << "\n";
 
     // Update edge-data:
     pq_.push(aliveEdge, newEdgeIndicator);
@@ -625,7 +625,7 @@ mergeEdges(
 //        const auto size =  backtrackEdges_[aliveEdge].size();
 //        if (cap-size==0)
 //            backtrackEdges_[aliveEdge].reserve(cap + (uint64_t) 5);
-        backtrackEdges_[aliveEdge].push_back(deadEdge);
+        backtrackEdges_[aliveEdge].insert(backtrackEdges_[aliveEdge].end(), backtrackEdges_[deadEdge].begin(), backtrackEdges_[deadEdge].end() );
     }
 }
 

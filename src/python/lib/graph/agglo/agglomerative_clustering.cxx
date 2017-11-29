@@ -160,7 +160,7 @@ namespace agglo{
                                 s.numberOfNodesStop = numberOfNodesStop;
                                 s.bincount = bincount;
                                 s.threshold = threshold;
-                                s.ignore_label = ignore_label;
+                                s.ignore_label = (uint64_t) ignore_label;
                                 s.constrained = constrained;
                                 s.computeLossData = computeLossData;
                                 s.verbose = verbose;
