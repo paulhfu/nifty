@@ -9,7 +9,7 @@
 #include "nifty/tools/changable_priority_queue.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
 #include "nifty/graph/agglo/cluster_policies/cluster_policies_common.hxx"
-
+#include "nifty/tools/runtime_check.hxx"
 
 namespace nifty{
 namespace graph{
@@ -74,7 +74,7 @@ private:
     typedef typename GRAPH:: template EdgeMap<HistogramType> EdgeHistogramMap;
 
 
-    typedef nifty::tools::ChangeablePriorityQueue< double ,std::less<double> > QueueType;
+    typedef nifty::tools::ChangeablePriorityQueue< double , std::greater<double> > QueueType;
 
 public:
 
@@ -237,7 +237,7 @@ private:
     uint64_t time_;
     uint64_t mileStepTimeOffset_;
     // Keeps track of edges in PQ (some are alive, but deleted from the PQ because constrained
-    uint64_t nb_active_edges_;
+//    uint64_t nb_active_edges_;
 
 //    uint64_t nb_steps_;
 //    uint64_t ignore_label_;
@@ -272,7 +272,7 @@ ConstrainedPolicy(
     GTlabels_(graph),
     settings_(settings),
     edgeContractionGraph_(graph, *this),
-    nb_active_edges_(graph_.numberOfEdges()),
+//    nb_active_edges_(graph_.numberOfEdges()),
     nb_correct_mergers_(0),
     nb_wrong_mergers_(0),
     nb_correct_splits_(0),
@@ -362,19 +362,20 @@ updateEdgeIndicators(EDGE_INDICATORS & newEdgeIndicators) {
 //    histograms_ = newHistograms_;
 //    std::fill(edgeIndicators_.begin(), edgeIndicators_.end(), 0.);
 
-    auto reprEdgesBoolMap = BoolEdgeMap(graph_, false);
+//    auto reprEdgesBoolMap = BoolEdgeMap(graph_, false);
     // Reset this to the number of active edges in the edge_contraction_graph:
-    nb_active_edges_ =  (uint64_t) 0;
+//    nb_active_edges_ =  (uint64_t) 0;
     graph_.forEachEdge([&](const uint64_t edge){
         // Reset historgram and edgeIndicatorsMap. Previous statistics in the histogram are lost.
         histograms_[edge].clear();
-        edgeIndicators_[edge] = 0.;
+        edgeIndicators_[edge] = -1.;
         weightedSum_[edge] = 0.;
 
         // Insert updated values in histogram and PQ (only for alive representative edges):
-        const auto reprEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
-        if (flagAliveEdges_[reprEdge] && !reprEdgesBoolMap[reprEdge]) {
-            ++nb_active_edges_;
+        if (flagAliveEdges_[edge]) {  // && !reprEdgesBoolMap[reprEdge]
+            const auto reprEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+            NIFTY_TEST_OP(edge,==,reprEdge);
+//            ++nb_active_edges_;
             const auto val = newEdgeIndicators[reprEdge];
             edgeIndicators_[reprEdge] = val;
 
@@ -389,7 +390,7 @@ updateEdgeIndicators(EDGE_INDICATORS & newEdgeIndicators) {
             pq_.push(reprEdge, val);
             weightedSum_[reprEdge] = val*size;
 
-            reprEdgesBoolMap[reprEdge] = true;
+//            reprEdgesBoolMap[reprEdge] = true;
         }
     });
 
@@ -404,17 +405,22 @@ computeFinalTargets() {
     if (settings_.constrained && settings_.computeLossData) {
         // Loop over all alive edges (only parents ID are fine, we map later):
         for (const auto edge : graph_.edges()) {
-            const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
-            if (flagAliveEdges_[cEdge]) {
-                loss_weights_[edge] = 1.; // For the moment all equally weighted
-                if (this->edgeIsConstrained(edge)) {
-                    loss_targets_[edge] = -1.; // We should not merge (and we did not)
-//                  TODO: find better way to compute these numbers
-//                    ++nb_correct_splits_;
-                } else {
-                    loss_targets_[edge] = 1.; // We should merge (and we did not)
-//                    ++nb_wrong_splits_;
+            if (flagAliveEdges_[edge]) {
+                const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+                NIFTY_TEST_OP(edge,==,cEdge);
+                const auto isConstrained = this->edgeIsConstrained(cEdge);
+                const auto target_value = (isConstrained) ? (-1.) : (1.);
+
+                for (auto it = backtrackEdges_[cEdge].begin(); it != backtrackEdges_[cEdge].end(); it++) {
+                    const auto subEdge = *it;
+                    loss_targets_[subEdge] = target_value;
+                    loss_weights_[subEdge] = 1.;
                 }
+
+                if (isConstrained)
+                    ++nb_correct_splits_;
+                else
+                    ++nb_wrong_splits_;
             }
         }
 
@@ -434,32 +440,15 @@ isDone() {
 
     // Find the next not-constrained edge:
     while (true) {
-        if(edgeContractionGraph_.numberOfNodes() <= settings_.numberOfNodesStop) {
+        if (edgeContractionGraph_.numberOfNodes() <= settings_.numberOfNodesStop ||
+                edgeContractionGraph_.numberOfEdges() <= settings_.numberOfEdgesStop ||
+                pq_.empty() ||
+                pq_.topPriority() < -0.0000001    ||
+                pq_.topPriority() <= settings_.threshold ) {
             isReallyDone_ = true;
             this->computeFinalTargets();
 //            std::cout << "1 node, stop\n";
             return true;
-        }
-        if(edgeContractionGraph_.numberOfEdges() <= settings_.numberOfEdgesStop) {
-            isReallyDone_ = true;
-            this->computeFinalTargets();
-//            std::cout << "0 edges, stop\n";
-            return  true;
-        }
-
-        // All remaining edges could be constrained, so PQ is empty
-        // although there are alive edges:
-        if (nb_active_edges_<=0) {
-//            std::cout << "0 active edges, stop\n";
-            isReallyDone_ = true;
-            this->computeFinalTargets();
-            return  true;
-        }
-        if (pq_.topPriority() >= settings_.threshold) {
-//            std::cout << "threashold reached, stop" << pq_.topPriority() <<"\n";
-            isReallyDone_ = true;
-            this->computeFinalTargets();
-            return  true;
         }
 
         if (!settings_.constrained)
@@ -469,16 +458,17 @@ isDone() {
         const auto edgeToContractNext = edgeToContractNextAndPriority.first;
 
         if (! this->edgeIsConstrained(edgeToContractNext))
-            break;
+            return false;
 
-        // Delete constrained edge from PQ:
-        pq_.deleteItem(edgeToContractNext);
-        --nb_active_edges_;
+        // Set infinite cost in PQ:
+        pq_.push(edgeToContractNext, -1.0);
+//        pq_.deleteItem(edgeToContractNext);
+////        --nb_active_edges_;
 
         // Remember about wrong step:
         if (settings_.computeLossData) {
-            loss_targets_[edgeToContractNext] = -1.; // We should not merge (and we would have)
-            loss_weights_[edgeToContractNext] = 1.; // For the moment all equally weighted
+//            loss_targets_[edgeToContractNext] = -1.; // We should not merge (and we would have)
+//            loss_weights_[edgeToContractNext] = 1.; // For the moment all equally weighted
             for (auto it = backtrackEdges_[edgeToContractNext].begin();
                  it != backtrackEdges_[edgeToContractNext].end(); it++) {
                 const auto edge = *it;
@@ -564,7 +554,7 @@ contractEdge(
 
     pq_.deleteItem(edgeToContract);
     flagAliveEdges_[edgeToContract] = false;
-    --nb_active_edges_;
+////    --nb_active_edges_;
 }
 
 template<class GRAPH, bool ENABLE_UCM>
@@ -595,7 +585,8 @@ mergeEdges(
 ){
 //    std::cout << "Merge edges: " << aliveEdge << " "<< deadEdge << "\n";
     pq_.deleteItem(deadEdge);
-    --nb_active_edges_;
+    flagAliveEdges_[deadEdge] = false;
+////    --nb_active_edges_;
 
 //    std::cout << "Prev: 1 =" << edgeIndicators_[aliveEdge];
 //    std::cout << "; 2 = " << edgeIndicators_[deadEdge];
@@ -619,13 +610,10 @@ mergeEdges(
     // Update edge-data:
     pq_.push(aliveEdge, newEdgeIndicator);
     edgeIndicators_[aliveEdge] = newEdgeIndicator;
-    // TODO: optimize me. Check size and reserve...?
+
     if (settings_.computeLossData) {
-//        const auto cap =  backtrackEdges_[aliveEdge].capacity();
-//        const auto size =  backtrackEdges_[aliveEdge].size();
-//        if (cap-size==0)
-//            backtrackEdges_[aliveEdge].reserve(cap + (uint64_t) 5);
         backtrackEdges_[aliveEdge].insert(backtrackEdges_[aliveEdge].end(), backtrackEdges_[deadEdge].begin(), backtrackEdges_[deadEdge].end() );
+        // TODO: free memory deadEdge?
     }
 }
 
