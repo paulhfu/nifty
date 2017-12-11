@@ -115,13 +115,16 @@ public:
     bool isDone();
 
     bool edgeIsConstrained(const uint64_t);
+    bool edgeInvolvesIgnoredNodes(const uint64_t);
+
     void computeFinalTargets();
     template<class EDGE_INDICATORS>
     bool runMileStep(const int, EDGE_INDICATORS &);
 
     // callback called by edge contraction graph
-    
+
     EdgeContractionGraphType & edgeContractionGraph();
+
 
 
     // callbacks called by edge contraction graph
@@ -268,7 +271,7 @@ ConstrainedPolicy(
     weightedSum_(graph),
     flagAliveEdges_(graph, true),
     // TODO: bad, find better way to initialize this..
-    dendHeigh_(graph, 2.),
+    dendHeigh_(graph, -1.),
     GTlabels_(graph),
     settings_(settings),
     edgeContractionGraph_(graph, *this),
@@ -352,6 +355,29 @@ edgeIsConstrained(
     }
 }
 
+
+template<class GRAPH, bool ENABLE_UCM>
+        inline bool
+        ConstrainedPolicy<GRAPH, ENABLE_UCM>::
+        edgeInvolvesIgnoredNodes(
+                const uint64_t edge
+        ){
+            // TODO: ugly repetition of code here and in the isConstrained
+            const auto uv = edgeContractionGraph_.uv(edge);
+            const auto u = uv.first;
+            const auto v = uv.second;
+            const auto reprU = edgeContractionGraph_.findRepresentativeNode(u);
+            const auto reprV = edgeContractionGraph_.findRepresentativeNode(v);
+
+            if (GTlabels_[reprU] == settings_.ignore_label ||
+                GTlabels_[reprV] == settings_.ignore_label ) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+
 template<class GRAPH, bool ENABLE_UCM>
 template<class EDGE_INDICATORS>
 inline void
@@ -408,19 +434,22 @@ computeFinalTargets() {
             if (flagAliveEdges_[edge]) {
                 const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
                 NIFTY_TEST_OP(edge,==,cEdge);
-                const auto isConstrained = this->edgeIsConstrained(cEdge);
-                const auto target_value = (isConstrained) ? (-1.) : (1.);
+                const auto edgeInvolvesIgnoredNodes = this->edgeInvolvesIgnoredNodes(cEdge);
+                if (! edgeInvolvesIgnoredNodes) {
+                    const auto isConstrained = this->edgeIsConstrained(cEdge);
+                    const auto target_value = (isConstrained) ? (-1.) : (1.);
 
-                for (auto it = backtrackEdges_[cEdge].begin(); it != backtrackEdges_[cEdge].end(); it++) {
-                    const auto subEdge = *it;
-                    loss_targets_[subEdge] = target_value;
-                    loss_weights_[subEdge] = 1.;
+                    for (auto it = backtrackEdges_[cEdge].begin(); it != backtrackEdges_[cEdge].end(); it++) {
+                        const auto subEdge = *it;
+                        loss_targets_[subEdge] = target_value;
+                        loss_weights_[subEdge] = 1.;
+                    }
+
+                    if (isConstrained)
+                        ++nb_correct_splits_;
+                    else
+                        ++nb_wrong_splits_;
                 }
-
-                if (isConstrained)
-                    ++nb_correct_splits_;
-                else
-                    ++nb_wrong_splits_;
             }
         }
 
@@ -450,12 +479,13 @@ isDone() {
 //            std::cout << "1 node, stop\n";
             return true;
         }
-
         if (!settings_.constrained)
-            break;
+            return false;
 
         const auto edgeToContractNextAndPriority = this->edgeToContractNext();
         const auto edgeToContractNext = edgeToContractNextAndPriority.first;
+
+
 
         if (! this->edgeIsConstrained(edgeToContractNext))
             return false;
@@ -465,20 +495,22 @@ isDone() {
 //        pq_.deleteItem(edgeToContractNext);
 ////        --nb_active_edges_;
 
-        // Remember about wrong step:
-        if (settings_.computeLossData) {
+        if (! this->edgeInvolvesIgnoredNodes(edgeToContractNext)) {
+            // Remember about wrong step:
+            if (settings_.computeLossData) {
 //            loss_targets_[edgeToContractNext] = -1.; // We should not merge (and we would have)
 //            loss_weights_[edgeToContractNext] = 1.; // For the moment all equally weighted
-            for (auto it = backtrackEdges_[edgeToContractNext].begin();
-                 it != backtrackEdges_[edgeToContractNext].end(); it++) {
-                const auto edge = *it;
+                for (auto it = backtrackEdges_[edgeToContractNext].begin();
+                     it != backtrackEdges_[edgeToContractNext].end(); it++) {
+                    const auto edge = *it;
 //                std::cout << "Write mistake in " << edgeToContractNext << "to: " << edge << "\n";
-                loss_targets_[edge] = -1.; // We should not merge (and we would have)
-                loss_weights_[edge] = 1.;
-            }
+                    loss_targets_[edge] = -1.; // We should not merge (and we would have)
+                    loss_weights_[edge] = 1.;
+                }
 //            std::cout << "Moving to next edge in PQ";
+            }
+            ++nb_wrong_mergers_;
         }
-        ++nb_wrong_mergers_;
 
     }
 
@@ -518,8 +550,8 @@ collectDataMilestep(
             edgeSizes[edge]     = edgeSizes_[cEdge];
             edgeIndicators[edge] = edgeIndicators_[cEdge];
         } else {
-            edgeSizes[edge]     = -2.0;
-            edgeIndicators[edge] = -2.0;
+            edgeSizes[edge]     = -1.0;
+            edgeIndicators[edge] = -1.0;
         }
     }
 
@@ -544,11 +576,14 @@ contractEdge(
 //    std::cout << "Contract edge: " << edgeToContract << "\n";
     ++time_;
 
-    if (settings_.constrained) {
-        // Remember about correct step:
-        loss_targets_[edgeToContract] = 1.; // We should merge (and we did)
-        loss_weights_[edgeToContract] = 1.; // For the moment all equally weighted
-        ++nb_correct_mergers_;
+    if (settings_.constrained  ) {
+        const auto edgeInvolvesIgnoredNodes = this->edgeInvolvesIgnoredNodes(edgeToContract);
+        if (! edgeInvolvesIgnoredNodes) {
+            // Remember about correct step:
+            loss_targets_[edgeToContract] = 1.; // We should merge (and we did)
+            loss_weights_[edgeToContract] = 1.; // For the moment all equally weighted
+            ++nb_correct_mergers_;
+        }
     }
 
 
@@ -573,6 +608,13 @@ mergeNodes(
     const uint64_t aliveNode, 
     const uint64_t deadNode
 ){
+    const auto GTAlive = GTlabels_[aliveNode];
+    const auto GTDead = GTlabels_[deadNode];
+
+    // Propagate ignore label to the merged node:
+    if (GTAlive==settings_.ignore_label || GTDead==settings_.ignore_label)
+        GTlabels_[aliveNode] = settings_.ignore_label;
+
     nodeSizes_[aliveNode] = nodeSizes_[deadNode] + nodeSizes_[aliveNode];
 }
 
