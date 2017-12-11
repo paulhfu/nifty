@@ -3,7 +3,7 @@
 #include <functional>
 
 
-#include "nifty/histogram/histogram.hxx"
+
 #include "nifty/tools/changable_priority_queue.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
 #include "nifty/graph/agglo/cluster_policies/cluster_policies_common.hxx"
@@ -16,12 +16,14 @@ namespace agglo{
 
 
 
+
+
 template<
     class GRAPH,bool ENABLE_UCM
 >
-class LiftedGraphEdgeWeightedClusterPolicy{
+class LiftedMalaPolicy{
 
-    typedef LiftedGraphEdgeWeightedClusterPolicy<
+    typedef LiftedMalaPolicy<
         GRAPH, ENABLE_UCM
     > SelfType;
 
@@ -31,7 +33,6 @@ private:
     typedef typename GRAPH:: template NodeMap<double> FloatNodeMap;
 
 public:
-
     // input types
     typedef GRAPH                                        GraphType;
     typedef FloatEdgeMap                                 EdgeIndicatorsType;
@@ -40,14 +41,7 @@ public:
     typedef FloatNodeMap                                 NodeSizesType;
 
     struct SettingsType{
-        enum StopConditionType{
-            NODE_NUMBER,
-            PRIORITY
-        };
 
-        StopConditionType stopConditionType;
-        uint64_t stopNodeNumber;
-        double   stopPriority;
     };
     typedef EdgeContractionGraph<GraphType, SelfType>    EdgeContractionGraphType;
 
@@ -55,8 +49,9 @@ public:
 private:
 
     // internal types
-    typedef nifty::histogram::Histogram<float> HistogramType;
-    typedef typename GRAPH:: template EdgeMap<HistogramType> HistogramMap;
+    // internal types
+    const static size_t NumberOfBins = 20;
+    typedef std::array<float, NumberOfBins> HistogramType;     
 
     typedef nifty::tools::ChangeablePriorityQueue< double ,std::less<double> > QueueType;
 
@@ -68,7 +63,7 @@ public:
         class IS_LIFTED_EDGES,
         class NODE_SIZES
     >
-    LiftedGraphEdgeWeightedClusterPolicy(const GraphType &, 
+    LiftedMalaPolicy(const GraphType &, 
                               const EDGE_INDICATORS & , 
                               const EDGE_SIZES & , 
                               const IS_LIFTED_EDGES &,
@@ -115,8 +110,6 @@ private:
     SettingsType            settings_;
     
     // INTERNAL
-    HistogramMap eHist_;
-     
     EdgeContractionGraphType edgeContractionGraph_;
     QueueType pq_;
 
@@ -125,8 +118,8 @@ private:
 
 template<class GRAPH, bool ENABLE_UCM>
 template<class EDGE_INDICATORS, class EDGE_SIZES,class IS_LIFTED_EDGES, class NODE_SIZES>
-inline LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
-LiftedGraphEdgeWeightedClusterPolicy(
+inline LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy(
     const GraphType & graph,
     const EDGE_INDICATORS & edgeIndicators,
     const EDGE_SIZES      & edgeSizes,
@@ -139,16 +132,12 @@ LiftedGraphEdgeWeightedClusterPolicy(
     edgeSizes_(graph),
     isLiftedEdge_(graph),
     nodeSizes_(graph),
+    pq_(graph.edgeIdUpperBound()+1),
     settings_(settings),
-    eHist_(graph, HistogramType(0.0, 1.0, 40)),
-    edgeContractionGraph_(graph, *this),
-    pq_(graph.edgeIdUpperBound()+1)
+    edgeContractionGraph_(graph, *this)
 {
     graph_.forEachEdge([&](const uint64_t edge){
-
         edgeIndicators_[edge] = edgeIndicators[edge];
-        eHist_[edge].insert(edgeIndicators[edge]);
-
         edgeSizes_[edge] = edgeSizes[edge];
         isLiftedEdge_[edge] = isLiftedEdge[edge];
     });
@@ -160,7 +149,7 @@ LiftedGraphEdgeWeightedClusterPolicy(
 
 template<class GRAPH, bool ENABLE_UCM>
 inline std::pair<uint64_t, double> 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 edgeToContractNext() const {
     const auto edgeToContract = pq_.top();
     NIFTY_CHECK(!isLiftedEdge_[edgeToContract], "internal error");
@@ -169,26 +158,20 @@ edgeToContractNext() const {
 
 template<class GRAPH, bool ENABLE_UCM>
 inline bool 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 isDone() const {
-
-    if(pq_.empty() || edgeContractionGraph_.numberOfEdges() == 0){
+    if(pq_.topPriority() > 0.5){
         return true;
     }
     else{
-        if(settings_.stopConditionType == SettingsType::NODE_NUMBER){
-            return edgeContractionGraph_.numberOfNodes() <= settings_.stopNodeNumber;
-        }
-        else{
-            return pq_.topPriority() > settings_.stopPriority;
-        }
+        return pq_.empty();
     }
 }
 
 
 template<class GRAPH, bool ENABLE_UCM>
 inline void 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 initializeWeights() {
     for(const auto edge : graph_.edges())
         pq_.push(edge, this->computeWeight(edge));
@@ -196,7 +179,7 @@ initializeWeights() {
 
 template<class GRAPH, bool ENABLE_UCM>
 inline double 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 computeWeight(
     const uint64_t edge
 ) const {
@@ -204,23 +187,14 @@ computeWeight(
         return std::numeric_limits<float>::infinity();
     }
     else{
-        if(true){
-            //std::cout<<"braa\n";
-            const float r = 0.5;
-            float out;
-            nifty::histogram::quantiles(eHist_[edge], &r,&r+1,&out);
-            return out;
-        }
-        else{
-            return edgeIndicators_[edge];// * sFac;
-        }
+        return edgeIndicators_[edge];// * sFac;
     }
 }
 
 
 template<class GRAPH, bool ENABLE_UCM>
 inline void 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
 ){
@@ -228,8 +202,8 @@ contractEdge(
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline typename LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::EdgeContractionGraphType & 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+inline typename LiftedMalaPolicy<GRAPH, ENABLE_UCM>::EdgeContractionGraphType & 
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 edgeContractionGraph(){
     return edgeContractionGraph_;
 }
@@ -238,7 +212,7 @@ edgeContractionGraph(){
 
 template<class GRAPH, bool ENABLE_UCM>
 inline void 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 mergeNodes(
     const uint64_t aliveNode, 
     const uint64_t deadNode
@@ -248,7 +222,7 @@ mergeNodes(
 
 template<class GRAPH, bool ENABLE_UCM>
 inline void 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 mergeEdges(
     const uint64_t aliveEdge, 
     const uint64_t deadEdge
@@ -264,7 +238,6 @@ mergeEdges(
 
     la = la && ld;
 
-    eHist_[aliveEdge].merge(eHist_[deadEdge]);
 
     edgeIndicators_[aliveEdge] = (sa*edgeIndicators_[aliveEdge] + sd*edgeIndicators_[deadEdge])/s;
     edgeSizes_[aliveEdge] = s;
@@ -274,7 +247,7 @@ mergeEdges(
 
 template<class GRAPH, bool ENABLE_UCM>
 inline void 
-LiftedGraphEdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
+LiftedMalaPolicy<GRAPH, ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
 ){
