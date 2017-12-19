@@ -1,14 +1,17 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <tuple>
 
 #include "nifty/python/converter.hxx"
 #include "nifty/python/graph/undirected_list_graph.hxx"
 #include "nifty/python/graph/undirected_grid_graph.hxx"
+#include "nifty/python/graph/edge_contraction_graph.hxx"
 #include "nifty/python/graph/agglo/export_agglomerative_clustering.hxx"
 
 #include "nifty/graph/graph_maps.hxx"
 #include "nifty/graph/agglo/agglomerative_clustering.hxx"
 #include "nifty/graph/agglo/cluster_policies/mala_cluster_policy.hxx"
+#include "nifty/graph/agglo/cluster_policies/constrained_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/edge_weighted_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/node_and_edge_weighted_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/minimum_node_size_cluster_policy.hxx"
@@ -23,6 +26,171 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>);
 namespace nifty{
 namespace graph{
 namespace agglo{
+
+
+    template<class GRAPH, class CONTR_GRAPH, bool WITH_UCM>
+    void exportConstrainedPolicy(py::module & aggloModule) {
+
+        typedef GRAPH GraphType;
+        const auto graphName = GraphName<GraphType>::name();
+        typedef nifty::marray::PyView<float, 1> PyViewFloat1;
+        typedef nifty::marray::PyView<int, 1> PyViewInt1;
+
+        const std::string withUcmStr =  WITH_UCM ? std::string("WithUcm") :  std::string() ;
+
+        {
+            // name and type of cluster operator
+            typedef ConstrainedPolicy<GraphType,WITH_UCM> ClusterPolicyType;
+            const auto clusterPolicyBaseName = std::string("constrainedHierarchicalClustering") +  withUcmStr;
+            const auto clusterPolicyClsName = clusterPolicyBaseName + graphName;
+            const auto clusterPolicyFacName = lowerFirst(clusterPolicyBaseName);
+
+            // the cluster operator cls
+            auto clusterClass = py::class_<ClusterPolicyType>(aggloModule, clusterPolicyClsName.c_str());
+
+
+            clusterClass
+                    .def("runNextMilestep", [](
+                                 ClusterPolicyType * self,
+                                 const int nb_iterations_in_milestep,
+                                 const PyViewFloat1 & newEdgeIndicators
+                         ){
+                             bool out;
+                             {
+                                 py::gil_scoped_release allowThreads;
+                                 out = self->runMileStep(nb_iterations_in_milestep,newEdgeIndicators);
+                             }
+                             return out;
+                         },
+                         py::arg("nb_iterations_in_milestep") = -1,
+                         py::arg("new_edge_indicators")
+                    )
+                    .def("collectDataMilestep", [](
+                                 ClusterPolicyType * self
+                         ){
+                             const auto graph = self->graph();
+                             typedef nifty::marray::PyView<float> marrayFloat;
+                             marrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
+                             marrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
+                             marrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
+                             marrayFloat edgeIndicators({size_t(graph.edgeIdUpperBound()+1)});
+                             marrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
+                             marrayFloat mergeTimes({size_t(graph.edgeIdUpperBound()+1)});
+                             marrayFloat lossTargets({size_t(graph.edgeIdUpperBound()+1)});
+                             marrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
+                             {
+                                 py::gil_scoped_release allowThreds;
+                                 self->collectDataMilestep(nodeSizes,nodeLabels,edgeSizes,edgeIndicators,
+                                    dendHeigh,mergeTimes,lossTargets,lossWeights);
+                             }
+                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,
+                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,nodeLabels,edgeSizes,edgeIndicators,
+                                                                          dendHeigh,mergeTimes,lossTargets,lossWeights);
+                         }
+                    )
+                    .def("time", [] (
+                                 ClusterPolicyType * self
+                         ){
+                            uint64_t time;
+                            {
+                                 py::gil_scoped_release allowThreds;
+                                 time = self->time();
+                             }
+                             return time;
+                         }
+
+                    )
+//                    .def("edgeContractionGraph", [](
+//                                 ClusterPolicyType * self
+//                         ){
+//
+//                            const auto graph = self->graph();
+//                             nifty::marray::PyView<float> out({size_t(graph.edgeIdUpperBound()+1)});
+//                             {
+//                                 py::gil_scoped_release allowThreds;
+//                                 self->lossTargets(out);
+//                             }
+//                             return out;
+//                         }
+//                    )
+//                    .def("lossTargets", [](
+//                                 ClusterPolicyType * self
+//                         ){
+//                             const auto graph = self->graph();
+//                             nifty::marray::PyView<float> out({size_t(graph.edgeIdUpperBound()+1)});
+//                             {
+//                                 py::gil_scoped_release allowThreds;
+//                                 self->lossTargets(out);
+//                             }
+//                        return out;
+//                         }
+//                    )
+//                    .def("lossWeights", [](
+//                                 ClusterPolicyType * self
+//                         ){
+//                             const auto graph = self->graph();
+//                             nifty::marray::PyView<float> out({size_t(graph.edgeIdUpperBound()+1)});
+//                             {
+//                                 py::gil_scoped_release allowThreds;
+//                                 self->lossWeights(out);
+//                             }
+//                             return out;
+//                         }
+//                    )
+                    ;
+
+
+
+            // factory
+//            TODO: how do I add another function to get back the targets, new SP sizes, new GT labels
+            aggloModule.def(clusterPolicyFacName.c_str(),
+                            [](
+                                    const GraphType & graph,
+                                    const PyViewFloat1 & edgeIndicators,
+                                    const PyViewFloat1 & edgeSizes,
+                                    const PyViewFloat1 & nodeSizes,
+                                    const PyViewInt1  & GTlabels,
+                                    const float threshold,
+                                    const uint64_t numberOfNodesStop,
+                                    const int bincount,
+                                    const int ignore_label,
+                                    const bool constrained,
+                                    const bool computeLossData,
+                                    const bool verbose
+                            ){
+                                typename ClusterPolicyType::SettingsType s;
+                                s.numberOfNodesStop = numberOfNodesStop;
+                                s.bincount = bincount;
+                                s.threshold = threshold;
+                                s.ignore_label = (uint64_t) ignore_label;
+                                s.constrained = constrained;
+                                s.computeLossData = computeLossData;
+                                s.verbose = verbose;
+                                auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes,
+                                                                 nodeSizes, GTlabels, s);
+                                return ptr;
+                            },
+                            py::return_value_policy::take_ownership,
+                            py::keep_alive<0,1>(), // graph
+                            py::arg("graph"),
+//                          TODO: add contractedGraph, offset for time
+                            py::arg("edgeIndicators"),
+                            py::arg("edgeSizes"),
+                            py::arg("nodeSizes"),
+                            py::arg("GTlabels"),
+                            py::arg("threshold") = 0.5,
+                            py::arg("numberOfNodesStop") = 1,
+                            py::arg("bincount") = 40,
+                            py::arg("ignore_label") = -1,
+                            py::arg("constrained") = true,
+                            py::arg("computeLossData") = true,
+                            py::arg("verbose") = false
+            );
+
+            // export the agglomerative clustering functionality for this cluster operator
+            exportAgglomerativeClusteringTClusterPolicy<ClusterPolicyType>(aggloModule, clusterPolicyBaseName);
+        }
+    }
 
 
     template<class GRAPH, bool WITH_UCM>
@@ -57,12 +225,12 @@ namespace agglo{
                     const PyViewFloat1 & nodeSizes,
                     const float threshold,
                     const uint64_t numberOfNodesStop,
-                    const float sizeRegularizer,
+                    const int bincount,
                     const bool verbose
                 ){
                     typename ClusterPolicyType::SettingsType s;
                     s.numberOfNodesStop = numberOfNodesStop;
-                    s.sizeRegularizer = sizeRegularizer;
+                    s.bincount = bincount;
                     s.threshold = threshold;
                     s.verbose = verbose;
                     auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes, nodeSizes, s);
@@ -76,7 +244,7 @@ namespace agglo{
                 py::arg("nodeSizes"),
                 py::arg("threshold") = 0.5,
                 py::arg("numberOfNodesStop") = 1,
-                py::arg("sizeRegularizer") = 0.5f,
+                py::arg("bincount") = 40,
                 py::arg("verbose") = false
             );
 
@@ -267,12 +435,17 @@ namespace agglo{
 
 
     void exportAgglomerativeClustering(py::module & aggloModule) {
+        typedef PyUndirectedGraph UndirectedGraphType;
+        typedef PyContractionGraph<PyUndirectedGraph> ContractionGraphType;
         {
             typedef PyUndirectedGraph GraphType;
 
         
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
+
+            exportConstrainedPolicy<GraphType, ContractionGraphType, false>(aggloModule);
+            exportConstrainedPolicy<GraphType, ContractionGraphType, true>(aggloModule);
 
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
@@ -289,6 +462,9 @@ namespace agglo{
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
 
+            exportConstrainedPolicy<GraphType, ContractionGraphType, false>(aggloModule);
+            exportConstrainedPolicy<GraphType, ContractionGraphType, true>(aggloModule);
+
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
@@ -303,6 +479,9 @@ namespace agglo{
 
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
+
+            exportConstrainedPolicy<GraphType, ContractionGraphType, false>(aggloModule);
+            exportConstrainedPolicy<GraphType, ContractionGraphType, true>(aggloModule);
 
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);

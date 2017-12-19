@@ -6,77 +6,22 @@
 namespace nifty{
 namespace histogram{
 
-    template<class HISTOGRAM, class RANK_ITER, class OUT_ITER>
-    void quantiles(
-        const HISTOGRAM & histogram,
-        RANK_ITER ranksBegin,
-        RANK_ITER ranksEnd,
-        OUT_ITER outIter
-    ){
-
-        const auto nQuantiles = std::distance(ranksBegin, ranksEnd);
-        const auto s = histogram.sum();
-
-        //std::cout<<"nQuantiles "<<nQuantiles<<"\n";
-        double csum = 0.0;
-        auto qi = 0;
-        for(auto bin=0; bin<histogram.numberOfBins(); ++bin){
-            const double newcsum = csum  + histogram[bin];
-            const auto  quant = ranksBegin[qi] * s;
-            //std::cout<<"BIN "<<bin<<"\n";
-            //std::cout<<"    qi "<<qi<<" quant "<<quant<<"\n";
-            //std::cout<<"    csum "<<csum<<" newcsum "<<newcsum<<"\n";
-            while(qi < nQuantiles && csum <= quant && newcsum >= quant ){
-                if(bin == 0 ){
-                    outIter[qi] = histogram.binToValue(0.0);
-                }
-                // linear interpolate the bin index    
-                else{
-                    //std::cout<<"        foundBIN\n";
-                    const auto lbin  = double(bin-1) + histogram.binWidth()/2.0;
-                    const auto hbin =  double(bin) + histogram.binWidth()/2.0;
-                    const auto m = histogram[bin];
-                    const auto c = csum - lbin*m;
-
-                    //std::cout<<"        computed bin "<<(quant - c)/m<<"\n";
-
-                    outIter[qi] = histogram.binToValue((quant - c)/m);
-                }
-                ++qi;
-            }
-            if(qi>=nQuantiles)
-                break;
-            csum = newcsum;
-        }
-    }
 
     template<class T, class BINCOUNT=float>
     class Histogram{
     public:
         typedef BINCOUNT BincountType;
         Histogram(
-            const T minVal = 0, 
-            const T maxVal = 1,
-            const size_t bincount = 40
+            const T minVal=0, 
+            const T maxVal=1,
+            const size_t bincount=40
         )
-        :   counts_(bincount),
+        :   counts_(bincount,0),
             minVal_(minVal),
             maxVal_(maxVal),
             binWidth_((maxVal-minVal)/T(bincount)),
             sum_(0)
         {
-        }
-
-        void assign(
-            const T minVal = 0, 
-            const T maxVal = 1,
-            const size_t bincount = 40
-        ){
-            counts_.resize(bincount);
-            minVal_ = minVal;
-            maxVal_ = maxVal;
-            binWidth_ = ((maxVal-minVal)/T(bincount)),
-            sum_ = 0 ;
         }
         template<class ITER>
         void clearSetMinMaxAndFillFrom(
@@ -115,18 +60,7 @@ namespace histogram{
             return sum_;
         }
 
-        // operator =(const Histogram & other){
-        //     if(this != &other){
 
-        //         counts_ = other.counts_;
-        //         minVal_ = other.minVal_;
-        //         maxVal_ = other.maxVal_;
-        //         binWidth_ = other.binB
-        //         sum_
-
-        //     }
-        //     return *this;
-        // }
 
         // insert     
         void insert(const T & value, const double w = 1.0){
@@ -170,17 +104,15 @@ namespace histogram{
             return binWidth_;
         }
 
+        /// \warning this function has undefined behavior
+        /// if bins and limits do not match
         void merge(const Histogram & other){
-            for(auto i=0; i<counts_.size(); ++i){
-                counts_[i] += other.counts_[i];
+            for(auto b=0; b<counts_.size(); ++b){
+                counts_[b] += other.counts_[b];
             }
             sum_ += other.sum_;
         }
-        double rank(const double q)const{
-            double ret;
-            quantiles(*this,&q,&q+1, &ret);
-            return ret;
-        }
+
     private:
 
         double fbinToValue(double fbin)const{
@@ -208,6 +140,8 @@ namespace histogram{
             return val*float(this->numberOfBins()-1);
         }
 
+
+
         std::vector<BincountType> counts_;
         T minVal_;
         T maxVal_;
@@ -216,6 +150,49 @@ namespace histogram{
     };
 
 
+    template<class HISTOGRAM, class RANK_ITER, class OUT_ITER>
+    void quantiles(
+        const HISTOGRAM & histogram,
+        RANK_ITER ranksBegin,
+        RANK_ITER ranksEnd,
+        OUT_ITER outIter
+    ){
+
+        const auto nQuantiles = std::distance(ranksBegin, ranksEnd);
+        const auto s = histogram.sum();
+
+        //std::cout<<"nQuantiles "<<nQuantiles<<"\n";
+        double csum = 0.0;
+        auto qi = 0;
+        for(auto bin=0; bin<histogram.numberOfBins(); ++bin){
+            const double newcsum = csum  + histogram[bin];
+            const auto  quant = ranksBegin[qi] * s;
+            //std::cout<<"BIN "<<bin<<"\n";
+            //std::cout<<"    qi "<<qi<<" quant "<<quant<<"\n";
+            //std::cout<<"    csum "<<csum<<" newcsum "<<newcsum<<"\n";
+            while(qi < nQuantiles && csum <= quant && newcsum >= quant ){
+                if(bin == 0 ){
+                    outIter[qi] = histogram.binToValue(0.0);
+                }
+                // linear interpolate the bin index    
+                else{
+                    //std::cout<<"        foundBIN\n";
+                    const auto lbin  = double(bin-1) + histogram.binWidth()/2.0;
+                    const auto hbin =  double(bin) + histogram.binWidth()/2.0;
+                    const auto m = histogram[bin];
+                    const auto c = csum - lbin*m;
+
+                    //std::cout<<"        computed bin "<<(quant - c)/m<<"\n";
+
+                    outIter[qi] = histogram.binToValue((quant - c)/m);
+                }
+                ++qi;
+            }
+            if(qi>=nQuantiles)
+                break;
+            csum = newcsum;
+        }
+    }
 
 
     

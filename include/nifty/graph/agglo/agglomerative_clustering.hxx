@@ -55,6 +55,8 @@ public:
         const auto & graph = cgraph.graph();
         for(const auto edge: graph.edges()){
             mergeTimes[edge] = graph.numberOfNodes();
+            // TODO: bad, find better way to initialize this..
+            dendrogramHeight[edge] = -1.;
         }
         auto t=-0;
         while(!clusterPolicy_.isDone()){
@@ -66,12 +68,13 @@ public:
             const auto edgeToContractNext = edgeToContractNextAndPriority.first;
             const auto priority = edgeToContractNextAndPriority.second;
             dendrogramHeight[edgeToContractNext] = priority;
-            mergeTimes[edgeToContractNext] = edgeToContractNext;
+            mergeTimes[edgeToContractNext] = t;
             if(verbose){
                 const auto & cgraph = clusterPolicy_.edgeContractionGraph();
                 std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
             }
             clusterPolicy_.edgeContractionGraph().contractEdge(edgeToContractNext);
+            ++t;
         }
         this->ucmTransform(mergeTimes);
         this->ucmTransform(dendrogramHeight);
@@ -97,12 +100,13 @@ public:
             const auto edgeToContractNextAndPriority = clusterPolicy_.edgeToContractNext();
             const auto edgeToContractNext = edgeToContractNextAndPriority.first;
             const auto priority = edgeToContractNextAndPriority.second;
-            mergeTimes[edgeToContractNext] = edgeToContractNext;
+            mergeTimes[edgeToContractNext] = t;
             if(verbose){
                 const auto & cgraph = clusterPolicy_.edgeContractionGraph();
                 std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
             }
             clusterPolicy_.edgeContractionGraph().contractEdge(edgeToContractNext);
+            ++t;
         }
         this->ucmTransform(mergeTimes);
     }
@@ -150,7 +154,7 @@ public:
 
     }
 
-    
+
 
     const GraphType & graph()const{
         return clusterPolicy_.edgeContractionGraph().graph();
