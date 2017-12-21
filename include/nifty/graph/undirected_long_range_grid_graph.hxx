@@ -257,8 +257,40 @@ namespace graph{
 
 
         template<class D>
-        auto edgeValues(
+        auto nodeValues(
             const xt::xexpression<D> & valuesExpression
+        )const {
+
+            typedef typename D::value_type value_type;
+            const auto &values = valuesExpression.derived_cast();
+
+            for (auto d = 0; d < DIM; ++d) {
+                NIFTY_CHECK_OP(shape_[d], == , values.shape()[d], "input has wrong shape");
+            }
+
+
+            typename xt::xtensor<value_type, 1>::shape_type retshape;
+            retshape[0] = this->numberOfNodes();
+            xt::xtensor<value_type, 1> ret(retshape);
+
+
+            nifty::tools::forEachCoordinate(shape_, [&](const auto &coordP) {
+                const auto u = this->coordianteToNode(coordP);
+                if (DIM == 2) {
+                    const auto val = values(coordP[0], coordP[1]);
+                    ret[u] = val;
+                } else {
+                    const auto val = values(coordP[0], coordP[1], coordP[2]);
+                    ret[u] = val;
+                }
+            });
+
+            return ret;
+        }
+
+        template<class D>
+        auto edgeValues(
+                const xt::xexpression<D> & valuesExpression
         )const{
 
             typedef typename D::value_type value_type;
@@ -298,7 +330,66 @@ namespace graph{
                 }
                 ++u;
             });
-            
+
+        return ret;
+
+        }
+
+        auto mapEdgesIDToImage(
+        )const{
+            typename xt::xtensor<uint64_t, DIM+1>::shape_type retshape;
+            for(auto d=0; d<DIM; ++d){
+                retshape[d] = shape_[d];
+            }
+            retshape[DIM] = offsets_.size();
+            xt::xtensor<uint64_t, DIM+1> ret(retshape);
+
+
+            uint64_t u = 0;
+            nifty::tools::forEachCoordinate( shape_,[&](const auto & coordP){
+                auto offsetIndex = 0;
+                for(const auto & offset : offsets_){
+                    const auto coordQ = offset + coordP;
+                    if(coordQ.allInsideShape(shape_)){
+
+                        const auto v = this->coordianteToNode(coordQ);
+                        const auto e = this->findEdge(u,v);
+
+                        if(DIM == 2){
+                            ret[coordP[0],coordP[1], offsetIndex] = e;
+                        }
+                        else{
+                            ret[coordP[0],coordP[1],coordP[2],offsetIndex] = e;
+                        }
+                    }
+                    ++offsetIndex;
+                }
+                ++u;
+            });
+
+            return ret;
+
+        }
+
+        auto mapNodesIDToImage(
+        )const{
+            typename xt::xtensor<uint64_t, DIM>::shape_type retshape;
+            for(auto d=0; d<DIM; ++d){
+                retshape[d] = shape_[d];
+            }
+            xt::xtensor<uint64_t, DIM> ret(retshape);
+
+
+            nifty::tools::forEachCoordinate( shape_,[&](const auto & coordP){
+                const auto u = this->coordianteToNode(coordP);
+                if(DIM == 2){
+                    ret[coordP[0],coordP[1]] = u;
+                }
+                else{
+                    ret[coordP[0],coordP[1],coordP[2]] = u;
+                }
+            });
+
             return ret;
 
         }

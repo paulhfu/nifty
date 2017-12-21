@@ -86,7 +86,22 @@ namespace graph{
         ){
             return g.edgeValues(nodeFeatures);
         })
-
+        .def("nodeValues", [](
+                const GraphType & g,
+                xt::pytensor<float, DIM> nodeFeatures
+        ){
+            return g.nodeValues(nodeFeatures);
+        })
+        .def("mapEdgesIDToImage", [](
+                const GraphType & g
+        ){
+            return g.mapEdgesIDToImage();
+        })
+        .def("mapNodesIDToImage", [](
+                const GraphType & g
+        ){
+            return g.mapNodesIDToImage();
+        })
         .def("edgeOffsetIndex", [](const GraphType & g){
             return g.edgeOffsetIndex();
         })
