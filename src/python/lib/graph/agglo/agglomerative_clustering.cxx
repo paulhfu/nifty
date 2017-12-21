@@ -72,6 +72,7 @@ namespace agglo{
                              typedef nifty::marray::PyView<float> marrayFloat;
                              marrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
                              marrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
+                             marrayFloat nodeGTLabels({size_t(graph.nodeIdUpperBound()+1)});
                              marrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
                              marrayFloat edgeIndicators({size_t(graph.edgeIdUpperBound()+1)});
                              marrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
@@ -80,11 +81,11 @@ namespace agglo{
                              marrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
                              {
                                  py::gil_scoped_release allowThreds;
-                                 self->collectDataMilestep(nodeSizes,nodeLabels,edgeSizes,edgeIndicators,
+                                 self->collectDataMilestep(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,edgeIndicators,
                                     dendHeigh,mergeTimes,lossTargets,lossWeights);
                              }
-                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,
-                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,nodeLabels,edgeSizes,edgeIndicators,
+                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,
+                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,edgeIndicators,
                                                                           dendHeigh,mergeTimes,lossTargets,lossWeights);
                          }
                     )

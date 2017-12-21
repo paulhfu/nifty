@@ -93,6 +93,7 @@ public:
 
     template<class NODE_SIZES,
             class NODE_LABELS,
+            class NODE_GT_LABELS,
             class EDGE_SIZES,
             class EDGE_INDICATORS,
             class DEND_HIGH,
@@ -102,6 +103,7 @@ public:
     void collectDataMilestep(
             NODE_SIZES        & ,
             NODE_LABELS        & ,
+            NODE_GT_LABELS        & ,
             EDGE_SIZES        & ,
             EDGE_INDICATORS   & ,
             DEND_HIGH         & ,
@@ -521,6 +523,7 @@ isDone() {
 template<class GRAPH, bool ENABLE_UCM>
 template<class NODE_SIZES,
         class NODE_LABELS,
+        class NODE_GT_LABELS,
         class EDGE_SIZES,
         class EDGE_INDICATORS,
         class DEND_HIGH,
@@ -532,6 +535,7 @@ ConstrainedPolicy<GRAPH, ENABLE_UCM>::
 collectDataMilestep(
     NODE_SIZES        & nodeSizes,
     NODE_LABELS        & nodeLabels,
+    NODE_GT_LABELS      & nodeGTLabels,
     EDGE_SIZES        & edgeSizes,
     EDGE_INDICATORS   & edgeIndicators,
     DEND_HIGH         & dendHeigh,
@@ -542,14 +546,15 @@ collectDataMilestep(
     for(const auto edge : graph_.edges()){
         const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
         dendHeigh[edge] = dendHeigh_[cEdge];
-        mergeTimes[edge] = mergeTimes_[cEdge];
         lossTargets[edge] = loss_targets_[cEdge];
         lossWeights[edge] = loss_weights_[cEdge];
         // Map size and indicators only to alive edges:
         if (flagAliveEdges_[cEdge]) {
+            mergeTimes[edge] = mergeTimes_[cEdge];
             edgeSizes[edge]     = edgeSizes_[cEdge];
             edgeIndicators[edge] = edgeIndicators_[cEdge];
         } else {
+            mergeTimes[edge] = -1.0;
             edgeSizes[edge]     = -1.0;
             edgeIndicators[edge] = -1.0;
         }
@@ -559,6 +564,7 @@ collectDataMilestep(
         const auto cNode = edgeContractionGraph_.findRepresentativeNode(node);
         nodeSizes[node] = nodeSizes_[cNode];
         nodeLabels[node] = (float) cNode;
+        nodeGTLabels[node] = (float) GTlabels_[cNode];
     }
 }
 
