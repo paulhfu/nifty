@@ -337,12 +337,12 @@ namespace graph{
 
         auto mapEdgesIDToImage(
         )const{
-            typename xt::xtensor<uint64_t, DIM+1>::shape_type retshape;
+            typename xt::xtensor<int64_t, DIM+1>::shape_type retshape;
             for(auto d=0; d<DIM; ++d){
                 retshape[d] = shape_[d];
             }
             retshape[DIM] = offsets_.size();
-            xt::xtensor<uint64_t, DIM+1> ret(retshape);
+            xt::xtensor<int64_t, DIM+1> ret(retshape);
 
 
             uint64_t u = 0;
@@ -350,17 +350,17 @@ namespace graph{
                 auto offsetIndex = 0;
                 for(const auto & offset : offsets_){
                     const auto coordQ = offset + coordP;
+                    int64_t e = -1;
                     if(coordQ.allInsideShape(shape_)){
-
                         const auto v = this->coordianteToNode(coordQ);
-                        const auto e = this->findEdge(u,v);
+                        e = this->findEdge(u,v);
+                    }
 
-                        if(DIM == 2){
-                            ret[coordP[0],coordP[1], offsetIndex] = e;
-                        }
-                        else{
-                            ret[coordP[0],coordP[1],coordP[2],offsetIndex] = e;
-                        }
+                    if(DIM == 2){
+                        ret(coordP[0],coordP[1], offsetIndex) = e;
+                    }
+                    else{
+                        ret(coordP[0],coordP[1],coordP[2],offsetIndex) = e;
                     }
                     ++offsetIndex;
                 }
@@ -383,10 +383,10 @@ namespace graph{
             nifty::tools::forEachCoordinate( shape_,[&](const auto & coordP){
                 const auto u = this->coordianteToNode(coordP);
                 if(DIM == 2){
-                    ret[coordP[0],coordP[1]] = u;
+                    ret(coordP[0],coordP[1]) = u;
                 }
                 else{
-                    ret[coordP[0],coordP[1],coordP[2]] = u;
+                    ret(coordP[0],coordP[1],coordP[2]) = u;
                 }
             });
 
