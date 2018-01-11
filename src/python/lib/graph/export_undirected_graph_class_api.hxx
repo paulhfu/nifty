@@ -4,7 +4,6 @@
 
 
 #include <vector>
-
 #include "boost/format.hpp"
 
 #include <pybind11/pybind11.h>
@@ -258,8 +257,13 @@ namespace graph{
                 g.forEachNode([&](const uint64_t sourceNode){
                     bfs.graphNeighbourhood(sourceNode, maxDistance,
 
-                        [&](const uint64_t targetNode, const uint64_t ){
-                            pairs.emplace_back(sourceNode, targetNode);
+                        [&](const uint64_t targetNode, const uint64_t distance){
+//                            const std::pair<uint64_t, uint64_t> newPair (targetNode, sourceNode);
+//                            pairs.push_back(newPair);
+                            const auto edge = g.findEdge(sourceNode, targetNode);
+                            // Detect only not-existing edges:
+                            if (edge<0)
+                                pairs.emplace_back(targetNode, sourceNode);
                         }
                     );
                 });
@@ -270,6 +274,7 @@ namespace graph{
                 for(const auto & uv : pairs){
                     out(c,0) = uv.first;
                     out(c,1) = uv.second;
+                    c++;
                 }
                 return out;
 
