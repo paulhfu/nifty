@@ -550,11 +550,11 @@ collectDataMilestep(
         lossWeights[edge] = loss_weights_[cEdge];
         // Map size and indicators only to alive edges:
         if (flagAliveEdges_[cEdge]) {
-            mergeTimes[edge] = mergeTimes_[cEdge];
-            edgeSizes[edge]     = edgeSizes_[cEdge];
+            mergeTimes[edge] = -1.0;
+            edgeSizes[edge] = edgeSizes_[cEdge];
             edgeIndicators[edge] = edgeIndicators_[cEdge];
         } else {
-            mergeTimes[edge] = -1.0;
+            mergeTimes[edge] = mergeTimes_[cEdge];
             edgeSizes[edge]     = -1.0;
             edgeIndicators[edge] = -1.0;
         }

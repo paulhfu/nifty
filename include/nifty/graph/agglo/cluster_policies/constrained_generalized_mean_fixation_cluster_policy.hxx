@@ -242,7 +242,6 @@ private:
     NodeSizesType       nodeSizes_;
     EdgeFlagType        flagAliveEdges_;
     BacktrackEdgesType  backtrackEdges_;
-    EdgeIndicatorsType  weightedSum_; // Used for the average
 
     MergeTimesType      mergeTimes_;
     EdgeIndicatorsType  dendHeigh_;
@@ -301,7 +300,6 @@ ConstrainedGeneralizedMeanFixationClusterPolicy(
     edgeSizes_(graph),
     nodeSizes_(graph),
     mergeTimes_(graph, graph_.numberOfNodes()),
-    weightedSum_(graph),
     flagAliveEdges_(graph, true),
     // TODO: bad, find better way to initialize this..
     dendHeigh_(graph, -1.),
@@ -422,7 +420,6 @@ updateEdgeIndicators(const MERGE_PRIOS & newMergePrios,
 
         mergePrios_[edge] = -1.;
         notMergePrios_[edge] = -1.;
-        weightedSum_[edge] = 0.;
 
         // Insert updated values in histogram and PQ (only for alive representative edges):
         if (flagAliveEdges_[edge]) {  // && !reprEdgesBoolMap[reprEdge]
@@ -524,6 +521,7 @@ isDone() {
 
         // Set infinite cost in PQ:
         pq_.push(edgeToContractNext, -1.0);
+        mergePrios_[edgeToContractNext] = - 1.0;
 
         if (! this->edgeInvolvesIgnoredNodes(edgeToContractNext)) {
             // Remember about wrong step:
@@ -537,7 +535,7 @@ isDone() {
                     loss_targets_[edge] = -1.; // We should not merge (and we would have)
                     loss_weights_[edge] = 1.;
                 }
-//            std::cout << "Moving to next edge in PQ";
+//                std::cout << "Moving to next edge in PQ";
             }
             ++nb_wrong_mergers_;
         }
@@ -580,11 +578,11 @@ collectDataMilestep(
         lossWeights[edge] = loss_weights_[cEdge];
         // Map size and indicators only to alive edges:
         if (flagAliveEdges_[cEdge]) {
-            mergeTimes[edge] = mergeTimes_[cEdge];
             edgeSizes[edge]     = edgeSizes_[cEdge];
             mergePrios[edge] = mergePrios_[cEdge];
-        } else {
             mergeTimes[edge] = -1.0;
+        } else {
+            mergeTimes[edge] = mergeTimes_[cEdge];
             edgeSizes[edge]     = -1.0;
             mergePrios[edge] = -1.0;
         }
