@@ -54,7 +54,7 @@ namespace graph{
             const auto & labels = rag.labelsProxy().labels();
             const auto & shape = rag.labelsProxy().shape();
 
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+            typedef nifty::marray::PyView<DATA_T, 1> NumpyArrayType;
             typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
 
             NumpyArrayType accAff({uint64_t(rag.edgeIdUpperBound()+1)});
@@ -62,8 +62,8 @@ namespace graph{
             // std::vector<size_t> counter(uint64_t(rag.edgeIdUpperBound()+1), 0);
             NumpyArrayType counter({uint64_t(rag.edgeIdUpperBound()+1)});
 
-            std::fill(accAff.begin(), accAff.end(), 0);
-            std::fill(counter.begin(), counter.end(), 0);
+            std::fill(accAff.begin(), accAff.end(), 0.);
+            std::fill(counter.begin(), counter.end(), 0.);
 
 
             for(auto x=0; x<shape[0]; ++x){
@@ -87,9 +87,9 @@ namespace graph{
                                     if(u != v){
                                         const auto edge = rag.findEdge(u,v);
                                         if(edge >=0 ){
-                                            counter[edge] += 1.;
-                                            // accAff[edge] = 0.;
-                                            accAff[edge] += affinities(x,y,z,i);
+                                            counter(edge) = counter(edge) + 1.;
+                                            // accAff(edge) = 0.;
+                                            accAff(edge) = accAff(edge) + affinities(x,y,z,i);
                                         }
                                     }
                                 }
@@ -105,14 +105,14 @@ namespace graph{
                             const auto xx = ox +x ;
                             const auto yy = oy +y ;
 
-                            if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1]){
+                            if (xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1]) {
                                 const auto v = labels(xx,yy);
                                 if(u != v){
                                     const auto edge = rag.findEdge(u,v);
                                     if(edge >=0 ){
-                                        counter[edge] +=1.;
-                                        // accAff[edge] = 0.;
-                                        accAff[edge] += affinities(x,y,i);
+                                        counter(edge) +=1.;
+                                        // accAff(edge) = 0.;
+                                        accAff(edge) += affinities(x,y,i);
                                     }
                                 }
                             }
@@ -121,10 +121,12 @@ namespace graph{
                 }
             }
 
+             std::cout << "Tick DONE";
+
             // Normalize:
             for(auto i=0; i<uint64_t(rag.edgeIdUpperBound()+1); ++i){
-                if(counter[i]!=0){
-                    accAff[i] /= counter[i];
+                if(counter(i)>0.5){
+                    accAff(i) = accAff(i) / counter(i);
                 }
             }
             return OutType(accAff, counter);;
@@ -183,8 +185,8 @@ namespace graph{
                                         const auto edge = rag.findEdge(u,v);
                                         if(edge >=0 ){
                                             const auto cEdge = contrGraph.findRepresentativeEdge(edge);
-                                            counter[cEdge] += 1.;
-                                            accAff[cEdge] += affinities(x,y,z,i);
+                                            counter(cEdge) += 1.;
+                                            accAff(cEdge) += affinities(x,y,z,i);
                                         }
                                     }
                                 }
@@ -206,8 +208,8 @@ namespace graph{
                                     const auto edge = rag.findEdge(u,v);
                                     if(edge >=0 ){
                                         const auto cEdge = contrGraph.findRepresentativeEdge(edge);
-                                        counter[cEdge] +=1.;
-                                        accAff[cEdge] += affinities(x,y,i);
+                                        counter(cEdge) +=1.;
+                                        accAff(cEdge) += affinities(x,y,i);
                                     }
                                 }
                             }
@@ -218,8 +220,8 @@ namespace graph{
 
             // Normalize:
             for(auto i=0; i<uint64_t(rag.edgeIdUpperBound()+1); ++i){
-                if(counter[i]!=0){
-                    accAff[i] /= counter[i];
+                if(counter(i)>0.5){
+                    accAff(i) /= counter(i);
                 }
             }
             return OutType(accAff, counter);;
@@ -229,6 +231,109 @@ namespace graph{
         py::arg("contrGraph"),
         py::arg("affinities"),
         py::arg("offsets")
+        );
+    }
+
+
+    template<std::size_t DIM, class GRAPH, class DATA_T>
+    void exportAccumulateAffinitiesMeanAndLength(
+            py::module & ragModule
+    ) {
+        ragModule.def("accumulateAffinitiesMeanAndLength",
+                      [](
+                              const GRAPH &graph,
+                              nifty::marray::PyView<int, DIM> labels,
+                              nifty::marray::PyView<int, 1> shape,
+                              nifty::marray::PyView<DATA_T, DIM + 1> affinities,
+                              nifty::marray::PyView<int, 2> offsets
+                      ) {
+
+
+//                          const auto &labels = graph.labelsProxy().labels();
+//                          const auto &shape = graph.labelsProxy().shape();
+
+                          typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+                          typedef std::pair <NumpyArrayType, NumpyArrayType> OutType;
+
+                          NumpyArrayType accAff({uint64_t(graph.edgeIdUpperBound() + 1)});
+
+                          // std::vector<size_t> counter(uint64_t(graph.edgeIdUpperBound()+1), 0);
+                          NumpyArrayType counter({uint64_t(graph.edgeIdUpperBound() + 1)});
+
+                          std::fill(accAff.begin(), accAff.end(), 0);
+                          std::fill(counter.begin(), counter.end(), 0);
+
+
+                          for (auto x = 0; x < shape(0); ++x) {
+                              for (auto y = 0; y < shape(1); ++y) {
+                                  if (DIM == 3) {
+                                      for (auto z = 0; z < shape(2); ++z) {
+
+                                          const auto u = labels(x, y, z);
+
+                                          for (auto i = 0; i < offsets.shape(0); ++i) {
+                                              const auto ox = offsets(i, 0);
+                                              const auto oy = offsets(i, 1);
+                                              const auto oz = offsets(i, 2);
+                                              const auto xx = ox + x;
+                                              const auto yy = oy + y;
+                                              const auto zz = oz + z;
+
+
+                                              if (xx >= 0 && xx < shape(0) && yy >= 0 && yy < shape(1) && zz >= 0 &&
+                                                  zz < shape(2)) {
+                                                  const auto v = labels(xx, yy, zz);
+                                                  if (u != v) {
+                                                      const auto edge = graph.findEdge(u, v);
+                                                      if (edge >= 0) {
+                                                          counter(edge) += 1.;
+                                                          // accAff(edge) = 0.;
+                                                          accAff(edge) += affinities(x, y, z, i);
+                                                      }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  } else if (DIM == 2) {
+                                      const auto u = labels(x, y);
+
+                                      for (auto i = 0; i < offsets.shape(0); ++i) {
+                                          const auto ox = offsets(i, 0);
+                                          const auto oy = offsets(i, 1);
+
+                                          const auto xx = ox + x;
+                                          const auto yy = oy + y;
+
+                                          if (xx >= 0 && xx < shape(0) && yy >= 0 && yy < shape(1)) {
+                                              const auto v = labels(xx, yy);
+                                              if (u != v) {
+                                                  const auto edge = graph.findEdge(u, v);
+                                                  if (edge >= 0) {
+                                                      counter(edge) += 1.;
+                                                      // accAff(edge) = 0.;
+                                                      accAff(edge) += affinities(x, y, i);
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+
+                          // Normalize:
+                          for (auto i = 0; i < uint64_t(graph.edgeIdUpperBound() + 1); ++i) {
+                              if (counter(i)>0.5) {
+                                  accAff(i) /= counter(i);
+                              }
+                          }
+                          return OutType(accAff, counter);;
+
+                      },
+                      py::arg("graph"),
+                      py::arg("labels"),
+                      py::arg("imageShape"),
+                      py::arg("affinities"),
+                      py::arg("offsets")
         );
     }
 
@@ -571,6 +676,78 @@ namespace graph{
         );
     }
 
+
+    template<std::size_t DIM, class GRAPH, class DATA_T>
+    void exportBoundaryMaskLongRange(
+            py::module & ragModule
+    ){
+        ragModule.def("boundaryMaskLongRange",
+                      [](
+                              const GRAPH & graph,
+                              nifty::marray::PyView<int, DIM> labels,
+                              nifty::marray::PyView<int, 1> shape,
+                              nifty::marray::PyView<int, 2>      offsets,
+                              const bool exportBoundIds
+                      ){
+                          typedef nifty::marray::PyView<int, DIM+1> NumpyArrayInt;
+                          typedef std::pair<NumpyArrayInt, NumpyArrayInt>  OutType;
+
+
+                          std::array<int,DIM+1> new_shape;
+                          std::copy(shape.begin(), shape.end(), new_shape.begin());
+                          new_shape.back() = offsets.shape(0);
+
+                          NumpyArrayInt boundMask(new_shape.begin(), new_shape.end());
+                          NumpyArrayInt boundMaskIDs(new_shape.begin(), new_shape.end());
+
+                          std::fill(boundMask.begin(), boundMask.end(), 0);
+                          std::fill(boundMaskIDs.begin(), boundMaskIDs.end(), -1);
+
+
+
+                          for(auto x=0; x<shape[0]; ++x){
+                              for(auto y=0; y<shape[1]; ++y){
+                                  if (DIM==3){
+                                      for(auto z=0; z<shape[2]; ++z){
+
+                                          const auto u = labels(x,y,z);
+
+                                          for(auto i=0; i<offsets.shape(0); ++i){
+                                              const auto ox = offsets(i, 0);
+                                              const auto oy = offsets(i, 1);
+                                              const auto oz = offsets(i, 2);
+                                              const auto xx = ox +x ;
+                                              const auto yy = oy +y ;
+                                              const auto zz = oz +z ;
+
+
+                                              if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1] && zz >=0 && zz<shape[2]){
+                                                  const auto v = labels(xx,yy,zz);
+                                                  if(u != v){
+                                                      const auto edge = graph.findEdge(u,v);
+                                                      if(edge >=0 ){
+                                                          boundMask(x,y,z,i) = 1;
+                                                          if (exportBoundIds==1) {
+                                                              boundMaskIDs(x,y,z,i) = edge;
+                                                          }
+                                                      }
+                                                  }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                          return OutType(boundMask, boundMaskIDs);;
+
+                      },
+                      py::arg("graph"),
+                      py::arg("labels"),
+                      py::arg("imageShape"),
+                      py::arg("offsets"),
+                      py::arg_t<bool>("exportBoundIds",true)
+        );
+    }
 
 
     template<std::size_t DIM, class DATA_T>
@@ -947,6 +1124,7 @@ namespace graph{
 
             exportAccumulateAffinitiesMeanAndLength<2, Rag2d, ContractionGraphType, float>(ragModule);
             exportAccumulateAffinitiesMeanAndLength<3, Rag3d, ContractionGraphType, float>(ragModule);
+            exportAccumulateAffinitiesMeanAndLength<3, GraphType, float>(ragModule);
 
 
             exportMapFeaturesToBoundaries<2, Rag2d, ContractionGraphType, float>(ragModule);
@@ -954,6 +1132,7 @@ namespace graph{
 
             // exportBoundaryMaskLongRange<2, Rag2d, ContractionGraphType, float>(ragModule);
             exportBoundaryMaskLongRange<3, Rag3d, ContractionGraphType, float>(ragModule);
+            exportBoundaryMaskLongRange<3, GraphType, float>(ragModule);
 
 
             exportMapFeaturesToLabelArray<2, float>(ragModule);
