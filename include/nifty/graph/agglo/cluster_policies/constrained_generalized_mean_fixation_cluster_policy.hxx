@@ -476,9 +476,8 @@ computeFinalTargets() {
             }
         }
 
-        std::cout << "FINAL STATS HC:\n";
-        std::cout << "Mergers: (+" << nb_correct_mergers_ << ", -" << nb_wrong_mergers_ << ")\n";
-        std::cout << "Final splits: (+" << nb_correct_splits_ << ", -" << nb_wrong_splits_ << ")\n";
+//        std::cout << "FINAL STATS HC:\n";
+        std::cout << "STATS: mergers: (+" << nb_correct_mergers_ << ", -" << nb_wrong_mergers_ << "; final splits: (+" << nb_correct_splits_ << ", -" << nb_wrong_splits_ << ")\n";
     }
 }
 
