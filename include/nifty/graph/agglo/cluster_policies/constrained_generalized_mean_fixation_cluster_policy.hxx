@@ -331,6 +331,7 @@ ConstrainedGeneralizedMeanFixationClusterPolicy(
             backtrackEdges_[edge].push_back(edge);
 
         const auto size = edgeSizes[edge];
+        NIFTY_CHECK(size>0.,"Size of an edge is zero!");
         edgeSizes_[edge] = size;
 
         // FIXME: what about average mean????
@@ -515,14 +516,16 @@ isDone() {
         // Check if GT is constraining the merge:
         const auto edgeToContractNext = nextActioneEdge;
 
-        if (! this->edgeIsConstrained(edgeToContractNext))
+        const auto edgeInvolvesIgnoredNodes = this->edgeInvolvesIgnoredNodes(edgeToContractNext);
+
+        if (! this->edgeIsConstrained(edgeToContractNext) || edgeInvolvesIgnoredNodes)
             return false;
 
         // Set infinite cost in PQ:
         pq_.push(edgeToContractNext, -1.0);
         mergePrios_[edgeToContractNext] = - 1.0;
 
-        if (! this->edgeInvolvesIgnoredNodes(edgeToContractNext)) {
+        if (! edgeInvolvesIgnoredNodes) {
             // Remember about wrong step:
             if (settings_.computeLossData) {
 //            loss_targets_[edgeToContractNext] = -1.; // We should not merge (and we would have)
@@ -746,6 +749,7 @@ mergeEdges(
     }
     else{
         if(settings_.updateRule0 == SettingsType::GENERALIZED_MEAN){
+//            std::cout<<"Is gen mean merge prio\n";
             mergePrios_[aliveEdge]    = generalized_mean(mergePrios_[aliveEdge],     mergePrios_[deadEdge],    sa, sd, settings_.p0);
         }
         else if(settings_.updateRule0 == SettingsType::SMOOTH_MAX){
@@ -765,10 +769,11 @@ mergeEdges(
         notMergePrios_[aliveEdge] = notMergePrios_[deadEdge];
     }
     else{
-        if(settings_.updateRule0 == SettingsType::GENERALIZED_MEAN){
+        if(settings_.updateRule1 == SettingsType::GENERALIZED_MEAN){
+//            std::cout<<"Is gen mean NOT merge prio\n";
             notMergePrios_[aliveEdge] = generalized_mean(notMergePrios_[aliveEdge] , notMergePrios_[deadEdge], sa, sd, settings_.p1);
         }
-        else if(settings_.updateRule0 == SettingsType::SMOOTH_MAX){
+        else if(settings_.updateRule1 == SettingsType::SMOOTH_MAX){
             notMergePrios_[aliveEdge] = smooth_max(notMergePrios_[aliveEdge] , notMergePrios_[deadEdge], sa, sd, settings_.p1);
         }
         else{

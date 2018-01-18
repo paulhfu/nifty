@@ -303,6 +303,7 @@ ConstrainedPolicy(
         // currently the value itself
         // is the median
         const auto size = edgeSizes[edge];
+        NIFTY_CHECK(size>0.,"Size of an edge is zero!");
         edgeSizes_[edge] = size;
 
         // put in histogram
