@@ -282,6 +282,8 @@ namespace agglo{
                                     const double p0,
                                     const double p1,
                                     const bool zeroInit,
+                                    const double weight_mistakes,
+                                    const double weight_successes,
                                     const PyViewFloat1 & edgeSizes,
                                     const PyViewFloat1 & nodeSizes,
                                     const PyViewInt1  & GTlabels,
@@ -297,6 +299,8 @@ namespace agglo{
                                 s.numberOfNodesStop = numberOfNodesStop;
                                 s.p0 = p0;
                                 s.p1 = p1;
+                                s.weight_successes = weight_successes;
+                                s.weight_mistakes = weight_mistakes;
                                 s.zeroInit = zeroInit;
                                 s.bincount = bincount;
                                 s.threshold = threshold;
@@ -315,6 +319,8 @@ namespace agglo{
                             py::arg("p0") = 1.0,
                             py::arg("p1") = 1.0,
                             py::arg("zeroInit") = false,
+                            py::arg("weight_mistakes") = 1.0,
+                            py::arg("weight_successes") = 1.0,
                             py::arg("edgeSizes"),
                             py::arg("nodeSizes"),
                             py::arg("GTlabels"),

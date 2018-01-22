@@ -69,6 +69,8 @@ public:
         bool zeroInit = false;
         double p0{1.0};
         double p1{1.0};
+        double weight_mistakes{1.0};
+        double weight_successes{1.0};
 
 
         float threshold{0.5};
@@ -460,19 +462,24 @@ computeFinalTargets() {
                 NIFTY_TEST_OP(edge,==,cEdge);
                 const auto edgeInvolvesIgnoredNodes = this->edgeInvolvesIgnoredNodes(cEdge);
                 if (! edgeInvolvesIgnoredNodes) {
-                    const auto isConstrained = this->edgeIsConstrained(cEdge);
-                    const auto target_value = (isConstrained) ? (-1.) : (1.);
+                    // Only if we did not assign a mistake yet:
+                    if (loss_weights_[cEdge]<0.0001) {
+                        const auto isConstrained = this->edgeIsConstrained(cEdge);
+                        const auto target_value = (isConstrained) ? (-1.) : (1.);
+                        const auto weight_value = (isConstrained) ? (settings_.weight_successes) : (settings_.weight_mistakes);
+    //                    const auto weight_value = 1.;
 
-                    for (auto it = backtrackEdges_[cEdge].begin(); it != backtrackEdges_[cEdge].end(); it++) {
-                        const auto subEdge = *it;
-                        loss_targets_[subEdge] = target_value;
-                        loss_weights_[subEdge] = 1.;
+                        for (auto it = backtrackEdges_[cEdge].begin(); it != backtrackEdges_[cEdge].end(); it++) {
+                            const auto subEdge = *it;
+                            loss_targets_[subEdge] = target_value;
+                            loss_weights_[subEdge] = weight_value;
+                        }
+
+                        if (isConstrained)
+                            ++nb_correct_splits_;
+                        else
+                            ++nb_wrong_splits_;
                     }
-
-                    if (isConstrained)
-                        ++nb_correct_splits_;
-                    else
-                        ++nb_wrong_splits_;
                 }
             }
         }
@@ -518,7 +525,9 @@ isDone() {
 
         const auto edgeInvolvesIgnoredNodes = this->edgeInvolvesIgnoredNodes(edgeToContractNext);
 
-        if (! this->edgeIsConstrained(edgeToContractNext) || edgeInvolvesIgnoredNodes)
+        // FIXME: TEMP modification to avoid spreading of ignore label (ok only for one iter)
+//        if (! this->edgeIsConstrained(edgeToContractNext) || edgeInvolvesIgnoredNodes)
+        if (! this->edgeIsConstrained(edgeToContractNext))
             return false;
 
         // Set infinite cost in PQ:
@@ -535,7 +544,7 @@ isDone() {
                     const auto edge = *it;
 //                std::cout << "Write mistake in " << edgeToContractNext << "to: " << edge << "\n";
                     loss_targets_[edge] = -1.; // We should not merge (and we would have)
-                    loss_weights_[edge] = 1.;
+                    loss_weights_[edge] = settings_.weight_mistakes;
                 }
 //                std::cout << "Moving to next edge in PQ";
             }
@@ -617,7 +626,7 @@ contractEdge(
         if (! edgeInvolvesIgnoredNodes) {
             // Remember about correct step:
             loss_targets_[edgeToContract] = 1.; // We should merge (and we did)
-            loss_weights_[edgeToContract] = 1.; // For the moment all equally weighted
+            loss_weights_[edgeToContract] = settings_.weight_successes; // For the moment all equally weighted
             ++nb_correct_mergers_;
         }
     }
