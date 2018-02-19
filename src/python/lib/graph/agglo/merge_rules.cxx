@@ -26,13 +26,19 @@ namespace agglo{
         ;
 
         py::class_<merge_rules::GeneralizedMeanSettings>(aggloModule, "GeneralizedMeanSettings")
+
+            // .def(
+            //     py::init([](double val) { return new merge_rules::GeneralizedMeanSettings(val); })
+            // )
+
             .def(py::init<double>(),
-                py::arg("p")=1.0
+               py::arg("p")=1.0
             )
             .def("__str__",[](const merge_rules::GeneralizedMeanSettings & self){
                 return self.name();
             })
         ;
+
 
 
         py::class_<merge_rules::SmoothMaxSettings>(aggloModule, "SmoothMaxSettings")
@@ -67,6 +73,7 @@ namespace agglo{
                 return self.name();
             })
         ;
+
     }
 
 } // end namespace agglo

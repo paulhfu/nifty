@@ -30,7 +30,7 @@ namespace histogram{
                 if(bin == 0 ){
                     outIter[qi] = histogram.binToValue(0.0);
                 }
-                // linear interpolate the bin index
+                // linear interpolate the bin index    
                 else{
                     //std::cout<<"        foundBIN\n";
                     const auto lbin  = double(bin-1) + histogram.binWidth()/2.0;
@@ -55,11 +55,11 @@ namespace histogram{
     public:
         typedef BINCOUNT BincountType;
         Histogram(
-            const T minVal = 0,
+            const T minVal = 0, 
             const T maxVal = 1,
             const size_t bincount = 40
         )
-        :   counts_(bincount),
+        :   counts_(bincount,0),
             minVal_(minVal),
             maxVal_(maxVal),
             binWidth_((maxVal-minVal)/T(bincount)),
@@ -68,7 +68,7 @@ namespace histogram{
         }
 
         void assign(
-            const T minVal = 0,
+            const T minVal = 0, 
             const T maxVal = 1,
             const size_t bincount = 40
         ){
@@ -187,6 +187,7 @@ namespace histogram{
             quantiles(*this,&q,&q+1, &ret);
             return ret;
         }
+
     private:
 
         double fbinToValue(double fbin)const{
@@ -220,7 +221,6 @@ namespace histogram{
         T binWidth_;
         BincountType sum_;
     };
-
 
 
 
