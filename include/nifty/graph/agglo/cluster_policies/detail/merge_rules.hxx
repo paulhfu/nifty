@@ -147,10 +147,10 @@ namespace merge_rules{
 
             if(std::isinf(p)){
                 if(p>0){
-                    weight = std::max(weight, oweight);
+                    value = std::max(value, ovalue);
                 }
                 else{
-                    weight = std::min(weight, oweight);
+                    value = std::min(value, ovalue);
                 }
             }
             else if((p > 1.0-eps) && (p < 1.0 + eps)){
@@ -243,10 +243,10 @@ namespace merge_rules{
 
             if(std::isinf(p)){
                 if(p>0){
-                    weight = std::max(weight, oweight);
+                    value = std::max(value, ovalue);
                 }
                 else{
-                    weight = std::min(weight, oweight);
+                    value = std::min(value, ovalue);
                 }
             }
             else if((p > 0.0-eps) && (p < 0.0 + eps)){

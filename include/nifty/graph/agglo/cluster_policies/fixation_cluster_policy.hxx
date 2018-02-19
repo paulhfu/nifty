@@ -162,15 +162,18 @@ FixationClusterPolicy(
 
         const auto loc = isLocalEdge[edge];
 
-        edgeState_[edge] = (loc ? EdgeStates::PURE_LOCAL : EdgeStates::PURE_LIFTED);
+
 
         if(settings_.zeroInit){
+            edgeState_[edge] = (loc ? EdgeStates::PURE_LOCAL : EdgeStates::PURE_LIFTED);
             if(loc){
                 acc1_.set(edge, 0.0, edgeSizes[edge]);
             }
             else{
                 acc0_.set(edge, 0.0, edgeSizes[edge]);
             }
+        } else {
+            edgeState_[edge] = (loc ? EdgeStates::LOCAL : EdgeStates::LIFTED);
         }
 
         pq_.push(edge, this->pqMergePrio(edge));
@@ -276,12 +279,14 @@ mergeEdges(
 
     if(settings_.zeroInit  && sa == EdgeStates::PURE_LIFTED &&  sd != EdgeStates::PURE_LIFTED)
         acc0_.setValueFrom(aliveEdge, deadEdge);
+    else if (settings_.zeroInit  && sa != EdgeStates::PURE_LIFTED &&  sd == EdgeStates::PURE_LIFTED) {}
     else
         acc0_.merge(aliveEdge, deadEdge);
 
     // update notMergePrio
     if(settings_.zeroInit  && sa == EdgeStates::PURE_LOCAL &&  sd !=  EdgeStates::PURE_LOCAL)
         acc1_.setValueFrom(aliveEdge, deadEdge);
+    else if(settings_.zeroInit  && sa != EdgeStates::PURE_LOCAL &&  sd ==  EdgeStates::PURE_LOCAL) {}
     else
         acc1_.merge(aliveEdge, deadEdge);
     
@@ -299,8 +304,8 @@ mergeEdges(
     ){
         sa = EdgeStates::LOCAL;
     }
-    else if(sa == EdgeStates::PURE_LIFTED ||  sa == EdgeStates::LIFTED  &&
-            sd == EdgeStates::PURE_LIFTED ||  sd == EdgeStates::LIFTED )
+    else if((sa == EdgeStates::PURE_LIFTED ||  sa == EdgeStates::LIFTED)  &&
+            (sd == EdgeStates::PURE_LIFTED ||  sd == EdgeStates::LIFTED) )
     {
         sa = EdgeStates::LIFTED;
     }

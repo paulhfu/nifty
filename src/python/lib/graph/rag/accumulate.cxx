@@ -284,6 +284,85 @@ namespace graph{
     }
 
 
+    template<std::size_t DIM, class DATA_T>
+    void exportMapFeaturesToLabelArray(
+            py::module & ragModule
+    ){
+        ragModule.def("mapFeaturesToLabelArray",
+                      [](
+                              nifty::marray::PyView<DATA_T, DIM> labelArray,
+                              nifty::marray::PyView<DATA_T, 2> featureArray,
+                              int ignoreLabel,
+                              float fillValue,
+                              const int numberOfThreads
+                      ){
+                          array::StaticArray<int64_t, DIM> shape;
+                          for(auto d=0; d<DIM; ++d){
+                              shape[d] = labelArray.shape(d);
+                          }
+
+                          typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+
+                          // std::cout << "Tick 0";
+
+                          std::array<int,DIM+1> shapeFeatureImage;
+                          std::copy(labelArray.shapeBegin(), labelArray.shapeEnd(), shapeFeatureImage.begin());
+                          shapeFeatureImage.back() = featureArray.shape(1);
+
+                          NumpyArrayType featureImage(shapeFeatureImage.begin(), shapeFeatureImage.end());
+
+                          std::fill(featureImage.begin(), featureImage.end(), fillValue);
+
+                          // std::cout << "Tick 1";
+                          {
+                              py::gil_scoped_release allowThreads;
+
+                              // Create thread pool:
+                              nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+                              nifty::parallel::ThreadPool threadpool(pOpts);
+                              const std::size_t actualNumberOfThreads = pOpts.getActualNumThreads();
+
+                              if(DIM == 3){
+                                  nifty::tools::parallelForEachCoordinate(threadpool,
+                                                                          shape,
+                                                                          [&](const auto threadId, const auto & coordP){
+                                                                              const auto label = labelArray(coordP[0],coordP[1],coordP[2]);
+                                                                              if (label!=ignoreLabel && label<featureArray.shape(0)) {
+                                                                                  for(auto f=0; f<featureArray.shape(1); ++f){
+                                                                                      featureImage(coordP[0],coordP[1],coordP[2],f) = featureArray(label,f);
+                                                                                  }
+                                                                              }
+                                                                          });
+                              } else if (DIM == 4) {
+                                  nifty::tools::parallelForEachCoordinate(threadpool,
+                                                                          shape,
+                                                                          [&](const auto threadId, const auto & coordP){
+                                                                              const auto label = labelArray(coordP[0],coordP[1],coordP[2],coordP[3]);
+                                                                              if (label!=ignoreLabel && label<featureArray.shape(0)) {
+                                                                                  for(auto f=0; f<featureArray.shape(1); ++f){
+                                                                                      featureImage(coordP[0],coordP[1],coordP[2],coordP[3],f) = featureArray(label,f);
+                                                                                  }
+                                                                              }
+                                                                          });
+                              }
+
+                          }
+
+                          return featureImage;
+
+                      },
+                      py::arg("labelArray"),
+                      py::arg("featureArray"),
+                      py::arg("ignoreLabel") = -1,
+                      py::arg("fillValue") = 0.,
+                      py::arg("numberOfThreads") = 8
+        );
+    }
+
+
+
+
+
     template<std::size_t DIM, class RAG, class DATA_T>
     void exportAccumulateEdgeMeanAndLength(
         py::module & ragModule
@@ -584,6 +663,10 @@ namespace graph{
             exportAccumulateEdgeMeanAndLength<2, Rag2d, float>(ragModule);
             exportAccumulateEdgeMeanAndLength<3, Rag3d, float>(ragModule);
 
+
+            exportMapFeaturesToLabelArray<2, float>(ragModule);
+            exportMapFeaturesToLabelArray<3, float>(ragModule);
+            exportMapFeaturesToLabelArray<4, float>(ragModule);
 
 
 
