@@ -88,7 +88,7 @@ private:
     // internal types
     // const static size_t NumberOfBins = 256;
 //    typedef nifty::histogram::Histogram<float> HistogramType;
-    //typedef std::array<float, NumberOfBins> HistogramType;     
+    //typedef std::array<float, NumberOfBins> HistogramType;
 //    typedef typename GRAPH:: template EdgeMap<HistogramType> EdgeHistogramMap;
 
 
@@ -101,7 +101,7 @@ public:
     template<class IS_LOCAL_EDGE, class EDGE_SIZES, class NODE_SIZES, class GT_LABELS>
     ConstrainedGeneralizedMeanFixationClusterPolicy(const GraphType &,
                               const IS_LOCAL_EDGE & ,
-                              const EDGE_SIZES & , 
+                              const EDGE_SIZES & ,
                               const NODE_SIZES & ,
                               const GT_LABELS & ,
                               const SettingsType & settings = SettingsType());
@@ -156,9 +156,8 @@ public:
 
     bool isMergeAllowed(const uint64_t edge){
         if(isLocalEdge_[edge]){
-            // todo this isPureLocal_ seems to be legacy
             // check if needed
-            return isPureLocal_[edge] ? true : mergePrios_[edge] > notMergePrios_[edge];
+            return mergePrios_[edge] > notMergePrios_[edge];
         }
         else{
             return false;
@@ -219,7 +218,7 @@ private:
     // const NodeSizesType & nodeSizes() const {
     //     return nodeSizes_;
     // }
-    
+
 private:
 
     const double getMergePrio(const uint64_t edge)const{
@@ -258,7 +257,7 @@ private:
 
 
     SettingsType            settings_;
-    
+
     // INTERNAL
     EdgeContractionGraphType edgeContractionGraph_;
     QueueType pq_;
@@ -297,8 +296,8 @@ ConstrainedGeneralizedMeanFixationClusterPolicy(
     mergePrios_(graph, -1.),
     notMergePrios_(graph, -1.),
     isLocalEdge_(graph),
-    isPureLocal_(graph),
-    isPureLifted_(graph),
+    isPureLocal_(graph, false),
+    isPureLifted_(graph, false),
     edgeSizes_(graph),
     nodeSizes_(graph),
     mergeTimes_(graph, graph_.numberOfNodes()),
@@ -325,9 +324,10 @@ ConstrainedGeneralizedMeanFixationClusterPolicy(
 {
     graph_.forEachEdge([&](const uint64_t edge){
         isLocalEdge_[edge] = isLocalEdge[edge];
-        isPureLocal_[edge] = isLocalEdge[edge];
-        isPureLifted_[edge] = !isLocalEdge[edge];
-
+        if(settings_.zeroInit) {
+            isPureLocal_[edge] = isLocalEdge[edge];
+            isPureLifted_[edge] = !isLocalEdge[edge];
+        }
 
         if (settings_.computeLossData)
             backtrackEdges_[edge].push_back(edge);
@@ -361,7 +361,7 @@ pqMergePrio(
 //        This should be called only when we are sure that a not constrained edge is still
 //        available in PQ
 template<class GRAPH, bool ENABLE_UCM>
-inline std::pair<uint64_t, double> 
+inline std::pair<uint64_t, double>
 ConstrainedGeneralizedMeanFixationClusterPolicy<GRAPH, ENABLE_UCM>::
 edgeToContractNext() const {
     return std::pair<uint64_t, double>(pq_.top(),pq_.topPriority()) ;
@@ -490,7 +490,7 @@ computeFinalTargets() {
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline bool 
+inline bool
 ConstrainedGeneralizedMeanFixationClusterPolicy<GRAPH, ENABLE_UCM>::
 isDone() {
     const auto mileStepTime = time_ - mileStepTimeOffset_;
@@ -502,8 +502,8 @@ isDone() {
         if (edgeContractionGraph_.numberOfNodes() <= settings_.numberOfNodesStop ||
                 edgeContractionGraph_.numberOfEdges() <= settings_.numberOfEdgesStop ||
                 pq_.empty() ||
-                pq_.topPriority() < -0.0000001    ||
-                pq_.topPriority() <= settings_.threshold ) {
+                pq_.topPriority() < -0.0000001
+                ) {
             isReallyDone_ = true;
             this->computeFinalTargets();
 //            std::cout << "1 node, stop\n";
@@ -610,7 +610,7 @@ collectDataMilestep(
 
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 ConstrainedGeneralizedMeanFixationClusterPolicy<GRAPH, ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
@@ -647,10 +647,10 @@ edgeContractionGraph(){
 
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 ConstrainedGeneralizedMeanFixationClusterPolicy<GRAPH, ENABLE_UCM>::
 mergeNodes(
-    const uint64_t aliveNode, 
+    const uint64_t aliveNode,
     const uint64_t deadNode
 ){
     const auto GTAlive = GTlabels_[aliveNode];
@@ -664,10 +664,10 @@ mergeNodes(
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 ConstrainedGeneralizedMeanFixationClusterPolicy<GRAPH, ENABLE_UCM>::
 mergeEdges(
-    const uint64_t aliveEdge, 
+    const uint64_t aliveEdge,
     const uint64_t deadEdge
 ){
     NIFTY_CHECK_OP(aliveEdge,!=,deadEdge,"");
@@ -816,7 +816,7 @@ mergeEdges(
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 ConstrainedGeneralizedMeanFixationClusterPolicy<GRAPH, ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
