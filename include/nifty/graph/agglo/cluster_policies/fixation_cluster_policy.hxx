@@ -286,6 +286,7 @@ mergeEdges(
     // update notMergePrio
     if(settings_.zeroInit  && sa == EdgeStates::PURE_LOCAL &&  sd !=  EdgeStates::PURE_LOCAL)
         acc1_.setValueFrom(aliveEdge, deadEdge);
+        // FIXME: here weight is not updated!!!
     else if(settings_.zeroInit  && sa != EdgeStates::PURE_LOCAL &&  sd ==  EdgeStates::PURE_LOCAL) {}
     else
         acc1_.merge(aliveEdge, deadEdge);
