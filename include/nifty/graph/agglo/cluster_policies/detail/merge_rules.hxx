@@ -31,8 +31,8 @@ namespace merge_rules{
         }
 
         typedef G GraphType;
-        typedef typename GraphType:: template EdgeMap<T> MeanEdgeMapType;
-        typedef typename GraphType:: template EdgeMap<nifty::float16_t> SizeEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> MeanEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
 
         typedef ArithmeticMeanSettings SettingsType;
 
@@ -56,8 +56,8 @@ namespace merge_rules{
 
             auto & value  = values_[aliveEdge];
             auto & weight = weights_[aliveEdge];
-            const auto & ovalue  =  values_[deadEdge];
-            const auto & oweight = weights_[deadEdge];
+            const auto ovalue  =  values_[deadEdge];
+            const auto oweight = weights_[deadEdge];
 
             value *= weight;
             value += oweight*ovalue;
@@ -113,8 +113,8 @@ namespace merge_rules{
         }
 
         typedef G GraphType;
-        typedef typename GraphType:: template EdgeMap<T> MeanEdgeMapType;
-        typedef typename GraphType:: template EdgeMap<nifty::float16_t> SizeEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> MeanEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
 
         typedef GeneralizedMeanSettings SettingsType;
 
@@ -209,8 +209,8 @@ namespace merge_rules{
             return staticName() + std::string("[q=") + std::to_string(settings_.p) + std::string("]");
         }
         typedef G GraphType;
-        typedef typename GraphType:: template EdgeMap<T> MeanEdgeMapType;
-        typedef typename GraphType:: template EdgeMap<nifty::float16_t> SizeEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> MeanEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
 
         typedef SmoothMaxSettings SettingsType;
 
@@ -311,7 +311,7 @@ namespace merge_rules{
         typedef G GraphType;
         typedef nifty::histogram::Histogram<double, double>          HistogramType;
         typedef typename GraphType:: template EdgeMap<HistogramType> HistogramEdgeMapType;
-        typedef typename GraphType:: template EdgeMap<T>             SizeEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double>             SizeEdgeMapType;
 
         typedef RankOrderSettings SettingsType;
 
@@ -389,8 +389,8 @@ namespace merge_rules{
             return staticName();
         }
         typedef G GraphType;
-        typedef typename GraphType:: template EdgeMap<T> MaxEdgeMapType;
-        typedef typename GraphType:: template EdgeMap<nifty::float16_t> SizeEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> MaxEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
 
         typedef MaxSettings SettingsType;
 
@@ -446,8 +446,8 @@ namespace merge_rules{
             return staticName();
         }
         typedef G GraphType;
-        typedef typename GraphType:: template EdgeMap<T> MinEdgeMapType;
-        typedef typename GraphType:: template EdgeMap<nifty::float16_t> SizeEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> MinEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
 
         typedef MinSettings SettingsType;
 
