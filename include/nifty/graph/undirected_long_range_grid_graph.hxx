@@ -8,6 +8,10 @@
 #include "nifty/array/arithmetic_array.hxx"
 #include "nifty/tools/for_each_coordinate.hxx"
 
+#include <cstdlib>
+#include <ctime>
+#include <iostream>
+
 namespace nifty{
 namespace graph{
 
@@ -30,15 +34,20 @@ namespace graph{
             ){
                 const auto & shape = graph.shape();
                 const auto & offsets = graph.offsets();
+                const auto & offsets_probs = graph.offsetsProbs();
+                srand (static_cast <unsigned> (time(0)));
                 uint64_t u=0;
                 for(int p0=0; p0< graph.shape()[0]; ++p0)
                 for(int p1=0; p1< graph.shape()[1]; ++p1){
                     for(int io=0; io<offsets.size(); ++io){
                         const int q0 = p0 + offsets[io][0];
                         const int q1 = p1 + offsets[io][1];
-                        if(q0>=0 && q0<shape[0] && q1>=0 && q1<shape[1]){
-                            const auto v = q0*shape[1] + q1;
-                            const auto e = graph.insertEdge(u, v);
+                        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+                        if (r<=offsets_probs[io]) {
+                            if (q0 >= 0 && q0 < shape[0] && q1 >= 0 && q1 < shape[1]) {
+                                const auto v = q0 * shape[1] + q1;
+                                const auto e = graph.insertEdge(u, v);
+                            }
                         }
                     }
                     ++u;
@@ -58,6 +67,8 @@ namespace graph{
             ){
                 const auto & shape = graph.shape();
                 const auto & offsets = graph.offsets();
+                const auto & offsets_probs = graph.offsetsProbs();
+                srand (static_cast <unsigned> (time(0)));
                 uint64_t u=0;
                 for(int p0=0; p0<shape[0]; ++p0)
                 for(int p1=0; p1<shape[1]; ++p1)
@@ -66,9 +77,12 @@ namespace graph{
                         const int q0 = p0 + offsets[io][0];
                         const int q1 = p1 + offsets[io][1];
                         const int q2 = p2 + offsets[io][2];
-                        if(q0>=0 && q0<shape[0] && q1>=0 && q1<shape[1] && q2>=0 && q2<shape[2]){
-                            const auto v = q0*shape[1]*shape[2] + q1*shape[2] + q2;
-                            const auto e = graph.insertEdge(u, v);
+                        float r = (float)rand()/(float)(RAND_MAX);
+                        if (r<=offsets_probs[io]) {
+                            if (q0 >= 0 && q0 < shape[0] && q1 >= 0 && q1 < shape[1] && q2 >= 0 && q2 < shape[2]) {
+                                const auto v = q0 * shape[1] * shape[2] + q1 * shape[2] + q2;
+                                const auto e = graph.insertEdge(u, v);
+                            }
                         }
                     }
                     ++u;
@@ -91,16 +105,19 @@ namespace graph{
         typedef array::StaticArray<int64_t, DIM>    CoordinateType;
         typedef array::StaticArray<int64_t, DIM>    OffsetType;
 
+        typedef std::vector<float>    OffsetProbsType;
         typedef std::vector<OffsetType>     OffsetVector;
 
-            
+
         UndirectedLongRangeGridGraph(
             const ShapeType &    shape,
-            const OffsetVector & offsets
+            const OffsetVector & offsets,
+            const OffsetProbsType & offsetsProbs
         )
         :   UndirectedGraph<>(),
             shape_(shape),
-            offsets_(offsets)
+            offsets_(offsets),
+            offsetsProbs_(offsetsProbs)
         {
             NIFTY_CHECK(DIM==2 || DIM==3,"wrong dimension");
 
@@ -132,7 +149,8 @@ namespace graph{
                     if(coordQ.allInsideShape(shape_)){
                         const auto v = this->coordianteToNode(coordQ);
                         const auto e = this->findEdge(u,v);
-                        ret[e] = offsetIndex;
+                        if (e>=0)
+                            ret[e] = offsetIndex;
                     }
                     ++offsetIndex;
                 }
@@ -284,14 +302,14 @@ namespace graph{
 
                         const auto v = this->coordianteToNode(coordQ);
                         const auto e = this->findEdge(u,v);
-
-                        if(DIM == 2){
-                            const auto val = values(coordP[0],coordP[1], offsetIndex);
-                            ret[e] = val;
-                        }
-                        else{
-                            const auto val = values(coordP[0],coordP[1],coordP[2], offsetIndex);
-                            ret[e] = val;
+                        if (e>=0) {
+                            if (DIM == 2) {
+                                const auto val = values(coordP[0], coordP[1], offsetIndex);
+                                ret[e] = val;
+                            } else {
+                                const auto val = values(coordP[0], coordP[1], coordP[2], offsetIndex);
+                                ret[e] = val;
+                            }
                         }
                     }
                     ++offsetIndex;
@@ -328,10 +346,14 @@ namespace graph{
         const auto & offsets()const{
             return offsets_;
         }
+        const auto & offsetsProbs()const{
+            return offsetsProbs_;
+        }
     private:
         ShapeType shape_;
         StridesType strides_;
         OffsetVector offsets_;
+        OffsetProbsType offsetsProbs_;
 
     };
 }

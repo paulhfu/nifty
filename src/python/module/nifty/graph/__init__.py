@@ -131,7 +131,11 @@ def undirectedGridGraph(shape, simpleNh=True):
 
 gridGraph = undirectedGridGraph
 
-def undirectedLongRangeGridGraph(shape, offsets):
+def undirectedLongRangeGridGraph(shape, offsets, offsets_probabilities=None):
+    """
+    :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a dense graph is used
+    """
+    # TODO: bad design. Local edges could be skipped.
     offsets = numpy.require(offsets, dtype='int64')
     shape = list(shape)
     if len(shape) == 2:
@@ -141,7 +145,13 @@ def undirectedLongRangeGridGraph(shape, offsets):
     else:
         raise RuntimeError("wrong dimension: undirectedLongRangeGridGraph is only implemented for 2D and 3D")
 
-    return G(shape=shape, offsets=offsets)
+    if offsets_probabilities is None:
+        numpy.ones((offsets.shape[0],), dtype='float')
+    else:
+        assert offsets_probabilities.shape[0] == offsets.shape[0]
+        offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
+
+    return G(shape, offsets, offsets_probabilities)
 
 longRangeGridGraph = undirectedLongRangeGridGraph
 
