@@ -65,17 +65,20 @@ namespace agglo{
                     const PyViewFloat1 & notMergePrios,
                     const PyViewUInt8_1 & isLocalEdge,
                     const PyViewFloat1 & edgeSizes,
+                    const PyViewFloat1 & nodeSizes,
                     const typename ClusterPolicyType::Acc0SettingsType updateRule0,
                     const typename ClusterPolicyType::Acc1SettingsType updateRule1,
                     const bool zeroInit,
-                    const uint64_t numberOfNodesStop
+                    const uint64_t numberOfNodesStop,
+                    const double sizeRegularizer
                 ){
                     typename ClusterPolicyType::SettingsType s;
                     s.numberOfNodesStop = numberOfNodesStop;
+                    s.sizeRegularizer = sizeRegularizer;
                     s.updateRule0 = updateRule0;
                     s.updateRule1 = updateRule1;
                     s.zeroInit = zeroInit;
-                    auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, s);
+                    auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, nodeSizes, s);
                     return ptr;
                 },
                 py::return_value_policy::take_ownership,
@@ -85,10 +88,12 @@ namespace agglo{
                 py::arg("notMergePrios"),
                 py::arg("isMergeEdge"),
                 py::arg("edgeSizes"),
+                py::arg("nodeSizes"),
                 py::arg("updateRule0"),
                 py::arg("updateRule1"),
                 py::arg("zeroInit") = false,
-                py::arg("numberOfNodesStop") = 1
+                py::arg("numberOfNodesStop") = 1,
+                py::arg("sizeRegularizer") = 0.
             );
 
             // export the agglomerative clustering functionality for this cluster operator

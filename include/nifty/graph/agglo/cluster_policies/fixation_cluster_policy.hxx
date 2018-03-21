@@ -51,6 +51,7 @@ public:
         Acc1SettingsType updateRule1;
         bool zeroInit = false;
         uint64_t numberOfNodesStop{1};
+        double sizeRegularizer{0.};
         //uint64_t numberOfBins{40};
     };
 
@@ -75,12 +76,13 @@ private:
 
 public:
 
-    template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE, class EDGE_SIZES>
+    template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE, class EDGE_SIZES, class NODE_SIZES>
     FixationClusterPolicy(const GraphType &, 
                               const MERGE_PRIOS & , 
                               const NOT_MERGE_PRIOS &,
                               const IS_LOCAL_EDGE &,
                               const EDGE_SIZES & , 
+                              const NODE_SIZES & ,
                               const SettingsType & settings = SettingsType());
 
 
@@ -93,6 +95,7 @@ public:
 
 private:
     double pqMergePrio(const uint64_t edge) const;
+    double computeWeight(const uint64_t edge) const;
 
 public:
     // callbacks called by edge contraction graph
@@ -124,6 +127,7 @@ private:
 
     ACC_0 acc0_;
     ACC_1 acc1_;
+    NodeSizesType nodeSizes_;
 
     typename GRAPH:: template EdgeMap<EdgeStates>  edgeState_;
 
@@ -139,7 +143,7 @@ private:
 
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE,class EDGE_SIZES>
+template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE,class EDGE_SIZES,class NODE_SIZES>
 inline FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 FixationClusterPolicy(
     const GraphType & graph,
@@ -147,17 +151,23 @@ FixationClusterPolicy(
     const NOT_MERGE_PRIOS & notMergePrios,
     const IS_LOCAL_EDGE & isLocalEdge,
     const EDGE_SIZES      & edgeSizes,
+    const NODE_SIZES      & nodeSizes,
     const SettingsType & settings
 )
 :   graph_(graph),
     acc0_(graph, mergePrios,    edgeSizes, settings.updateRule0),
     acc1_(graph, notMergePrios, edgeSizes, settings.updateRule1),
     edgeState_(graph),
+    nodeSizes_(graph),
     pq_(graph.edgeIdUpperBound()+1),
     settings_(settings),
     edgeContractionGraph_(graph, *this)
 {
-   
+    graph_.forEachNode([&](const uint64_t node) {
+        nodeSizes_[node] = nodeSizes[node];
+    });
+
+    std::cout << "Size reg:" << settings_.sizeRegularizer << "\n";
     graph_.forEachEdge([&](const uint64_t edge){
 
         const auto loc = isLocalEdge[edge];
@@ -176,7 +186,9 @@ FixationClusterPolicy(
             edgeState_[edge] = (loc ? EdgeStates::LOCAL : EdgeStates::LIFTED);
         }
 
-        pq_.push(edge, this->pqMergePrio(edge));
+        pq_.push(edge, this->computeWeight(edge));
+
+//        pq_.push(edge, this->pqMergePrio(edge));
     });
 }
 
@@ -256,6 +268,7 @@ mergeNodes(
     const uint64_t aliveNode, 
     const uint64_t deadNode
 ){
+    nodeSizes_[aliveNode] +=nodeSizes_[deadNode];
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
@@ -312,7 +325,7 @@ mergeEdges(
     }
 
 
-    pq_.push(aliveEdge, this->pqMergePrio(aliveEdge));
+//    pq_.push(aliveEdge, this->pqMergePrio(aliveEdge));
     
 }
 
@@ -323,7 +336,42 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
 ){
-    
+    // HERE WE UPDATE
+    const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
+    for(auto adj : edgeContractionGraph_.adjacency(u)){
+        const auto edge = adj.edge();
+        pq_.push(edge, computeWeight(edge));
+//        if (edge < 100) {
+//            std::cout << this->pqMergePrio(edge) << " weight: " << this->computeWeight(edge)<< "\n";
+//        }
+
+    }
+}
+
+template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+inline double
+FixationClusterPolicy<GRAPH, ACC_0, ACC_1, ENABLE_UCM>::
+computeWeight(
+        const uint64_t edge
+) const {
+    const auto fromEdge = this->pqMergePrio(edge);
+    const auto sr = settings_.sizeRegularizer;
+    if (sr > 0.0001)
+    {
+        const auto uv = edgeContractionGraph_.uv(edge);
+        const auto sizeU = nodeSizes_[uv.first];
+        const auto sizeV = nodeSizes_[uv.second];
+        const auto sFac = 2.0 / ( 1.0/std::pow(sizeU,sr) + 1.0/std::pow(sizeV,sr) );
+//        if (edge < 100) {
+//            std::cout << this->pqMergePrio(edge) << "; regFact: " << sFac<<"; sizeU: " << sizeU<<"; sizeV: " << sizeV<<"; final: " << fromEdge*(1. / sFac) << "\n";
+//        }
+        return fromEdge * (1. / sFac);
+    } else
+    {
+        return fromEdge;
+    }
+
+
 }
 
 
