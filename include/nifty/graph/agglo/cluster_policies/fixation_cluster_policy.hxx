@@ -52,6 +52,8 @@ public:
         bool zeroInit = false;
         uint64_t numberOfNodesStop{1};
         double sizeRegularizer{0.};
+        double sizeThreshMin{10.};
+        double sizeThreshMax{30.};
         //uint64_t numberOfBins{40};
     };
 
@@ -73,6 +75,7 @@ private:
 
 
     typedef nifty::tools::ChangeablePriorityQueue< float , std::greater<float> > QueueType;
+
 
 public:
 
@@ -110,6 +113,12 @@ public:
             return true;
         }
         else if(s == EdgeStates::LOCAL){
+            const auto uv = edgeContractionGraph_.uv(edge);
+            const auto sizeU = nodeSizes_[uv.first];
+            const auto sizeV = nodeSizes_[uv.second];
+            if (sizeU <= settings_.sizeThreshMin || sizeV <= settings_.sizeThreshMin)
+                if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
+                    return true;
             return acc0_[edge] > acc1_[edge];
         }
         else{

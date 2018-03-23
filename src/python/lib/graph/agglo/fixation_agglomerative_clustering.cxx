@@ -70,11 +70,15 @@ namespace agglo{
                     const typename ClusterPolicyType::Acc1SettingsType updateRule1,
                     const bool zeroInit,
                     const uint64_t numberOfNodesStop,
-                    const double sizeRegularizer
+                    const double sizeRegularizer,
+                    const double sizeThreshMin,
+                    const double sizeThreshMax
                 ){
                     typename ClusterPolicyType::SettingsType s;
                     s.numberOfNodesStop = numberOfNodesStop;
                     s.sizeRegularizer = sizeRegularizer;
+                    s.sizeThreshMin = sizeThreshMin;
+                    s.sizeThreshMax = sizeThreshMax;
                     s.updateRule0 = updateRule0;
                     s.updateRule1 = updateRule1;
                     s.zeroInit = zeroInit;
@@ -93,7 +97,9 @@ namespace agglo{
                 py::arg("updateRule1"),
                 py::arg("zeroInit") = false,
                 py::arg("numberOfNodesStop") = 1,
-                py::arg("sizeRegularizer") = 0.
+                py::arg("sizeRegularizer") = 0.,
+                py::arg("sizeThreshMin") = 0.,
+                py::arg("sizeThreshMax") = 300.
             );
 
             // export the agglomerative clustering functionality for this cluster operator
