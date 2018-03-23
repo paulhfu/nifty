@@ -66,6 +66,7 @@ namespace graph{
 //            xt::pytensor<int, 2> offsets
             nifty::marray::PyView<DATA_T, DIM+1> affinities,
             nifty::marray::PyView<int, 2>      offsets,
+            nifty::marray::PyView<DATA_T, DIM+1> affinities_weigths,
             const int numberOfThreads
         ){
             // Inputs:
@@ -81,6 +82,7 @@ namespace graph{
                 NIFTY_CHECK_OP(shape[d],==,affinities.shape(d), "affinities have wrong shape");
             }
             NIFTY_CHECK_OP(offsets.shape(0),==,affinities.shape(DIM), "Affinities and offsets do not match");
+            NIFTY_CHECK_OP(offsets.shape(0),==,affinities_weigths.shape(0), "Affinities weights and offsets do not match");
 
             // Create outputs:
 //            typename xt::xtensor<DATA_T, 1>::shape_type retshape;
@@ -125,9 +127,9 @@ namespace graph{
                                 if(u != v){
                                     const auto edge = rag.findEdge(u,v);
                                     if(edge >=0 ){
-                                        counter(threadId,edge) += 1.;
+                                        counter(threadId,edge) += affinities_weigths(i);
                                         // accAff(edge) = 0.;
-                                        accAff(threadId,edge) += affinities(coordP[0],coordP[1],coordP[2],i);
+                                        accAff(threadId,edge) += affinities(coordP[0],coordP[1],coordP[2],i)*affinities_weigths(i);
                                     }
                                 }
                             }
@@ -160,6 +162,7 @@ namespace graph{
         py::arg("rag"),
         py::arg("affinities"),
         py::arg("offsets"),
+                      py::arg("affinitiesWeights"),
         py::arg("numberOfThreads")  = 8
         );
 
@@ -271,6 +274,7 @@ namespace graph{
                               nifty::marray::PyView<int, DIM> labels,
                               nifty::marray::PyView<DATA_T, DIM + 1> affinities,
                               nifty::marray::PyView<int, 2> offsets,
+                              nifty::marray::PyView<DATA_T, 1> affinities_weigths,
                               const int numberOfThreads
                       ) {
                           array::StaticArray<int64_t, DIM> shape;
@@ -282,6 +286,7 @@ namespace graph{
                               NIFTY_CHECK_OP(shape[d],==,affinities.shape(d), "affinities have wrong shape");
                           }
                           NIFTY_CHECK_OP(offsets.shape(0),==,affinities.shape(DIM), "Affinities and offsets do not match");
+                          NIFTY_CHECK_OP(offsets.shape(0),==,affinities_weigths.shape(0), "Affinities weights and offsets do not match");
 
                           // Create outputs:
                           typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
@@ -319,10 +324,10 @@ namespace graph{
                                                                                       const auto v = labels(coordQ[0],coordQ[1],coordQ[2]);
                                                                                       if(u != v){
                                                                                           const auto edge = graph.findEdge(u,v);
-                                                                                          if(edge >=0 ){
-                                                                                              counter(threadId,edge) += 1.;
+                                                                                          if (edge >=0 ){
+                                                                                              counter(threadId,edge) += affinities_weigths(i);
                                                                                               // accAff(edge) = 0.;
-                                                                                              accAff(threadId,edge) += affinities(coordP[0],coordP[1],coordP[2],i);
+                                                                                              accAff(threadId,edge) += affinities(coordP[0],coordP[1],coordP[2],i)*affinities_weigths(i);
                                                                                           }
                                                                                       }
                                                                                   }
@@ -357,6 +362,7 @@ namespace graph{
                       py::arg("labels"),
                       py::arg("affinities"),
                       py::arg("offsets"),
+                      py::arg("affinitiesWeights"),
                       py::arg("numberOfThreads")  = 8
 
         );
