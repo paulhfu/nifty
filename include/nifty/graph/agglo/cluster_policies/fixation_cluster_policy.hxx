@@ -113,12 +113,14 @@ public:
             return true;
         }
         else if(s == EdgeStates::LOCAL){
-            const auto uv = edgeContractionGraph_.uv(edge);
-            const auto sizeU = nodeSizes_[uv.first];
-            const auto sizeV = nodeSizes_[uv.second];
-            if (sizeU <= settings_.sizeThreshMin || sizeV <= settings_.sizeThreshMin)
-                if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
-                    return true;
+            if (phase_ != 0) {
+                const auto uv = edgeContractionGraph_.uv(edge);
+                const auto sizeU = nodeSizes_[uv.first];
+                const auto sizeV = nodeSizes_[uv.second];
+                if (sizeU <= settings_.sizeThreshMin || sizeV <= settings_.sizeThreshMin)
+                    if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
+                        return true;
+            }
             return acc0_[edge] > acc1_[edge];
         }
         else{
@@ -133,6 +135,7 @@ private:
     // INPUT
     const GraphType &   graph_;
 
+    int phase_;
 
     ACC_0 acc0_;
     ACC_1 acc1_;
@@ -172,6 +175,7 @@ FixationClusterPolicy(
     settings_(settings),
     edgeContractionGraph_(graph, *this)
 {
+    phase_ = 0;
     graph_.forEachNode([&](const uint64_t node) {
         nodeSizes_[node] = nodeSizes[node];
     });
@@ -212,18 +216,10 @@ template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
 inline bool 
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
 ){
-
-    if(edgeContractionGraph_.numberOfNodes() <= settings_.numberOfNodesStop ||
-       pq_.empty() || isNegativeInf(pq_.topPriority())
-    ){
-        return  true;
-    }
-    else{
-        while(!isNegativeInf(pq_.topPriority())){
+    while(true) {
+        while(!pq_.empty() && !isNegativeInf(pq_.topPriority())){
 
             const auto nextActioneEdge = pq_.top();
-
-        
 
             if(this->isMergeAllowed(nextActioneEdge)){
                 edgeToContractNext_ = nextActioneEdge;
@@ -233,9 +229,24 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
             else{
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
-            
         }
-        return true;
+        if (phase_ != 0 || settings_.sizeThreshMin == 0){
+            return  true;
+        } else {
+            phase_ = 1;
+            std::cout << "Phase 1 done ";
+            // Insert again all edges in PQ without SizeRegularizer
+            int counter = 0;
+            graph_.forEachEdge([&](const uint64_t edge) {
+                const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+                const auto uv = edgeContractionGraph_.uv(edge);
+                if (cEdge == edge && cEdge>=0 && uv.first!=uv.second) {
+                    counter++;
+                    pq_.push(edge, this->computeWeight(cEdge));
+                }
+            });
+            std::cout << "--> "<< counter<<" new edges inserted!\n";
+        }
     }
 }
 
@@ -365,7 +376,7 @@ computeWeight(
 ) const {
     const auto fromEdge = this->pqMergePrio(edge);
     const auto sr = settings_.sizeRegularizer;
-    if (sr > 0.0001)
+    if (sr > 0.0001 && phase_ == 0)
     {
         const auto uv = edgeContractionGraph_.uv(edge);
         const auto sizeU = nodeSizes_[uv.first];
