@@ -54,6 +54,7 @@ public:
         double sizeRegularizer{0.};
         double sizeThreshMin{10.};
         double sizeThreshMax{30.};
+        bool postponeThresholding{true};
         //uint64_t numberOfBins{40};
     };
 
@@ -113,7 +114,7 @@ public:
             return true;
         }
         else if(s == EdgeStates::LOCAL){
-            if (phase_ != 0) {
+            if (phase_ != 0 || not settings_.postponeThresholding) {
                 const auto uv = edgeContractionGraph_.uv(edge);
                 const auto sizeU = nodeSizes_[uv.first];
                 const auto sizeV = nodeSizes_[uv.second];
@@ -230,7 +231,7 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
         }
-        if (phase_ != 0 || settings_.sizeThreshMin == 0){
+        if (phase_ != 0 || settings_.sizeThreshMin == 0 || not settings_.postponeThresholding){
             return  true;
         } else {
             phase_ = 1;
@@ -344,8 +345,9 @@ mergeEdges(
         sa = EdgeStates::LIFTED;
     }
 
-
-//    pq_.push(aliveEdge, this->pqMergePrio(aliveEdge));
+    const auto sr = settings_.sizeRegularizer;
+    if (sr < 0.0001 || phase_ != 0)
+        pq_.push(aliveEdge, this->pqMergePrio(aliveEdge));
     
 }
 
@@ -356,15 +358,14 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
 ){
-    // HERE WE UPDATE
-    const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
-    for(auto adj : edgeContractionGraph_.adjacency(u)){
-        const auto edge = adj.edge();
-        pq_.push(edge, computeWeight(edge));
-//        if (edge < 100) {
-//            std::cout << this->pqMergePrio(edge) << " weight: " << this->computeWeight(edge)<< "\n";
-//        }
-
+    // HERE WE UPDATE the PQ when a SizeReg is used:
+    const auto sr = settings_.sizeRegularizer;
+    if (sr > 0.0001 && phase_ == 0) {
+        const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
+        for(auto adj : edgeContractionGraph_.adjacency(u)){
+            const auto edge = adj.edge();
+            pq_.push(edge, computeWeight(edge));
+        }
     }
 }
 
