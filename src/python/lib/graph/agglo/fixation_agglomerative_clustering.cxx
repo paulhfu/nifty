@@ -73,7 +73,8 @@ namespace agglo{
                     const double sizeRegularizer,
                     const double sizeThreshMin,
                     const double sizeThreshMax,
-                    const bool postponeThresholding
+                    const bool postponeThresholding,
+                    const double threshold
                 ){
                     typename ClusterPolicyType::SettingsType s;
                     s.numberOfNodesStop = numberOfNodesStop;
@@ -84,6 +85,7 @@ namespace agglo{
                     s.updateRule0 = updateRule0;
                     s.updateRule1 = updateRule1;
                     s.zeroInit = zeroInit;
+                    s.threshold = threshold;
                     auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, nodeSizes, s);
                     return ptr;
                 },
@@ -102,7 +104,8 @@ namespace agglo{
                 py::arg("sizeRegularizer") = 0.,
                 py::arg("sizeThreshMin") = 0.,
                 py::arg("sizeThreshMax") = 300.,
-                py::arg("postponeThresholding") = true
+                py::arg("postponeThresholding") = true,
+                py::arg("threshold") = 0.5 // Merge all: 0.0; split all: 1.0
             );
 
             // export the agglomerative clustering functionality for this cluster operator

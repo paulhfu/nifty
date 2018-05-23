@@ -55,6 +55,7 @@ public:
         double sizeThreshMin{10.};
         double sizeThreshMax{30.};
         bool postponeThresholding{true};
+        double threshold{0.5}; // Merge all: 0.0; split all: 1.0
         //uint64_t numberOfBins{40};
     };
 
@@ -122,7 +123,7 @@ public:
                     if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
                         return true;
             }
-            return acc0_[edge] > acc1_[edge];
+            return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
         }
         else{
             return false;
