@@ -49,37 +49,42 @@ namespace graph{
 
         clsT.def(py::init([](
             std::array<int, DIM>    shape,
-            xt::pytensor<int64_t, 2> offsets   
+            xt::pytensor<int64_t, 2> offsets,
+            xt::pytensor<float, 1> offsetsProbs
         ){
             typedef typename GraphType::OffsetVector OffsetVector;
+            typedef typename GraphType::OffsetProbsType OffsetProbsType;
             typedef typename GraphType::ShapeType ShapeType;
 
             ShapeType s;
             std::copy(shape.begin(), shape.end(), s.begin());
             NIFTY_CHECK_OP(offsets.shape()[1], == , DIM, "offsets has wrong shape");
             OffsetVector offsetVector(offsets.shape()[0]);
+                     OffsetProbsType offsetProbsVector(offsetsProbs.shape()[0]);
             for(auto i=0; i<offsetVector.size(); ++i){
+                offsetProbsVector[i] = offsetsProbs(i);
                 for(auto d=0; d<DIM; ++d){
                     offsetVector[i][d] = offsets(i, d);
                 }
             }
-            return new GraphType(s, offsetVector);
+            return new GraphType(s, offsetVector, offsetProbsVector);
         }),
         py::arg("shape"),
-        py::arg("offsets"))
-        //
-        .def("nodeFeatureDiffereces", [](
-            const GraphType & g,
-            xt::pytensor<float, DIM+1> nodeFeatures
-        ){
-            return g.nodeFeatureDiffereces(nodeFeatures);
-        })
-        .def("nodeFeatureDiffereces2", [](
-            const GraphType & g,
-            xt::pytensor<float, DIM+2> nodeFeatures
-        ){
-            return g.nodeFeatureDiffereces2(nodeFeatures);
-        })
+        py::arg("offsets"),
+        py::arg("offsetsProbs"))
+        // FIXME: I need to check that the edges indeed exists
+//        .def("nodeFeatureDiffereces", [](
+//            const GraphType & g,
+//            xt::pytensor<float, DIM+1> nodeFeatures
+//        ){
+//            return g.nodeFeatureDiffereces(nodeFeatures);
+//        })
+//        .def("nodeFeatureDiffereces2", [](
+//            const GraphType & g,
+//            xt::pytensor<float, DIM+2> nodeFeatures
+//        ){
+//            return g.nodeFeatureDiffereces2(nodeFeatures);
+//        })
         .def("edgeValues", [](
             const GraphType & g,
             xt::pytensor<float, DIM+1> nodeFeatures
