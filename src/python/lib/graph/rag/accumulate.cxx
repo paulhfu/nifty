@@ -788,7 +788,7 @@ namespace graph{
     ){
         ragModule.def("mapFeaturesToLabelArray",
         [](
-            nifty::marray::PyView<DATA_T, DIM> labelArray,
+            nifty::marray::PyView<int, DIM> labelArray,
             nifty::marray::PyView<DATA_T, 2> featureArray,
             int ignoreLabel,
             float fillValue,
