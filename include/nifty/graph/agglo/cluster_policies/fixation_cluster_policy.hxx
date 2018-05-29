@@ -4,6 +4,7 @@
 #include <set>
 #include <unordered_set>
 #include <boost/container/flat_set.hpp>
+#include <string>
 
 #include "nifty/tools/changable_priority_queue.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
@@ -229,6 +230,12 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
                 return false;
             }
             else{
+                const auto mean = std::string("ArithmeticMean");
+                if (settings_.sizeThreshMin == 0 && not settings_.postponeThresholding && not settings_.zeroInit
+                    && acc0_.name() == mean
+                    && acc1_.name() == mean) {
+                    return true;
+                }
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
         }
