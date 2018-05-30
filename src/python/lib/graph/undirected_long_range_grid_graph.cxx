@@ -50,28 +50,39 @@ namespace graph{
         clsT.def(py::init([](
             std::array<int, DIM>    shape,
             xt::pytensor<int64_t, 2> offsets,
-            xt::pytensor<float, 1> offsetsProbs
-        ){
-            typedef typename GraphType::OffsetVector OffsetVector;
-            typedef typename GraphType::OffsetProbsType OffsetProbsType;
-            typedef typename GraphType::ShapeType ShapeType;
+            xt::pytensor<int64_t, DIM> & nodeLabels,
+            xt::pytensor<float, 1> offsetsProbs,
+            xt::pytensor<bool, 1> isLocalOffset,
+            bool startFromLabelSegm
+                 ){
+                    typedef typename GraphType::OffsetVector OffsetVector;
+                    typedef typename GraphType::OffsetProbsType OffsetProbsType;
+                    typedef typename GraphType::BoolVectorType isLocalType;
+                    typedef typename GraphType::ShapeType ShapeType;
 
-            ShapeType s;
-            std::copy(shape.begin(), shape.end(), s.begin());
-            NIFTY_CHECK_OP(offsets.shape()[1], == , DIM, "offsets has wrong shape");
-            OffsetVector offsetVector(offsets.shape()[0]);
-                     OffsetProbsType offsetProbsVector(offsetsProbs.shape()[0]);
-            for(auto i=0; i<offsetVector.size(); ++i){
-                offsetProbsVector[i] = offsetsProbs(i);
-                for(auto d=0; d<DIM; ++d){
-                    offsetVector[i][d] = offsets(i, d);
-                }
-            }
-            return new GraphType(s, offsetVector, offsetProbsVector);
+                    ShapeType s;
+                    std::copy(shape.begin(), shape.end(), s.begin());
+                    NIFTY_CHECK_OP(offsets.shape()[1], == , DIM, "offsets has wrong shape");
+
+                     OffsetVector offsetVector(offsets.shape()[0]);
+                    OffsetProbsType offsetProbsVector(offsetsProbs.shape()[0]);
+                     isLocalType isLocalVector(isLocalOffset.shape()[0]);
+
+                    for(auto i=0; i<offsetVector.size(); ++i){
+                        offsetProbsVector[i] = offsetsProbs(i);
+                        isLocalVector[i] = isLocalOffset(i);
+                        for(auto d=0; d<DIM; ++d){
+                            offsetVector[i][d] = offsets(i, d);
+                        }
+                    }
+                    return new GraphType(s, offsetVector, nodeLabels, offsetProbsVector, isLocalVector, startFromLabelSegm);
         }),
         py::arg("shape"),
         py::arg("offsets"),
-        py::arg("offsetsProbs"))
+         py::arg("nodeLabels"),
+         py::arg("offsetsProbs"),
+         py::arg("isLocalOffset"),
+         py::arg("startFromLabelSegm"))
         // FIXME: I need to check that the edges indeed exists
 //        .def("nodeFeatureDiffereces", [](
 //            const GraphType & g,
@@ -109,6 +120,12 @@ namespace graph{
         })
         .def("edgeOffsetIndex", [](const GraphType & g){
             return g.edgeOffsetIndex();
+        })
+        .def("findLocalEdges", [](
+                const GraphType & g,
+                xt::pytensor<int64_t, DIM> & nodeLabels
+        ){
+            return g.findLocalEdges(nodeLabels);
         })
         ;
 
