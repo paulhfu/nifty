@@ -131,7 +131,7 @@ def undirectedGridGraph(shape, simpleNh=True):
 
 gridGraph = undirectedGridGraph
 
-def undirectedLongRangeGridGraph(shape, offsets, offsets_probabilities=None, labels=None, is_local_offset=None):
+def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None):
     """
     :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a dense graph is used
     :param labels: Indices of a passed segmentation (uint64)
@@ -139,6 +139,9 @@ def undirectedLongRangeGridGraph(shape, offsets, offsets_probabilities=None, lab
     """
     # TODO: bad design. Local edges could be skipped.
     offsets = numpy.require(offsets, dtype='int64')
+    assert offsets.shape[0] == is_local_offset.shape[0]
+    is_local_offset = is_local_offset.astype(numpy.bool)
+
     shape = list(shape)
     if len(shape) == 2:
         G = UndirectedLongRangeGridGraph2D
@@ -149,12 +152,9 @@ def undirectedLongRangeGridGraph(shape, offsets, offsets_probabilities=None, lab
 
     if labels is None:
         labels = numpy.zeros(shape, dtype=numpy.int64)
-        is_local_offset = numpy.ones((offsets.shape[0],), dtype='bool')
         start_from_labels = False
     else:
         labels = labels.astype(numpy.int64)
-        assert is_local_offset is not None
-        is_local_offset = is_local_offset.astype(numpy.bool)
         start_from_labels = True
 
 

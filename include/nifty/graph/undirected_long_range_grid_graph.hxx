@@ -106,7 +106,7 @@ namespace graph{
                                         }
                                     }
                                 } else {
-                                    const auto v = q0 * shape[1] + q1;
+                                    const auto v = q0 * shape[1] * shape[2] + q1 * shape[2] + q2;
                                     const auto e = graph.insertEdge(u, v);
                                 }
                             }
