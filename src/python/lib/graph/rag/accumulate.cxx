@@ -470,9 +470,11 @@ namespace graph{
             const RAG & rag,
             nifty::marray::PyView<DATA_T, 2> edgeFeatures,
             nifty::marray::PyView<int, 2> offsets,
-            float fillValue
+            float fillValue,
+            const int numberOfThreads
         ){
 
+            // TODO: add nifty check DIM == 2 or DIM == 3
 
             const auto & labels = rag.labelsProxy().labels();
             const auto & shape = rag.labelsProxy().shape();
@@ -489,67 +491,71 @@ namespace graph{
             std::fill(featureImage.begin(), featureImage.end(), fillValue);
 
 
-            for(auto x=0; x<shape[0]; ++x){
-                for(auto y=0; y<shape[1]; ++y){
-                    if (DIM==3){
-                        for(auto z=0; z<shape[2]; ++z){
+            {
+                py::gil_scoped_release allowThreads;
 
-                            const auto u = labels(x,y,z);
+                // Create thread pool:
+                nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+                nifty::parallel::ThreadPool threadpool(pOpts);
+                const std::size_t actualNumberOfThreads = pOpts.getActualNumThreads();
 
-                            for(auto i=0; i<offsets.shape(0); ++i){
-                                const auto ox = offsets(i, 0);
-                                const auto oy = offsets(i, 1);
-                                const auto oz = offsets(i, 2);
-                                const auto xx = ox +x ;
-                                const auto yy = oy +y ;
-                                const auto zz = oz +z ;
-
-
-                                if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1] && zz >=0 && zz<shape[2]){
-                                    const auto v = labels(xx,yy,zz);
-                                    if(u != v){
-                                        const auto edge = rag.findEdge(u,v);
-                                        if(edge >=0 ){
-                                            for(auto f=0; f<edgeFeatures.shape(1); ++f){
-                                                featureImage(x,y,z,i,f) = edgeFeatures(edge,f);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else if(DIM==2) {
-                        const auto u = labels(x,y);
-
-                        for(auto i=0; i<offsets.shape(0); ++i){
-                            const auto ox = offsets(i, 0);
-                            const auto oy = offsets(i, 1);
-
-                            const auto xx = ox +x ;
-                            const auto yy = oy +y ;
-
-                            if(xx>=0 && xx<shape[0] && yy >=0 && yy<shape[1]){
-                                const auto v = labels(xx,yy);
-                                if(u != v){
-                                    const auto edge = rag.findEdge(u,v);
-                                    if(edge >=0 ){
-                                        for(auto f=0; f<edgeFeatures.shape(1); ++f){
-                                            featureImage(x,y,i,f) = edgeFeatures(edge,f);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                if(DIM == 3){
+                    nifty::tools::parallelForEachCoordinate(threadpool,
+                                                            shape,
+                                                            [&](const auto threadId, const auto & coordP){
+                                                                const auto u = labels(coordP[0],coordP[1],coordP[2]);
+                                                                for(auto i=0; i<offsets.shape(0); ++i){
+                                                                    auto coordQ = coordP;
+                                                                    coordQ[0] += offsets(i, 0);
+                                                                    coordQ[1] += offsets(i, 1);
+                                                                    coordQ[2] += offsets(i, 2);
+                                                                    if(coordQ.allInsideShape(shape)){
+                                                                        const auto v = labels(coordQ[0],coordQ[1],coordQ[2]);
+                                                                        if(u != v){
+                                                                            const auto edge = rag.findEdge(u,v);
+                                                                            if(edge >=0 ){
+                                                                                for(auto f=0; f<edgeFeatures.shape(1); ++f){
+                                                                                    featureImage(coordQ[0],coordQ[1],coordQ[2],i,f) = edgeFeatures(edge,f);
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                } else if(DIM == 2){
+                    nifty::tools::parallelForEachCoordinate(threadpool,
+                                                            shape,
+                                                            [&](const auto threadId, const auto & coordP){
+                                                                const auto u = labels(coordP[0],coordP[1]);
+                                                                for(auto i=0; i<offsets.shape(0); ++i){
+                                                                    auto coordQ = coordP;
+                                                                    coordQ[0] += offsets(i, 0);
+                                                                    coordQ[1] += offsets(i, 1);
+                                                                    if(coordQ.allInsideShape(shape)){
+                                                                        const auto v = labels(coordQ[0],coordQ[1]);
+                                                                        if(u != v){
+                                                                            const auto edge = rag.findEdge(u,v);
+                                                                            if(edge >=0 ){
+                                                                                for(auto f=0; f<edgeFeatures.shape(1); ++f){
+                                                                                    featureImage(coordP[0],coordP[1],i,f) = edgeFeatures(edge,f);
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
                 }
+
             }
+
             return featureImage;
 
         },
         py::arg("rag"),
         py::arg("edgeFeatures"),
         py::arg("offsets"),
-        py::arg("fillValue") = 0.
+        py::arg("fillValue") = 0.,
+                      py::arg("numberOfThreads") = 8
         );
     }
 
