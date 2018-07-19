@@ -515,7 +515,7 @@ namespace graph{
                                                                             const auto edge = rag.findEdge(u,v);
                                                                             if(edge >=0 ){
                                                                                 for(auto f=0; f<edgeFeatures.shape(1); ++f){
-                                                                                    featureImage(coordQ[0],coordQ[1],coordQ[2],i,f) = edgeFeatures(edge,f);
+                                                                                    featureImage(coordP[0],coordP[1],coordP[2],i,f) = edgeFeatures(edge,f);
                                                                                 }
                                                                             }
                                                                         }
