@@ -183,7 +183,7 @@ FixationClusterPolicy(
         nodeSizes_[node] = nodeSizes[node];
     });
 
-    std::cout << "Size reg:" << settings_.sizeRegularizer << "\n";
+//    std::cout << "Size reg:" << settings_.sizeRegularizer << "\n";
     graph_.forEachEdge([&](const uint64_t edge){
 
         const auto loc = isLocalEdge[edge];

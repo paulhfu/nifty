@@ -50,7 +50,7 @@ namespace graph{
         clsT.def(py::init([](
             std::array<int, DIM>    shape,
             xt::pytensor<int64_t, 2> offsets,
-            xt::pytensor<int64_t, DIM> & nodeLabels,
+            xt::pytensor<uint32_t, DIM> & nodeLabels,
             xt::pytensor<float, 1> offsetsProbs,
             xt::pytensor<bool, 1> isLocalOffset,
             bool startFromLabelSegm
@@ -75,6 +75,7 @@ namespace graph{
                             offsetVector[i][d] = offsets(i, d);
                         }
                     }
+                     py::gil_scoped_release release;
                     return new GraphType(s, offsetVector, nodeLabels, offsetProbsVector, isLocalVector, startFromLabelSegm);
         }),
         py::arg("shape"),

@@ -151,10 +151,10 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         raise RuntimeError("wrong dimension: undirectedLongRangeGridGraph is only implemented for 2D and 3D")
 
     if labels is None:
-        labels = numpy.zeros(shape, dtype=numpy.int64)
+        labels = numpy.zeros(shape, dtype=numpy.uint32)
         start_from_labels = False
     else:
-        labels = labels.astype(numpy.int64)
+        labels = labels.astype(numpy.uint32)
         start_from_labels = True
 
 

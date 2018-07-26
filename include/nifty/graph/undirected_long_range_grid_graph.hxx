@@ -1,5 +1,10 @@
 #pragma once
 
+#include <random>
+#include <time.h>
+#include <thread>
+#include <stdlib.h>
+
 #include "xtensor/xexpression.hpp"
 #include "xtensor/xview.hpp"
 #include "xtensor/xmath.hpp"
@@ -78,14 +83,17 @@ namespace graph{
                 const auto & offsets_probs = graph.offsetsProbs();
                 const auto & isLocalOffset = graph.isLocalOffset();
                 const auto & startFromLabelSegm = graph.startFromLabelSegm();
-
                 typename xt::xtensor<bool, 1>::shape_type retshape;
                 retshape[0] = graph.numberOfNodes();
                 xt::xtensor<int32_t, 1> ret(retshape);
 
-
-                srand (static_cast <unsigned> (time(0)));
                 uint64_t u=0;
+
+                thread_local std::random_device rd;
+                thread_local std::mt19937 gen(rd());
+                thread_local std::uniform_real_distribution<> rng;
+                rng = std::uniform_real_distribution<>(0., 1.);
+
                 for(int p0=0; p0<shape[0]; ++p0)
                 for(int p1=0; p1<shape[1]; ++p1)
                 for(int p2=0; p2<shape[2]; ++p2){
@@ -95,8 +103,7 @@ namespace graph{
                         const int q1 = p1 + offsets[io][1];
                         const int q2 = p2 + offsets[io][2];
                         const auto labelV = nodeLabels(q0,q1,q2);
-                        float r = (float)rand()/(float)(RAND_MAX);
-                        if (r<=offsets_probs[io] || isLocalOffset[io]) {
+                        if (rng(gen) <= offsets_probs[io] || isLocalOffset[io]) {
                             if (q0 >= 0 && q0 < shape[0] && q1 >= 0 && q1 < shape[1] && q2 >= 0 && q2 < shape[2]) {
                                 if (startFromLabelSegm) {
                                     if (labelU != labelV) {
@@ -175,6 +182,7 @@ namespace graph{
                     nNodes *= shape_[d];
                 }
             }
+
             this->assign(nNodes);
 
             strides_.back() = 1;
