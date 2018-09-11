@@ -52,6 +52,7 @@ namespace graph{
             xt::pytensor<int64_t, 2> offsets,
             xt::pytensor<uint32_t, DIM> & nodeLabels,
             xt::pytensor<float, 1> offsetsProbs,
+            xt::pytensor<float, DIM+1> & randomProbs,
             xt::pytensor<bool, 1> isLocalOffset,
             bool startFromLabelSegm
                  ){
@@ -76,12 +77,13 @@ namespace graph{
                         }
                     }
                      py::gil_scoped_release release;
-                    return new GraphType(s, offsetVector, nodeLabels, offsetProbsVector, isLocalVector, startFromLabelSegm);
+                    return new GraphType(s, offsetVector, nodeLabels, offsetProbsVector, isLocalVector, randomProbs, startFromLabelSegm);
         }),
         py::arg("shape"),
         py::arg("offsets"),
          py::arg("nodeLabels"),
          py::arg("offsetsProbs"),
+         py::arg("randomProbs"),
          py::arg("isLocalOffset"),
          py::arg("startFromLabelSegm"))
         // FIXME: I need to check that the edges indeed exists

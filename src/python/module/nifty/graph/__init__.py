@@ -164,7 +164,9 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         assert offsets_probabilities.shape[0] == offsets.shape[0]
         offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
 
-    return G(shape, offsets, labels, offsets_probabilities, is_local_offset, start_from_labels)
+    randomProbs = numpy.random.rand(*tuple(shape) + (offsets.shape[0],))
+
+    return G(shape, offsets, labels, offsets_probabilities, randomProbs, is_local_offset, start_from_labels)
 
 longRangeGridGraph = undirectedLongRangeGridGraph
 

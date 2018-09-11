@@ -34,10 +34,12 @@ namespace graph{
         class UndirectedLongRangeGridGraphAssign<2>{
         public:
             template<class G,
-                    class D>
+                    class D,
+                    class F>
             static void assign(
                     G & graph,
-                    const xt::xexpression<D> & nodeLabelsExp
+                    const xt::xexpression<D> & nodeLabelsExp,
+                    const xt::xexpression<F> & randomProbsExp
 
             ){
                 NIFTY_CHECK(false,"Not implemented");
@@ -71,13 +73,16 @@ namespace graph{
         class UndirectedLongRangeGridGraphAssign<3>{
         public:
             template<class G,
-                    class D>
+                    class D,
+                    class F>
             static void assign(
                 G & graph,
-                const xt::xexpression<D> & nodeLabelsExp
+                const xt::xexpression<D> & nodeLabelsExp,
+                const xt::xexpression<F> & randomProbsExp
 
             ){
                 const auto & nodeLabels = nodeLabelsExp.derived_cast();
+                const auto & randomProbs = randomProbsExp.derived_cast();
                 const auto & shape = graph.shape();
                 const auto & offsets = graph.offsets();
                 const auto & offsets_probs = graph.offsetsProbs();
@@ -86,13 +91,12 @@ namespace graph{
                 typename xt::xtensor<bool, 1>::shape_type retshape;
                 retshape[0] = graph.numberOfNodes();
                 xt::xtensor<int32_t, 1> ret(retshape);
-
+//                const auto randValues = xt::random::rand<double>({shape[0], shape[1], shape[2]});
+//                thread_local std::random_device rd;
+//                thread_local std::mt19937 gen(rd());
+//                thread_local std::uniform_real_distribution<> rng;
+//                rng = std::uniform_real_distribution<>(0., 1.);
                 uint64_t u=0;
-
-                thread_local std::random_device rd;
-                thread_local std::mt19937 gen(rd());
-                thread_local std::uniform_real_distribution<> rng;
-                rng = std::uniform_real_distribution<>(0., 1.);
 
                 for(int p0=0; p0<shape[0]; ++p0)
                 for(int p1=0; p1<shape[1]; ++p1)
@@ -103,7 +107,7 @@ namespace graph{
                         const int q1 = p1 + offsets[io][1];
                         const int q2 = p2 + offsets[io][2];
                         const auto labelV = nodeLabels(q0,q1,q2);
-                        if (rng(gen) <= offsets_probs[io] || isLocalOffset[io]) {
+                        if (randomProbs(p0,p1,p2,io) < offsets_probs[io] || isLocalOffset[io]) {
                             if (q0 >= 0 && q0 < shape[0] && q1 >= 0 && q1 < shape[1] && q2 >= 0 && q2 < shape[2]) {
                                 if (startFromLabelSegm) {
                                     if (labelU != labelV) {
@@ -143,13 +147,14 @@ namespace graph{
         typedef std::vector<float>    OffsetProbsType;
         typedef std::vector<OffsetType>     OffsetVector;
 
-        template<class D>
+        template<class D, class F>
         UndirectedLongRangeGridGraph(
             const ShapeType &    shape,
             const OffsetVector & offsets,
             const xt::xexpression<D> & nodeLabelsExp,
             const OffsetProbsType & offsetsProbs,
             const BoolVectorType & isLocalOffset, // Array of 0 an 1 indicating which offsets are local
+            const xt::xexpression<F> & randomProbsExp,
             const bool startFromLabelSegm
         )
         :   UndirectedGraph<>(),
@@ -189,7 +194,7 @@ namespace graph{
             for(int d=int(DIM)-2; d>=0; --d){
                 strides_[d] = shape_[d+1] * strides_[d+1];
             }
-            HelperType::assign(*this, nodeLabelsExp);
+            HelperType::assign(*this, nodeLabelsExp, randomProbsExp);
         }
 
 
