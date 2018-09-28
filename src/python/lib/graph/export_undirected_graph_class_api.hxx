@@ -281,7 +281,26 @@ namespace graph{
             }, 
                 py::arg("maxDistance")
             )
-            .def("uvIds",
+                .def("nodesLabelsToEdgeLabels",
+                     [](
+                             const G & g,
+                             nifty::marray::PyView<uint64_t, 1> nodeLabels
+                     ){
+                         nifty::marray::PyView<uint8_t> edgeLabels({uint64_t(g.numberOfEdges())});
+                         NIFTY_CHECK_OP(nodeLabels.shape(0),==,g.numberOfNodes(),"Array should have shape (numberOfNodes, )");
+                         for(const auto edge : g.edges()){
+                             const auto uv = g.uv(edge);
+                             edgeLabels(edge) = nodeLabels(uv.first) != nodeLabels(uv.second) ? 1 : 0;
+                         }
+                         return edgeLabels;
+                     },
+                     "Get edge label array\n\n"
+                             "Get an edge label array given a nodeLabelling\n\n"
+                             "Returns:\n"
+                             "   edge map of uint8 0 or 1"
+                )
+
+                .def("uvIds",
                 [](G & g) {
                     nifty::marray::PyView<uint64_t> out({uint64_t(g.numberOfEdges()), uint64_t(2)});
                     auto c = 0 ;
