@@ -51,6 +51,7 @@ public:
         Acc0SettingsType updateRule0;
         Acc1SettingsType updateRule1;
         bool zeroInit = false;
+        bool initSignedWeights = false;
         uint64_t numberOfNodesStop{1};
         double sizeRegularizer{0.};
         double sizeThreshMin{10.};
@@ -124,7 +125,18 @@ public:
                     if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
                         return true;
             }
-            return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
+            if (acc0_[edge] < 0)
+                return false;
+            else if (acc1_[edge] < 0)
+                return true;
+            else {
+//                std::cout << "-" << acc0_[edge] - acc1_[edge];
+                return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
+            }
+//            const auto
+//            if (not isMergeAll)
+//                    std::cout << "Attr.:" << settings_.sizeRegularizer << "\n";
+//            return isMergeAll;
         }
         else{
             return false;
@@ -188,18 +200,41 @@ FixationClusterPolicy(
 
         const auto loc = isLocalEdge[edge];
 
+        if(settings_.initSignedWeights) {
+            if (mergePrios[edge] > settings_.threshold) {
+                // Set repulsion to zero:
+                acc1_.set(edge, -1.0, edgeSizes[edge]);
+            } else {
+//            if(loc == 1)
+//                // Set repulsion to zero:
+//                acc1_.set(edge, -1.0, edgeSizes[edge]);
+//            else {
+//                // Set attraction to zero:
+                acc0_.set(edge, -1.0, edgeSizes[edge]);
+//            }
 
+            }
+//        if(loc == 1){
+//            // Set repulsion to zero:
+//            acc1_.set(edge, -1.0, edgeSizes[edge]);
+//        } else {
+//            // Set attraction to zero:
+//
+//            acc0_.set(edge, -1.0, edgeSizes[edge]);
+//        }
+        }
 
         if(settings_.zeroInit){
             edgeState_[edge] = (loc ? EdgeStates::PURE_LOCAL : EdgeStates::PURE_LIFTED);
-            if(loc){
+
+            if(loc == 1){
                 acc1_.set(edge, 0.0, edgeSizes[edge]);
             }
             else{
                 acc0_.set(edge, 0.0, edgeSizes[edge]);
             }
         } else {
-            edgeState_[edge] = (loc ? EdgeStates::LOCAL : EdgeStates::LIFTED);
+            edgeState_[edge] = (loc == 1 ? EdgeStates::LOCAL : EdgeStates::LIFTED);
         }
 
         pq_.push(edge, this->computeWeight(edge));
@@ -230,12 +265,12 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
                 return false;
             }
             else{
-                const auto mean = std::string("ArithmeticMean");
-                if (settings_.sizeThreshMin == 0 && not settings_.postponeThresholding && not settings_.zeroInit
-                    && acc0_.name() == mean
-                    && acc1_.name() == mean) {
-                    return true;
-                }
+//                const auto mean = std::string("ArithmeticMean");
+//                if (settings_.sizeThreshMin == 0 && not settings_.postponeThresholding && not settings_.zeroInit
+//                    && acc0_.name() == mean
+//                    && acc1_.name() == mean) {
+//                    return true;
+//                }
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
         }
@@ -319,19 +354,48 @@ mergeEdges(
     auto & sa = edgeState_[aliveEdge];
     const auto  sd = edgeState_[deadEdge];
 
-    if(settings_.zeroInit  && sa == EdgeStates::PURE_LIFTED &&  sd != EdgeStates::PURE_LIFTED)
-        acc0_.setValueFrom(aliveEdge, deadEdge);
-    else if (settings_.zeroInit  && sa != EdgeStates::PURE_LIFTED &&  sd == EdgeStates::PURE_LIFTED) {}
-    else
-        acc0_.merge(aliveEdge, deadEdge);
+    const auto mergePrioAlive = acc0_[aliveEdge];
+    const auto mergePrioDead = acc0_[deadEdge];
+    const auto notMergePrioAlive = acc1_[aliveEdge];
+    const auto notMergePrioDead = acc1_[deadEdge];
+//    std::cout << "[MP<0 "<< mergePrioAlive < 0. || mergePrioDead < 0. <<" ]; ";
+//    std::cout << "[nMP<0 "<< notMergePrioAlive< 0. || notMergePrioAlive < 0. <<" ]; ";
 
-    // update notMergePrio
-    if(settings_.zeroInit  && sa == EdgeStates::PURE_LOCAL &&  sd !=  EdgeStates::PURE_LOCAL)
-        acc1_.setValueFrom(aliveEdge, deadEdge);
-        // FIXME: here weight is not updated!!!
-    else if(settings_.zeroInit  && sa != EdgeStates::PURE_LOCAL &&  sd ==  EdgeStates::PURE_LOCAL) {}
-    else
+    if (mergePrioAlive < 0.) {
+//        std::cout << "[MergePrioDead "<< mergePrioDead <<" ]; ";
+        acc0_.setFrom(aliveEdge, deadEdge);
+    } else if (mergePrioDead < 0.) {
+//        std::cout << "[MergePrioAlive "<< mergePrioAlive <<" ]; ";
+    }
+    else {
+        acc0_.merge(aliveEdge, deadEdge);
+    }
+
+    if (notMergePrioAlive < 0.) {
+//        std::cout << ".";
+        acc1_.setFrom(aliveEdge, deadEdge);
+    } else if (notMergePrioDead < 0.) {
+//        std::cout << "/";
+//        std::cout << "[notMergePrioAlive "<< notMergePrioAlive <<" ]; ";
+    }
+    else {
+//        std::cout << "[bothRep]";
         acc1_.merge(aliveEdge, deadEdge);
+    }
+
+//    if(settings_.zeroInit  && sa == EdgeStates::PURE_LIFTED &&  sd != EdgeStates::PURE_LIFTED)
+//        acc0_.setValueFrom(aliveEdge, deadEdge);
+//    else if (settings_.zeroInit  && sa != EdgeStates::PURE_LIFTED &&  sd == EdgeStates::PURE_LIFTED) {}
+//    else
+//        acc0_.merge(aliveEdge, deadEdge);
+//
+//    // update notMergePrio
+//    if(settings_.zeroInit  && sa == EdgeStates::PURE_LOCAL &&  sd !=  EdgeStates::PURE_LOCAL)
+//        acc1_.setValueFrom(aliveEdge, deadEdge);
+//        // FIXME: here weight is not updated!!!
+//    else if(settings_.zeroInit  && sa != EdgeStates::PURE_LOCAL &&  sd ==  EdgeStates::PURE_LOCAL) {}
+//    else
+//        acc1_.merge(aliveEdge, deadEdge);
     
 
     // update state
