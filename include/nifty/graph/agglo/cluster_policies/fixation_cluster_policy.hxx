@@ -47,18 +47,19 @@ public:
 
     struct SettingsType{
 
-     
+        // TODO: make threshold-check optional
         Acc0SettingsType updateRule0;
         Acc1SettingsType updateRule1;
-        bool zeroInit = false;
-        bool initSignedWeights = false;
+        bool zeroInit = false; // DEPRECATED
+        bool initSignedWeights = false; // DEPRECATED
         uint64_t numberOfNodesStop{1};
         double sizeRegularizer{0.};
-        double sizeThreshMin{10.};
-        double sizeThreshMax{30.};
-        bool postponeThresholding{true};
+        double sizeThreshMin{10.}; // DEPRECATED
+        double sizeThreshMax{30.}; // DEPRECATED
+        bool postponeThresholding{true}; // DEPRECATED
         double threshold{0.5}; // Merge all: 0.0; split all: 1.0
         //uint64_t numberOfBins{40};
+        bool costsInPQ{true};
     };
 
     enum class EdgeStates : uint8_t { 
@@ -116,15 +117,16 @@ public:
         if(s == EdgeStates::PURE_LOCAL){
             return true;
         }
-        else if(s == EdgeStates::LOCAL){
-            if (phase_ != 0 || not settings_.postponeThresholding) {
-                const auto uv = edgeContractionGraph_.uv(edge);
-                const auto sizeU = nodeSizes_[uv.first];
-                const auto sizeV = nodeSizes_[uv.second];
-                if (sizeU <= settings_.sizeThreshMin || sizeV <= settings_.sizeThreshMin)
-                    if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
-                        return true;
-            }
+        else if (s == EdgeStates::LOCAL){
+//            if (phase_ != 0 || not settings_.postponeThresholding) {
+//                const auto uv = edgeContractionGraph_.uv(edge);
+//                const auto sizeU = nodeSizes_[uv.first];
+//                const auto sizeV = nodeSizes_[uv.second];
+//                if (sizeU <= settings_.sizeThreshMin || sizeV <= settings_.sizeThreshMin)
+//                    if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
+//                        return true;
+//            }
+            // TODO: improve and create function!
             if (acc0_[edge] < 0)
                 return false;
             else if (acc1_[edge] < 0)
@@ -150,7 +152,7 @@ private:
     // INPUT
     const GraphType &   graph_;
 
-    int phase_;
+//    int phase_;
 
     ACC_0 acc0_;
     ACC_1 acc1_;
@@ -190,7 +192,7 @@ FixationClusterPolicy(
     settings_(settings),
     edgeContractionGraph_(graph, *this)
 {
-    phase_ = 0;
+//    phase_ = 0;
     graph_.forEachNode([&](const uint64_t node) {
         nodeSizes_[node] = nodeSizes[node];
     });
@@ -200,30 +202,32 @@ FixationClusterPolicy(
 
         const auto loc = isLocalEdge[edge];
 
-        if(settings_.initSignedWeights) {
-            if (mergePrios[edge] > settings_.threshold) {
-                // Set repulsion to zero:
-                acc1_.set(edge, -1.0, edgeSizes[edge]);
-            } else {
-//            if(loc == 1)
+        // TODO: better possible solution: pure_repulsive, pure_attractive
+//        if(settings_.initSignedWeights) {
+//            if (mergePrios[edge] > settings_.threshold) {
 //                // Set repulsion to zero:
 //                acc1_.set(edge, -1.0, edgeSizes[edge]);
-//            else {
-//                // Set attraction to zero:
-                acc0_.set(edge, -1.0, edgeSizes[edge]);
-//            }
-
-            }
-//        if(loc == 1){
-//            // Set repulsion to zero:
-//            acc1_.set(edge, -1.0, edgeSizes[edge]);
-//        } else {
-//            // Set attraction to zero:
+//            } else {
+////            if(loc == 1)
+////                // Set repulsion to zero:
+////                acc1_.set(edge, -1.0, edgeSizes[edge]);
+////            else {
+////                // Set attraction to zero:
+//                acc0_.set(edge, -1.0, edgeSizes[edge]);
+////            }
 //
-//            acc0_.set(edge, -1.0, edgeSizes[edge]);
+//            }
+////        if(loc == 1){
+////            // Set repulsion to zero:
+////            acc1_.set(edge, -1.0, edgeSizes[edge]);
+////        } else {
+////            // Set attraction to zero:
+////
+////            acc0_.set(edge, -1.0, edgeSizes[edge]);
+////        }
 //        }
-        }
 
+        // TODO: get rid of this
         if(settings_.zeroInit){
             edgeState_[edge] = (loc ? EdgeStates::PURE_LOCAL : EdgeStates::PURE_LIFTED);
 
@@ -274,23 +278,23 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
         }
-        if (phase_ != 0 || settings_.sizeThreshMin == 0 || not settings_.postponeThresholding){
+//        if (phase_ != 0 || settings_.sizeThreshMin == 0 || not settings_.postponeThresholding){
             return  true;
-        } else {
-            phase_ = 1;
-            std::cout << "Phase 1 done ";
-            // Insert again all edges in PQ without SizeRegularizer
-            int counter = 0;
-            graph_.forEachEdge([&](const uint64_t edge) {
-                const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
-                const auto uv = edgeContractionGraph_.uv(edge);
-                if (cEdge == edge && cEdge>=0 && uv.first!=uv.second) {
-                    counter++;
-                    pq_.push(edge, this->computeWeight(cEdge));
-                }
-            });
-            std::cout << "--> "<< counter<<" new edges inserted!\n";
-        }
+//        } else {
+//            phase_ = 1;
+//            std::cout << "Phase 1 done ";
+//            // Insert again all edges in PQ without SizeRegularizer
+//            int counter = 0;
+//            graph_.forEachEdge([&](const uint64_t edge) {
+//                const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
+//                const auto uv = edgeContractionGraph_.uv(edge);
+//                if (cEdge == edge && cEdge>=0 && uv.first!=uv.second) {
+//                    counter++;
+//                    pq_.push(edge, this->computeWeight(cEdge));
+//                }
+//            });
+//            std::cout << "--> "<< counter<<" new edges inserted!\n";
+//        }
     }
 }
 
@@ -418,8 +422,8 @@ mergeEdges(
     }
 
     const auto sr = settings_.sizeRegularizer;
-    if (sr < 0.0001 || phase_ != 0)
-        pq_.push(aliveEdge, this->pqMergePrio(aliveEdge));
+    if (sr < 0.0001)
+        pq_.push(aliveEdge, this->computeWeight(aliveEdge));
     
 }
 
@@ -432,7 +436,7 @@ contractEdgeDone(
 ){
     // HERE WE UPDATE the PQ when a SizeReg is used:
     const auto sr = settings_.sizeRegularizer;
-    if (sr > 0.0001 && phase_ == 0) {
+    if (sr > 0.0001) {
         const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
         for(auto adj : edgeContractionGraph_.adjacency(u)){
             const auto edge = adj.edge();
@@ -447,9 +451,11 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1, ENABLE_UCM>::
 computeWeight(
         const uint64_t edge
 ) const {
-    const auto fromEdge = this->pqMergePrio(edge);
+    const auto fromEdge = this->pqMergePrio(edge); // This -inf if the edge was lifted
     const auto sr = settings_.sizeRegularizer;
-    if (sr > 0.0001 && phase_ == 0)
+    if (isNegativeInf(fromEdge))
+        return fromEdge;
+    else if (sr > 0.0001)
     {
         const auto uv = edgeContractionGraph_.uv(edge);
         const auto sizeU = nodeSizes_[uv.first];
@@ -461,7 +467,17 @@ computeWeight(
         return fromEdge * (1. / sFac);
     } else
     {
-        return fromEdge;
+        if (settings_.costsInPQ) {
+            auto attrFromEdge = fromEdge;
+            auto repFromEdge = acc1_[edge];
+            if (attrFromEdge < 0 && !isNegativeInf(fromEdge))
+                attrFromEdge = 0.;
+            if (repFromEdge < 0)
+                repFromEdge = 0.;
+            return attrFromEdge - repFromEdge;
+        }
+        else
+            return fromEdge;
     }
 
 

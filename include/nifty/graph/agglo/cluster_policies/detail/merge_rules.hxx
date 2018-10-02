@@ -126,7 +126,7 @@ namespace merge_rules{
         {
             for(auto edge : g.edges()){
 
-                values_[edge] = values[edge]*weights[edge];
+                values_[edge] = values[edge];
                 weights_[edge] = weights[edge];
             }
         }
@@ -137,12 +137,8 @@ namespace merge_rules{
             auto & weight = weights_[aliveEdge];
             const auto ovalue  =  values_[deadEdge];
             const auto oweight = weights_[deadEdge];
-
-//            value *= weight;
-            value += oweight*ovalue;
+            value += ovalue;
             weight += oweight;
-//            value /= weight;
-
         }
 
         void setValueFrom(const uint64_t targetEdge, const uint64_t sourceEdge){
@@ -154,7 +150,7 @@ namespace merge_rules{
         }
 
         void set(const uint64_t targetEdge, const T & value, const T &  weight){
-            values_[targetEdge] = value*weight;
+            values_[targetEdge] = value;
             weights_[targetEdge] = weight;
         }
 
