@@ -75,6 +75,8 @@ namespace agglo{
                     const double sizeThreshMin,
                     const double sizeThreshMax,
                     const bool postponeThresholding,
+                    const bool costsInPQ,
+                    const bool checkForNegCosts,
                     const double threshold
                 ){
                     typename ClusterPolicyType::SettingsType s;
@@ -88,6 +90,8 @@ namespace agglo{
                     s.zeroInit = zeroInit;
                     s.initSignedWeights = initSignedWeights;
                     s.threshold = threshold;
+                    s.costsInPQ = costsInPQ;
+                    s.checkForNegCosts = checkForNegCosts;
                     auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, nodeSizes, s);
                     return ptr;
                 },
@@ -108,6 +112,8 @@ namespace agglo{
                 py::arg("sizeThreshMin") = 0.,
                 py::arg("sizeThreshMax") = 300.,
                 py::arg("postponeThresholding") = true,
+                py::arg("costsInPQ") = false,
+                py::arg("checkForNegCosts") = true,
                 py::arg("threshold") = 0.5 // Merge all: 0.0; split all: 1.0
             );
 

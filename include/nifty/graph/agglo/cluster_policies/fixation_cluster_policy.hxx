@@ -60,6 +60,7 @@ public:
         double threshold{0.5}; // Merge all: 0.0; split all: 1.0
         //uint64_t numberOfBins{40};
         bool costsInPQ{true};
+        bool checkForNegCosts{true};
     };
 
     enum class EdgeStates : uint8_t { 
@@ -127,9 +128,9 @@ public:
 //                        return true;
 //            }
             // TODO: improve and create function!
-            if (acc0_[edge] < 0)
+            if (settings_.checkForNegCosts && acc0_[edge] < 0)
                 return false;
-            else if (acc1_[edge] < 0)
+            else if (settings_.checkForNegCosts && acc1_[edge] < 0)
                 return true;
             else {
 //                std::cout << "-" << acc0_[edge] - acc1_[edge];
@@ -269,6 +270,7 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
                 return false;
             }
             else{
+                // TODO: re-introduce an smart early stop (mean, sum, when thresh is reached, I can stop)
 //                const auto mean = std::string("ArithmeticMean");
 //                if (settings_.sizeThreshMin == 0 && not settings_.postponeThresholding && not settings_.zeroInit
 //                    && acc0_.name() == mean
@@ -365,20 +367,20 @@ mergeEdges(
 //    std::cout << "[MP<0 "<< mergePrioAlive < 0. || mergePrioDead < 0. <<" ]; ";
 //    std::cout << "[nMP<0 "<< notMergePrioAlive< 0. || notMergePrioAlive < 0. <<" ]; ";
 
-    if (mergePrioAlive < 0.) {
+    if (settings_.checkForNegCosts && mergePrioAlive < 0.) {
 //        std::cout << "[MergePrioDead "<< mergePrioDead <<" ]; ";
         acc0_.setFrom(aliveEdge, deadEdge);
-    } else if (mergePrioDead < 0.) {
+    } else if (settings_.checkForNegCosts && mergePrioDead < 0.) {
 //        std::cout << "[MergePrioAlive "<< mergePrioAlive <<" ]; ";
     }
     else {
         acc0_.merge(aliveEdge, deadEdge);
     }
 
-    if (notMergePrioAlive < 0.) {
+    if (settings_.checkForNegCosts && notMergePrioAlive < 0.) {
 //        std::cout << ".";
         acc1_.setFrom(aliveEdge, deadEdge);
-    } else if (notMergePrioDead < 0.) {
+    } else if (settings_.checkForNegCosts && notMergePrioDead < 0.) {
 //        std::cout << "/";
 //        std::cout << "[notMergePrioAlive "<< notMergePrioAlive <<" ]; ";
     }
@@ -470,9 +472,9 @@ computeWeight(
         if (settings_.costsInPQ) {
             auto attrFromEdge = fromEdge;
             auto repFromEdge = acc1_[edge];
-            if (attrFromEdge < 0 && !isNegativeInf(fromEdge))
+            if (settings_.checkForNegCosts && attrFromEdge < 0)
                 attrFromEdge = 0.;
-            if (repFromEdge < 0)
+            if (settings_.checkForNegCosts && repFromEdge < 0)
                 repFromEdge = 0.;
             return attrFromEdge - repFromEdge;
         }
