@@ -77,6 +77,7 @@ namespace agglo{
                     const bool postponeThresholding,
                     const bool costsInPQ,
                     const bool checkForNegCosts,
+                    const bool addNonLinkConstraints,
                     const double threshold
                 ){
                     typename ClusterPolicyType::SettingsType s;
@@ -92,6 +93,7 @@ namespace agglo{
                     s.threshold = threshold;
                     s.costsInPQ = costsInPQ;
                     s.checkForNegCosts = checkForNegCosts;
+                    s.addNonLinkConstraints = addNonLinkConstraints;
                     auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, nodeSizes, s);
                     return ptr;
                 },
@@ -114,6 +116,7 @@ namespace agglo{
                 py::arg("postponeThresholding") = true,
                 py::arg("costsInPQ") = false,
                 py::arg("checkForNegCosts") = true,
+                py::arg("addNonLinkConstraints") = false,
                 py::arg("threshold") = 0.5 // Merge all: 0.0; split all: 1.0
             );
 

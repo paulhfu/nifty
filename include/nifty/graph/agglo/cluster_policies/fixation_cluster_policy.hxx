@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <boost/container/flat_set.hpp>
 #include <string>
+#include <cmath>        // std::abs
 
 #include "nifty/tools/changable_priority_queue.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
@@ -31,6 +32,8 @@ private:
     typedef typename GRAPH:: template EdgeMap<float> FloatEdgeMap;
     typedef typename GRAPH:: template NodeMap<float> FloatNodeMap;
 
+    typedef boost::container::flat_set<uint64_t> SetType;
+    typedef typename GRAPH:: template NodeMap<SetType > NonLinkConstraints;
 
     typedef ACC_0 Acc0Type;
     typedef ACC_1 Acc1Type;
@@ -61,6 +64,7 @@ public:
         //uint64_t numberOfBins{40};
         bool costsInPQ{true};
         bool checkForNegCosts{true};
+        bool addNonLinkConstraints{false};
     };
 
     enum class EdgeStates : uint8_t { 
@@ -113,38 +117,69 @@ public:
     void mergeEdges(const uint64_t aliveEdge, const uint64_t deadEdge);
     void contractEdgeDone(const uint64_t edgeToContract);
 
-    bool isMergeAllowed(const uint64_t edge){
-        const auto  s = edgeState_[edge];
-        if(s == EdgeStates::PURE_LOCAL){
+    bool isEdgeConstrained(const uint64_t edge){
+        const auto uv = edgeContractionGraph_.uv(edge);
+        const auto u = uv.first;
+        const auto v = uv.second;
+        const auto & setU  = nonLinkConstraints_[u];
+        const auto & setV  = nonLinkConstraints_[v];
+        NIFTY_CHECK((setU.find(v)!=setU.end()) == (setV.find(u)!=setV.end()),"");
+        if(setU.find(v)!=setU.end()){// || setV.find(u)!=setV.end()){
             return true;
-        }
-        else if (s == EdgeStates::LOCAL){
-//            if (phase_ != 0 || not settings_.postponeThresholding) {
-//                const auto uv = edgeContractionGraph_.uv(edge);
-//                const auto sizeU = nodeSizes_[uv.first];
-//                const auto sizeV = nodeSizes_[uv.second];
-//                if (sizeU <= settings_.sizeThreshMin || sizeV <= settings_.sizeThreshMin)
-//                    if (sizeU >= settings_.sizeThreshMax || sizeV >= settings_.sizeThreshMax)
-//                        return true;
-//            }
-            // TODO: improve and create function!
-            if (settings_.checkForNegCosts && acc0_[edge] < 0)
-                return false;
-            else if (settings_.checkForNegCosts && acc1_[edge] < 0)
-                return true;
-            else {
-//                std::cout << "-" << acc0_[edge] - acc1_[edge];
-                return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
-            }
-//            const auto
-//            if (not isMergeAll)
-//                    std::cout << "Attr.:" << settings_.sizeRegularizer << "\n";
-//            return isMergeAll;
-        }
-        else{
+        } else{
             return false;
         }
     }
+
+
+    bool isMergeAllowed(const uint64_t edge) const{
+        // Here we do not care about the fact that an edge is lifted or not.
+        // We just look at the costs
+        if (settings_.checkForNegCosts && acc0_[edge] < 0)
+            return false;
+        else if (settings_.checkForNegCosts && acc1_[edge] < 0)
+            return true;
+        else {
+            return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
+        }
+    }
+
+    double edgeCostInPQ(const uint64_t edge) const{
+        if (settings_.costsInPQ) {
+            auto attrFromEdge = acc0_[edge];
+            auto repFromEdge = acc1_[edge];
+            if (settings_.checkForNegCosts && attrFromEdge < 0)
+                attrFromEdge = 0.;
+            if (settings_.checkForNegCosts && repFromEdge < 0)
+                repFromEdge = 0.;
+
+            const auto cost = attrFromEdge - repFromEdge;
+
+            // With constraints, we take the absolute value
+            if (settings_.addNonLinkConstraints)
+                return std::abs(cost);
+            else
+                return cost;
+        }
+        else {
+            if (settings_.addNonLinkConstraints) {
+                return std::max(acc0_[edge], acc1_[edge]);
+            } else {
+                return acc0_[edge];
+            }
+        }
+    }
+
+    void addNonLinkConstraint(const uint64_t edge){
+        //std::cout<<"add non link constraint\n";
+        const auto uv = edgeContractionGraph_.uv(edge);
+        const auto u = uv.first;
+        const auto v = uv.second;
+        nonLinkConstraints_[uv.first].insert(uv.second);
+        nonLinkConstraints_[uv.second].insert(uv.first);
+    }
+
+
 
 private:
 
@@ -152,6 +187,8 @@ private:
 
     // INPUT
     const GraphType &   graph_;
+
+    NonLinkConstraints nonLinkConstraints_;
 
 //    int phase_;
 
@@ -171,6 +208,7 @@ private:
     double   edgeToContractNextMergePrio_;
 };
 
+//    TODO: rename MERGE_PRIO in something like ATTRACTIVE_COSTS
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
 template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE,class EDGE_SIZES,class NODE_SIZES>
@@ -185,6 +223,7 @@ FixationClusterPolicy(
     const SettingsType & settings
 )
 :   graph_(graph),
+    nonLinkConstraints_(graph),
     acc0_(graph, mergePrios,    edgeSizes, settings.updateRule0),
     acc1_(graph, notMergePrios, edgeSizes, settings.updateRule1),
     edgeState_(graph),
@@ -262,8 +301,19 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
     while(true) {
         while(!pq_.empty() && !isNegativeInf(pq_.topPriority())){
 
+            // Here we already know that the edge is not lifted
+            // (Otherwise we would have inf cost in PQ)
             const auto nextActioneEdge = pq_.top();
 
+            // Here we check if some early constraints were enforced:
+            if (settings_.addNonLinkConstraints) {
+                if(this->isEdgeConstrained(nextActioneEdge)) {
+                    pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
+                    continue;
+                }
+            }
+
+            // Here we check if we are allowed to make the merge:
             if(this->isMergeAllowed(nextActioneEdge)){
                 edgeToContractNext_ = nextActioneEdge;
                 edgeToContractNextMergePrio_ = pq_.topPriority();
@@ -277,6 +327,9 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
 //                    && acc1_.name() == mean) {
 //                    return true;
 //                }
+                if (settings_.addNonLinkConstraints) {
+                    this->addNonLinkConstraint(nextActioneEdge);
+                }
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
         }
@@ -307,12 +360,20 @@ pqMergePrio(
     const uint64_t edge
 ) const {
     const auto s = edgeState_[edge];
+    double costInPQ;
     if(s == EdgeStates::LOCAL || s==EdgeStates::PURE_LOCAL){
-        return  acc0_[edge];
+        costInPQ = this->edgeCostInPQ(edge);
     }
     else{
-        return -1.0*std::numeric_limits<double>::infinity(); 
+        // In this case the edge is lifted, so we need to be careful.
+        // It can be inserted in the PQ to constrain, but not to merge.
+        if (!settings_.addNonLinkConstraints || this->isMergeAllowed(edge))
+            costInPQ = -1.0*std::numeric_limits<double>::infinity();
+        else {
+            costInPQ = this->edgeCostInPQ(edge);
+        }
     }
+    return costInPQ;
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
@@ -339,6 +400,24 @@ mergeNodes(
     const uint64_t deadNode
 ){
     nodeSizes_[aliveNode] +=nodeSizes_[deadNode];
+
+    if (settings_.addNonLinkConstraints) {
+        auto  & aliveNodeNlc = nonLinkConstraints_[aliveNode];
+        const auto & deadNodeNlc = nonLinkConstraints_[deadNode];
+        aliveNodeNlc.insert(deadNodeNlc.begin(), deadNodeNlc.end());
+
+
+        for(const auto v : deadNodeNlc){
+            auto & nlc = nonLinkConstraints_[v];
+
+            // best way to change values in set...
+            nlc.erase(deadNode);
+            nlc.insert(aliveNode);
+        }
+
+        aliveNodeNlc.erase(deadNode);
+    }
+
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
@@ -424,7 +503,7 @@ mergeEdges(
     }
 
     const auto sr = settings_.sizeRegularizer;
-    if (sr < 0.0001)
+    if (sr < 0.000001)
         pq_.push(aliveEdge, this->computeWeight(aliveEdge));
     
 }
@@ -438,7 +517,7 @@ contractEdgeDone(
 ){
     // HERE WE UPDATE the PQ when a SizeReg is used:
     const auto sr = settings_.sizeRegularizer;
-    if (sr > 0.0001) {
+    if (sr > 0.000001) {
         const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
         for(auto adj : edgeContractionGraph_.adjacency(u)){
             const auto edge = adj.edge();
@@ -455,9 +534,8 @@ computeWeight(
 ) const {
     const auto fromEdge = this->pqMergePrio(edge); // This -inf if the edge was lifted
     const auto sr = settings_.sizeRegularizer;
-    if (isNegativeInf(fromEdge))
-        return fromEdge;
-    else if (sr > 0.0001)
+
+    if (sr > 0.000001 and !isNegativeInf(fromEdge))
     {
         const auto uv = edgeContractionGraph_.uv(edge);
         const auto sizeU = nodeSizes_[uv.first];
@@ -467,19 +545,8 @@ computeWeight(
 //            std::cout << this->pqMergePrio(edge) << "; regFact: " << sFac<<"; sizeU: " << sizeU<<"; sizeV: " << sizeV<<"; final: " << fromEdge*(1. / sFac) << "\n";
 //        }
         return fromEdge * (1. / sFac);
-    } else
-    {
-        if (settings_.costsInPQ) {
-            auto attrFromEdge = fromEdge;
-            auto repFromEdge = acc1_[edge];
-            if (settings_.checkForNegCosts && attrFromEdge < 0)
-                attrFromEdge = 0.;
-            if (settings_.checkForNegCosts && repFromEdge < 0)
-                repFromEdge = 0.;
-            return attrFromEdge - repFromEdge;
-        }
-        else
-            return fromEdge;
+    } else {
+        return fromEdge;
     }
 
 
