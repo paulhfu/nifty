@@ -69,6 +69,7 @@ namespace graph{
             nifty::marray::PyView<DATA_T, DIM+1> affinities_weigths,
             const int numberOfThreads
         ){
+            NIFTY_CHECK(false,"Max not implemented. And at some point I said there was a bug (not present in the version with undirected graph)");
             // Inputs:
 //            typedef typename DATA_T::value_type value_type;
 //            auto & affinities = affinitiesExpression.derived_cast();
@@ -290,16 +291,18 @@ namespace graph{
 
                           // Create outputs:
                           typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
-                          typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
+                          typedef std::tuple<NumpyArrayType, NumpyArrayType, NumpyArrayType>  OutType;
 
                           std::array<int,2> shapeRetArray;
                           shapeRetArray[0] = numberOfThreads;
                           shapeRetArray[1] = uint64_t(graph.edgeIdUpperBound()+1);
 
                           NumpyArrayType accAff(shapeRetArray.begin(), shapeRetArray.end());
+                          NumpyArrayType maxAff(shapeRetArray.begin(), shapeRetArray.end());
                           NumpyArrayType counter(shapeRetArray.begin(), shapeRetArray.end());
 
                           std::fill(accAff.begin(), accAff.end(), 0.);
+                          std::fill(maxAff.begin(), maxAff.end(), 0.);
                           std::fill(counter.begin(), counter.end(), 0.);
 
                           {
@@ -325,9 +328,12 @@ namespace graph{
                                                                                       if(u != v){
                                                                                           const auto edge = graph.findEdge(u,v);
                                                                                           if (edge >=0 ){
+                                                                                              const auto aff_value = affinities(coordP[0],coordP[1],coordP[2],i);
+                                                                                              if (aff_value > maxAff(threadId, edge))
+                                                                                                  maxAff(threadId, edge) = aff_value;
                                                                                               counter(threadId,edge) += affinities_weigths(i);
                                                                                               // accAff(edge) = 0.;
-                                                                                              accAff(threadId,edge) += affinities(coordP[0],coordP[1],coordP[2],i)*affinities_weigths(i);
+                                                                                              accAff(threadId,edge) += aff_value*affinities_weigths(i);
                                                                                           }
                                                                                       }
                                                                                   }
@@ -339,12 +345,16 @@ namespace graph{
 
                           NumpyArrayType accAff_out({uint64_t(graph.edgeIdUpperBound()+1)});
                           NumpyArrayType counter_out({uint64_t(graph.edgeIdUpperBound()+1)});
+                          NumpyArrayType maxAff_out({uint64_t(graph.edgeIdUpperBound()+1)});
 
                           // Normalize:
                           for(auto i=0; i<uint64_t(graph.edgeIdUpperBound()+1); ++i){
+                              maxAff_out(i) = maxAff(0,i);
                               for(auto thr=1; thr<numberOfThreads; ++thr){
                                   counter(0,i) += counter(thr,i);
                                   accAff(0,i) += accAff(thr,i);
+                                  if (maxAff(thr,i) > maxAff_out(i))
+                                      maxAff_out(i) = maxAff(thr,i);
                               }
                               if(counter(0,i)>0.5){
                                   accAff_out(i) = accAff(0,i) / counter(0,i);
@@ -354,7 +364,7 @@ namespace graph{
                                   counter_out(i) = 0.;
                               }
                           }
-                          return OutType(accAff_out, counter_out);;
+                          return OutType(accAff_out, counter_out, maxAff_out);;
 
 
                       },
@@ -808,6 +818,7 @@ namespace graph{
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
 
             // std::cout << "Tick 0";
+            NIFTY_CHECK((DIM == 3) || (DIM == 4), "Implemented dimensions: 3 and 4");
 
             std::array<int,DIM+1> shapeFeatureImage;
             std::copy(labelArray.shapeBegin(), labelArray.shapeEnd(), shapeFeatureImage.begin());
