@@ -6,9 +6,9 @@
 	path = externals/graph
 	url = https://github.com/bjoern-andres/graph
     
-[submodule "externals/vigra"]
-	path = externals/vigra
-	url = https://github.com/DerThorsten/vigra
+# [submodule "externals/vigra"]
+# 	path = externals/vigra
+# 	url = https://github.com/DerThorsten/vigra
 
 [submodule "externals/LP_MP"]
 	path = externals/LP_MP
