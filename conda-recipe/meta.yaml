@@ -56,6 +56,7 @@ requirements:
     - numpy {{NPY_VER}}*
     - xtensor
     - xtensor-python
+    - vigra
     {% if WITH_CPLEX is defined and WITH_CPLEX %}
     - cplex-shared # Need to make sure that cplex dylibs exist
     {% endif %}

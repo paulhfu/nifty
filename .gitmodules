@@ -18,3 +18,6 @@
 	path = externals/qpbo
 	url = https://github.com/DerThorsten/qpbo
 
+[submodule "externals/vigra"]
+	path = externals/vigra
+	url = https://github.com/ukoethe/vigra.git

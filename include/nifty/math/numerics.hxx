@@ -7,6 +7,9 @@ namespace nifty{
 namespace math{
 
 
+    
+
+        
     template<class T0, class T1>
     struct PromoteTraits{
         typedef typename vigra::PromoteTraits<T0, T1>::Promote          PromoteType; 
