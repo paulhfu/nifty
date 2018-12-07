@@ -131,8 +131,17 @@ def undirectedGridGraph(shape, simpleNh=True):
 
 gridGraph = undirectedGridGraph
 
-def undirectedLongRangeGridGraph(shape, offsets):
+def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None):
+    """
+    :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a dense graph is used
+    :param labels: Indices of a passed segmentation (uint64)
+    :param is_local_offset: boolean array of shape=nb_offsets
+    """
+    # TODO: bad design. Local edges could be skipped.
     offsets = numpy.require(offsets, dtype='int64')
+    assert offsets.shape[0] == is_local_offset.shape[0]
+    is_local_offset = is_local_offset.astype(numpy.bool)
+
     shape = list(shape)
     if len(shape) == 2:
         G = UndirectedLongRangeGridGraph2D
@@ -141,7 +150,23 @@ def undirectedLongRangeGridGraph(shape, offsets):
     else:
         raise RuntimeError("wrong dimension: undirectedLongRangeGridGraph is only implemented for 2D and 3D")
 
-    return G(shape=shape, offsets=offsets)
+    if labels is None:
+        labels = numpy.zeros(shape, dtype=numpy.uint32)
+        start_from_labels = False
+    else:
+        labels = labels.astype(numpy.uint32)
+        start_from_labels = True
+
+
+    if offsets_probabilities is None:
+        offsets_probabilities = numpy.ones((offsets.shape[0],), dtype='float')
+    else:
+        assert offsets_probabilities.shape[0] == offsets.shape[0]
+        offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
+
+    randomProbs = numpy.random.rand(*tuple(shape) + (offsets.shape[0],))
+
+    return G(shape, offsets, labels, offsets_probabilities, randomProbs, is_local_offset, start_from_labels)
 
 longRangeGridGraph = undirectedLongRangeGridGraph
 

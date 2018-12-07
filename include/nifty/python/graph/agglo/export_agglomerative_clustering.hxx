@@ -42,7 +42,6 @@ namespace agglo{
             typedef typename GraphType:: template EdgeMap<double> EdgeMapFloat64;
 
             aggloCls
-
                 .def("runAndGetMergeTimes", [](
                     AGGLO_CLUSTER_TYPE * self, const bool verbose
                 ){
@@ -237,7 +236,9 @@ namespace agglo{
 
         // the agglomerative cluster policy itself 
         auto aggloCls = py::class_<AgglomerativeClusteringType>(aggloModule, aggloClsName.c_str());
-           
+
+        aggloCls.def_property_readonly("graph", &AgglomerativeClusteringType::graph);
+
         aggloCls
             .def("run", [](
                 AgglomerativeClusteringType * self,
@@ -253,7 +254,6 @@ namespace agglo{
                 py::arg("verbose") = false,
                 py::arg("printNth") = 1
             )
-
             .def("result", [](
                 const AgglomerativeClusteringType * self
             ){

@@ -20,6 +20,8 @@ def updatRule(name, **kwargs):
         return MaxSettings()
     elif name == 'min':
         return MinSettings()
+    elif name == 'sum':
+        return SumSettings()
     elif name == 'mean':
         return ArithmeticMeanSettings()
     elif name in ['gmean', 'generalized_mean']:
