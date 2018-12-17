@@ -185,3 +185,87 @@ def ucmFeatures(graph, edgeIndicators, edgeSizes, nodeSizes,
 
     return numpy.concatenate(fOut, axis=1)
 
+
+def greedyGraphEdgeContraction(graph,
+                          signed_edge_weights,
+                          update_rule = 'mean',
+                          threshold = 0.5,
+                          # unsigned_edge_weights = None,
+                          add_cannot_link_constraints= False,
+                          edge_sizes = None,
+                          node_sizes = None,
+                          is_merge_edge = None,
+                          size_regularizer = 0.0,
+                          ):
+    """
+
+    :param graph:
+    :return:
+    """
+    def parse_update_rule(rule):
+        accepted_rules_1 = ['max', 'min', 'mean', 'ArithmeticMean', 'sum']
+        accepted_rules_2 = ['generalized_mean', 'rank', 'smooth_max']
+        if not isinstance(rule, str):
+            rule = rule.copy()
+            assert isinstance(rule, dict)
+            rule_name = rule.pop('name')
+            p = rule.get('p')
+            q = rule.get('q')
+            assert rule_name in accepted_rules_1 + accepted_rules_2, "Passed update rule is not implemented"
+            assert not (p is None and q is None), "Passed update rule is not implemented"
+            parsed_rule = updatRule(rule_name, **rule)
+        else:
+            assert rule in accepted_rules_1, "Passed update rule is not implemented"
+            parsed_rule = updatRule(rule)
+
+        return parsed_rule
+
+    # if unsigned_edge_weights is not None:
+    #     assert signed_edge_weights is None, "Both signed and unsigned weights were given!"
+    #     assert threshold is not None, "For unsigned weights it is necessary to define a threshold parameter!"
+    #     signed_edge_weights = unsigned_edge_weights - threshold
+
+    merge_prio = numpy.where(signed_edge_weights > 0, signed_edge_weights, -1.)
+    not_merge_prio = numpy.where(signed_edge_weights < 0, -signed_edge_weights, -1.)
+
+    parsed_rule = parse_update_rule(update_rule)
+
+    costs_in_PQ = True if update_rule == 'sum' else False
+
+    edge_sizes = numpy.ones_like(signed_edge_weights) if edge_sizes is None else edge_sizes
+    is_merge_edge = numpy.ones_like(signed_edge_weights) if is_merge_edge is None else is_merge_edge
+    node_sizes = numpy.ones(graph.numberOfNodes ,dtype='float32') if node_sizes is None else node_sizes
+
+
+    return fixationClusterPolicy(graph=graph,
+                          mergePrios=merge_prio,
+                          notMergePrios=not_merge_prio,
+                          isMergeEdge=is_merge_edge,
+                          edgeSizes=edge_sizes,
+                          nodeSizes=node_sizes,
+                          updateRule0=parsed_rule,
+                          updateRule1=parsed_rule,
+                          zeroInit=False,
+                          initSignedWeights=False,
+                          sizeRegularizer=size_regularizer,
+                          sizeThreshMin=0.,
+                          sizeThreshMax=0.,
+                          postponeThresholding=False,
+                          costsInPQ=costs_in_PQ,
+                          checkForNegCosts=True,
+                          addNonLinkConstraints=add_cannot_link_constraints,
+                          threshold=threshold)
+
+
+greedyGraphEdgeContraction.__doc__ = """
+Greedy edge contraction of a graph..
+
+Accepted update rules:
+ - 'mean'
+ - 'max'
+ - 'min'
+ - 'sum'
+ - {name: 'rank', q=0.5, numberOfBins=40}
+ - {name: 'generalized_mean', p=2.0}   # 1.0 is mean
+ - {name: 'smooth_max', p=2.0}   # 0.0 is mean
+ """
