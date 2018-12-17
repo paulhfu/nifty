@@ -33,7 +33,7 @@
 #include "nifty/graph/rag/grid_rag.hxx"
 #include "nifty/graph/rag/grid_rag_labels.hxx"
 #include "nifty/graph/rag/grid_rag_accumulate.hxx"
-
+#include "nifty/ufd/ufd.hxx"
 
 #include "nifty/python/graph/undirected_grid_graph.hxx"
 #include "nifty/python/graph/undirected_list_graph.hxx"
@@ -377,6 +377,119 @@ namespace graph{
 
         );
     }
+
+
+    template<std::size_t DIM, class DATA_T>
+    void exportConnectedComponentsFromEdgeLabels(
+            py::module & ragModule
+    ) {
+        ragModule.def("connectedComponentsFromEdgeLabels",
+                      [](
+                              nifty::marray::PyView<int, 1> shape_,
+                              nifty::marray::PyView<int, 2> offsets,
+                              nifty::marray::PyView<DATA_T, DIM + 1> edgeLabels,
+                              const int numberOfThreads
+                      ) {
+                          NIFTY_CHECK_OP(DIM,==,3, "Connected compmponents only implemented in 3D");
+                          typedef array::StaticArray<int64_t, DIM>    StridesType;
+                          StridesType strides_;
+                          strides_.back() = 1;
+                          for(int d=int(DIM)-2; d>=0; --d){
+                              strides_[d] = shape_[d+1] * strides_[d+1];
+                          }
+
+                          // Check inputs:
+                          array::StaticArray<int64_t, DIM> shape;
+                          uint64_t nb_nodes = 1;
+                          for(auto d=0; d<DIM; ++d){
+                              shape[d] = shape_(d);
+                              NIFTY_CHECK_OP(shape[d],==,edgeLabels.shape(d), "EdgeLabels have wrong shape");
+                              nb_nodes *= shape[d];
+                          }
+                          NIFTY_CHECK_OP(offsets.shape(0),==,edgeLabels.shape(DIM), "Affinities and offsets do not match");
+
+                          // Create output nodeLabels:
+                          typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+
+                          std::array<int,DIM> shapeNodeLabels;
+                          std::copy(shape.begin(), shape.end(), shapeNodeLabels.begin());
+
+                          NumpyArrayType nodeLabels(shapeNodeLabels.begin(), shapeNodeLabels.end());
+
+                          std::fill(nodeLabels.begin(), nodeLabels.end(), 0);
+                          std::cout << "Tick 0";
+                          // Create UnionFind:
+                          typedef nifty::ufd::Ufd< > NodeUfdType;
+                          NodeUfdType nodeUfd_(nb_nodes+1);
+
+                          std::cout << nodeUfd_.find(0) << "Node 1: " << nb_nodes+1 << "\n";
+                          std::cout << "Tick 1";
+                          if(DIM == 3) {
+                              nifty::tools::forEachCoordinate(shape, [&](const auto &coordP) {
+                                  // Find u-node label:
+                                  uint64_t u = 0;
+                                  for(auto d=0; d<DIM; ++d){
+                                      u +=strides_[d]*coordP[d];
+                                  }
+
+                                  for (auto i = 0; i < offsets.shape(0); ++i) {
+                                      if (edgeLabels(coordP[0], coordP[1], coordP[2], i) == 0) {
+                                          auto coordQ = coordP;
+                                          coordQ[0] += offsets(i, 0);
+                                          coordQ[1] += offsets(i, 1);
+                                          coordQ[2] += offsets(i, 2);
+                                          if (coordQ.allInsideShape(shape)) {
+                                              // Find v-node label:
+                                              uint64_t v = 0;
+                                              for(auto d=0; d<DIM; ++d){
+                                                  v +=strides_[d]*coordQ[d];
+                                              }
+                                              if (nodeUfd_.find(u) != nodeUfd_.find(v)) {
+//                                                  std::cout << ".";
+                                                  nodeUfd_.merge(u, v);
+                                              }
+                                          }
+                                      }
+                                  }
+                              });
+                          }
+                           std::cout << "Tick 2";
+                          // Map back the node labels to image:
+                          {
+                              py::gil_scoped_release allowThreads;
+
+                              // Create thread pool:
+                              nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+                              nifty::parallel::ThreadPool threadpool(pOpts);
+                              const std::size_t actualNumberOfThreads = pOpts.getActualNumThreads();
+
+                              if(DIM == 3){
+                                  nifty::tools::parallelForEachCoordinate(threadpool,
+                                                                          shape,
+                                                                          [&](const auto threadId, const auto & coordP){
+                                                                              // Find u-node label:
+                                                                              uint64_t u = 0;
+                                                                              for(auto d=0; d<DIM; ++d){
+                                                                                  u +=strides_[d]*coordP[d];
+                                                                              }
+                                                                              nodeLabels(coordP[0],coordP[1],coordP[2]) = nodeUfd_.find(u);
+                                                                          });
+                              }
+
+                          }
+
+                          return nodeLabels;
+
+
+                      },
+                      py::arg("shape"),
+                      py::arg("offsets"),
+                      py::arg("edgeLabels"),
+                      py::arg("numberOfThreads")  = 8
+
+        );
+    }
+
 
 
     template<std::size_t DIM, class RAG, class CONTR_GRAP, class DATA_T>
@@ -1183,9 +1296,13 @@ namespace graph{
             exportBoundaryMaskLongRange<3, GraphType, float>(ragModule);
 
 
+            // TODO: move to another place!
             exportMapFeaturesToLabelArray<2, float>(ragModule);
             exportMapFeaturesToLabelArray<3, float>(ragModule);
             exportMapFeaturesToLabelArray<4, float>(ragModule);
+
+            // TODO: move to another place!
+            exportConnectedComponentsFromEdgeLabels<3, uint64_t>(ragModule);
 
             // Previous exports:
 

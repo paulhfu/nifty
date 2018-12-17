@@ -189,7 +189,7 @@ public:
     void runAndGetMergeTimesAndDendrogramHeight(
         MERGE_TIMES & mergeTimes,
         EDGE_DENDROGRAM_HEIGHT & dendrogramHeight,
-        const bool verbose=false  
+        const bool verbose=true
     ){
         const auto & cgraph = clusterPolicy_.edgeContractionGraph();
         const auto & graph = cgraph.graph();
@@ -211,7 +211,8 @@ public:
             mergeTimes[edgeToContractNext] = t;
             if(verbose){
                 const auto & cgraph = clusterPolicy_.edgeContractionGraph();
-                std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
+                if(  (cgraph.numberOfNodes() + 1) % 100000  == 0)
+                    std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
             }
             clusterPolicy_.edgeContractionGraph().contractEdge(edgeToContractNext);
             ++t;
