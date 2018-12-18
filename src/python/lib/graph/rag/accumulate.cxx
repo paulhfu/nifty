@@ -19,6 +19,8 @@
 #include "nifty/python/converter.hxx"
 
 
+#include "xtensor-python/pytensor.hpp"
+#include "nifty/xtensor/xtensor.hxx"
 
 
 #ifdef WITH_HDF5
@@ -31,7 +33,6 @@
 
 
 #include "nifty/graph/rag/grid_rag.hxx"
-#include "nifty/graph/rag/grid_rag_labels.hxx"
 #include "nifty/graph/rag/grid_rag_accumulate.hxx"
 #include "nifty/ufd/ufd.hxx"
 
@@ -75,8 +76,8 @@ namespace graph{
 //            auto & affinities = affinitiesExpression.derived_cast();
 //            auto & offsets = offsetsExpression.derived_cast();
 
-            const auto & labels = rag.labelsProxy().labels();
-            const auto & shape = rag.labelsProxy().shape();
+            const auto & labels = rag.labels();
+            const auto & shape = rag.shape();
 
             // Check inputs:
             for(auto d=0; d<DIM; ++d){
@@ -178,8 +179,8 @@ namespace graph{
         ){
 
 
-            const auto & labels = rag.labelsProxy().labels();
-            const auto & shape = rag.labelsProxy().shape();
+            const auto & labels = rag.labels();
+            const auto & shape = rag.shape();
 
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
             typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
@@ -506,8 +507,8 @@ namespace graph{
         ){
 
 
-            const auto & labels = rag.labelsProxy().labels();
-            const auto & shape = rag.labelsProxy().shape();
+            const auto & labels = rag.labels();
+            const auto & shape = rag.shape();
 
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
 
@@ -599,8 +600,8 @@ namespace graph{
 
             // TODO: add nifty check DIM == 2 or DIM == 3
 
-            const auto & labels = rag.labelsProxy().labels();
-            const auto & shape = rag.labelsProxy().shape();
+            const auto & labels = rag.labels();
+            const auto & shape = rag.shape();
 
             typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
 
@@ -696,8 +697,8 @@ namespace graph{
         ){
 
 
-            const auto & labels = rag.labelsProxy().labels();
-            const auto & shape = rag.labelsProxy().shape();
+            const auto & labels = rag.labels();
+            const auto & shape = rag.shape();
 
             typedef nifty::marray::PyView<int, DIM+1> NumpyArrayInt;
             typedef std::pair<NumpyArrayInt, NumpyArrayInt>  OutType;
@@ -770,8 +771,8 @@ namespace graph{
         ){
 
 
-            const auto & labels = rag.labelsProxy().labels();
-            const auto & shape = rag.labelsProxy().shape();
+            const auto & labels = rag.labels();
+            const auto & shape = rag.shape();
 
             typedef nifty::marray::PyView<int, DIM+1> NumpyArrayInt;
             typedef std::pair<NumpyArrayInt, NumpyArrayInt>  OutType;
@@ -998,16 +999,16 @@ namespace graph{
         ragModule.def("accumulateEdgeMeanAndLength",
         [](
             const RAG & rag,
-            nifty::marray::PyView<DATA_T, DIM> data,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            const xt::pytensor<DATA_T, DIM> & data,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
 
-            nifty::marray::PyView<DATA_T> out({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(2)});
+            typename xt::pytensor<DATA_T, 2>::shape_type shape = {int64_t(rag.edgeIdUpperBound()+1), int64_t(2)};
+            xt::pytensor<DATA_T, 2> out(shape);
             {
                 py::gil_scoped_release allowThreads;
-                array::StaticArray<int64_t, DIM> blocKShape_;
-                accumulateEdgeMeanAndLength(rag, data, blocKShape, out, numberOfThreads);
+                accumulateEdgeMeanAndLength(rag, data, blockShape, out, numberOfThreads);
             }
             return out;
         },
@@ -1026,15 +1027,14 @@ namespace graph{
         ragModule.def("accumulateGeometricEdgeFeatures",
         [](
             const RAG & rag,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
 
-            nifty::marray::PyView<DATA_T> out({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(17)});
+            xt::pytensor<DATA_T, 2> out({int64_t(rag.edgeIdUpperBound()+1), int64_t(17)});
             {
                 py::gil_scoped_release allowThreads;
-                array::StaticArray<int64_t, DIM> blocKShape_;
-                accumulateGeometricEdgeFeatures(rag, blocKShape, out, numberOfThreads);
+                accumulateGeometricEdgeFeatures(rag, blockShape, out, numberOfThreads);
             }
             return out;
         },
@@ -1052,19 +1052,18 @@ namespace graph{
         ragModule.def("accumulateMeanAndLength",
         [](
             const RAG & rag,
-            nifty::marray::PyView<DATA_T, DIM> data,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            const xt::pytensor<DATA_T, DIM> & data,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads,
             const bool saveMemory
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
             typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
-            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(2)});
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(2)});
+            NumpyArrayType edgeOut({int64_t(rag.edgeIdUpperBound()+1), int64_t(2)});
+            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(2)});
             {
                 py::gil_scoped_release allowThreads;
-                array::StaticArray<int64_t, DIM> blocKShape_;
-                accumulateMeanAndLength(rag, data, blocKShape, edgeOut, nodeOut, numberOfThreads);
+                accumulateMeanAndLength(rag, data, blockShape, edgeOut, nodeOut, numberOfThreads);
             }
             return OutType(edgeOut, nodeOut);;
         },
@@ -1085,18 +1084,17 @@ namespace graph{
         [](
             const RAG & rag,
             const nifty::hdf5::Hdf5Array<DATA_T> & data,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads,
             const bool saveMemory
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
             typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
-            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(2)});
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(2)});
+            NumpyArrayType edgeOut({int64_t(rag.edgeIdUpperBound()+1), int64_t(2)});
+            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(2)});
             {
                 py::gil_scoped_release allowThreads;
-                array::StaticArray<int64_t, DIM> blocKShape_;
-                accumulateMeanAndLength(rag, data, blocKShape, edgeOut, nodeOut, numberOfThreads);
+                accumulateMeanAndLength(rag, data, blockShape, edgeOut, nodeOut, numberOfThreads);
             }
             return OutType(edgeOut, nodeOut);;
         },
@@ -1119,20 +1117,19 @@ namespace graph{
         ragModule.def("accumulateStandartFeatures",
         [](
             const RAG & rag,
-            nifty::marray::PyView<DATA_T, DIM> data,
+            const xt::pytensor<DATA_T, DIM> & data,
             const double minVal,
             const double maxVal,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
             typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
-            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(11)});
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(11)});
+            NumpyArrayType edgeOut({int64_t(rag.edgeIdUpperBound()+1), int64_t(9)});
+            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(9)});
             {
                 py::gil_scoped_release allowThreads;
-                array::StaticArray<int64_t, DIM> blocKShape_;
-                accumulateStandartFeatures(rag, data, minVal, maxVal, blocKShape, edgeOut, nodeOut, numberOfThreads);
+                accumulateStandartFeatures(rag, data, minVal, maxVal, blockShape, edgeOut, nodeOut, numberOfThreads);
             }
             return OutType(edgeOut, nodeOut);
         },
@@ -1156,17 +1153,16 @@ namespace graph{
             const nifty::hdf5::Hdf5Array<DATA_T> & data,
             const double minVal,
             const double maxVal,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
             typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
-            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(11)});
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(11)});
+            NumpyArrayType edgeOut({int64_t(rag.edgeIdUpperBound()+1), int64_t(9)});
+            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(9)});
             {
                 py::gil_scoped_release allowThreads;
-                array::StaticArray<int64_t, DIM> blocKShape_;
-                accumulateStandartFeatures(rag, data, minVal, maxVal, blocKShape, edgeOut, nodeOut, numberOfThreads);
+                accumulateStandartFeatures(rag, data, minVal, maxVal, blockShape, edgeOut, nodeOut, numberOfThreads);
             }
             return OutType(edgeOut, nodeOut);
         },
@@ -1191,17 +1187,17 @@ namespace graph{
         ragModule.def("accumulateNodeStandartFeatures",
         [](
             const RAG & rag,
-            nifty::marray::PyView<DATA_T, DIM> data,
+            const xt::pytensor<DATA_T, DIM> & data,
             const double minVal,
             const double maxVal,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(11)});
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
+            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(9)});
             {
                 py::gil_scoped_release allowThreads;
-                accumulateNodeStandartFeatures(rag, data, minVal, maxVal, blocKShape, nodeOut, numberOfThreads);
+                accumulateNodeStandartFeatures(rag, data, minVal, maxVal, blockShape, nodeOut, numberOfThreads);
             }
             return nodeOut;
         },
@@ -1221,17 +1217,18 @@ namespace graph{
         ragModule.def("accumulateEdgeStandartFeatures",
         [](
             const RAG & rag,
-            nifty::marray::PyView<DATA_T, DIM> data,
+            const xt::pytensor<DATA_T, DIM> & data,
             const double minVal,
             const double maxVal,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
-            NumpyArrayType edgeOut({uint64_t(rag.edgeIdUpperBound()+1),uint64_t(11)});
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
+            typename NumpyArrayType::shape_type shape = {int64_t(rag.edgeIdUpperBound()+1), 9L};
+            NumpyArrayType edgeOut(shape);
             {
                 py::gil_scoped_release allowThreads;
-                accumulateEdgeStandartFeatures(rag, data, minVal, maxVal, blocKShape, edgeOut, numberOfThreads);
+                accumulateEdgeStandartFeatures(rag, data, minVal, maxVal, blockShape, edgeOut, numberOfThreads);
             }
             return edgeOut;
         },
@@ -1253,14 +1250,14 @@ namespace graph{
         ragModule.def("accumulateGeometricNodeFeatures",
         [](
             const RAG & rag,
-            array::StaticArray<int64_t, DIM> blocKShape,
+            array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
-            typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
-            NumpyArrayType nodeOut({uint64_t(rag.nodeIdUpperBound()+1),uint64_t(3*DIM+1)});
+            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
+            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(3*DIM+1)});
             {
                 py::gil_scoped_release allowThreads;
-                accumulateGeometricNodeFeatures(rag, blocKShape, nodeOut, numberOfThreads);
+                accumulateGeometricNodeFeatures(rag, blockShape, nodeOut, numberOfThreads);
             }
             return nodeOut;
         },
@@ -1276,18 +1273,27 @@ namespace graph{
 
         //explicit
         {
-            typedef ExplicitLabelsGridRag<2, uint64_t> Rag2d;
-            typedef ExplicitLabelsGridRag<3, uint64_t> Rag3d;
+            typedef xt::pytensor<uint32_t, 3> ExplicitPyLabels3D;
+            typedef GridRag<3, ExplicitPyLabels3D> Rag3d;
+
+            typedef xt::pytensor<uint32_t, 2> ExplicitPyLabels2D;
+            typedef GridRag<2, ExplicitPyLabels2D> Rag2d;
+
+//            typedef ExplicitLabelsGridRag<2, uint64_t> Rag2d;
+//            typedef ExplicitLabelsGridRag<3, uint64_t> Rag3d;
+
+
+
 
             typedef PyUndirectedGraph GraphType;
             typedef PyContractionGraph<PyUndirectedGraph> ContractionGraphType;
-
-
-//            exportAccumulateAffinitiesMeanAndLength<2, Rag2d, ContractionGraphType, float>(ragModule);
+//
+//
+////            exportAccumulateAffinitiesMeanAndLength<2, Rag2d, ContractionGraphType, float>(ragModule);
             exportAccumulateAffinitiesMeanAndLength<3, Rag3d, ContractionGraphType, float>(ragModule);
             exportAccumulateAffinitiesMeanAndLength<3, GraphType, float>(ragModule);
-
-
+//
+//
             exportMapFeaturesToBoundaries<2, Rag2d, ContractionGraphType, float>(ragModule);
             exportMapFeaturesToBoundaries<3, Rag3d, ContractionGraphType, float>(ragModule);
 
@@ -1331,6 +1337,9 @@ namespace graph{
 
             exportAccumulateGeometricEdgeFeatures<2, Rag2d, float>(ragModule);
             exportAccumulateGeometricEdgeFeatures<3, Rag3d, float>(ragModule);
+
+
+
 
 
             #ifdef WITH_HDF5
