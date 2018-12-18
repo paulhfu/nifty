@@ -4,7 +4,6 @@
 
 
 #include <vector>
-
 #include "boost/format.hpp"
 
 #include <pybind11/pybind11.h>
@@ -258,8 +257,13 @@ namespace graph{
                 g.forEachNode([&](const uint64_t sourceNode){
                     bfs.graphNeighbourhood(sourceNode, maxDistance,
 
-                        [&](const uint64_t targetNode, const uint64_t ){
-                            pairs.emplace_back(sourceNode, targetNode);
+                        [&](const uint64_t targetNode, const uint64_t distance){
+//                            const std::pair<uint64_t, uint64_t> newPair (targetNode, sourceNode);
+//                            pairs.push_back(newPair);
+                            const auto edge = g.findEdge(sourceNode, targetNode);
+                            // Detect only not-existing edges:
+                            if (edge<0)
+                                pairs.emplace_back(targetNode, sourceNode);
                         }
                     );
                 });
@@ -270,13 +274,33 @@ namespace graph{
                 for(const auto & uv : pairs){
                     out(c,0) = uv.first;
                     out(c,1) = uv.second;
+                    c++;
                 }
                 return out;
 
             }, 
                 py::arg("maxDistance")
             )
-            .def("uvIds",
+                .def("nodesLabelsToEdgeLabels",
+                     [](
+                             const G & g,
+                             nifty::marray::PyView<uint64_t, 1> nodeLabels
+                     ){
+                         nifty::marray::PyView<uint8_t> edgeLabels({uint64_t(g.numberOfEdges())});
+                         NIFTY_CHECK_OP(nodeLabels.shape(0),==,g.numberOfNodes(),"Array should have shape (numberOfNodes, )");
+                         for(const auto edge : g.edges()){
+                             const auto uv = g.uv(edge);
+                             edgeLabels(edge) = nodeLabels(uv.first) != nodeLabels(uv.second) ? 1 : 0;
+                         }
+                         return edgeLabels;
+                     },
+                     "Get edge label array\n\n"
+                             "Get an edge label array given a nodeLabelling\n\n"
+                             "Returns:\n"
+                             "   edge map of uint8 0 or 1"
+                )
+
+                .def("uvIds",
                 [](G & g) {
                     nifty::marray::PyView<uint64_t> out({uint64_t(g.numberOfEdges()), uint64_t(2)});
                     auto c = 0 ;

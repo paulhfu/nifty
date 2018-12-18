@@ -6,6 +6,7 @@
 
 #include "vigra/priority_queue.hxx"
 #include "nifty/tools/changable_priority_queue.hxx"
+//#include "nifty/tools/priority_queue.hxx"
 #include "nifty/ufd/ufd.hxx"
 
 namespace nifty{
@@ -64,6 +65,7 @@ namespace detail_watersheds_segmentation{
         typedef typename EDGE_WEIGHTS::value_type WeightType;
         typedef typename LABELS::value_type  LabelType;
         //typedef typename Graph:: template EdgeMap<bool>    EdgeBoolMap;
+//        typedef nifty::tools::PriorityQueue<int64_t, WeightType,true> PQ;
         typedef vigra::PriorityQueue<int64_t, WeightType,true> PQ;
 
         PQ pq;

@@ -65,17 +65,36 @@ namespace agglo{
                     const PyViewFloat1 & notMergePrios,
                     const PyViewUInt8_1 & isLocalEdge,
                     const PyViewFloat1 & edgeSizes,
+                    const PyViewFloat1 & nodeSizes,
                     const typename ClusterPolicyType::Acc0SettingsType updateRule0,
                     const typename ClusterPolicyType::Acc1SettingsType updateRule1,
                     const bool zeroInit,
-                    const uint64_t numberOfNodesStop
+                    const bool initSignedWeights,
+                    const uint64_t numberOfNodesStop,
+                    const double sizeRegularizer,
+                    const double sizeThreshMin,
+                    const double sizeThreshMax,
+                    const bool postponeThresholding,
+                    const bool costsInPQ,
+                    const bool checkForNegCosts,
+                    const bool addNonLinkConstraints,
+                    const double threshold
                 ){
                     typename ClusterPolicyType::SettingsType s;
                     s.numberOfNodesStop = numberOfNodesStop;
+                    s.sizeRegularizer = sizeRegularizer;
+                    s.sizeThreshMin = sizeThreshMin;
+                    s.sizeThreshMax = sizeThreshMax;
+                    s.postponeThresholding = postponeThresholding;
                     s.updateRule0 = updateRule0;
                     s.updateRule1 = updateRule1;
                     s.zeroInit = zeroInit;
-                    auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, s);
+                    s.initSignedWeights = initSignedWeights;
+                    s.threshold = threshold;
+                    s.costsInPQ = costsInPQ;
+                    s.checkForNegCosts = checkForNegCosts;
+                    s.addNonLinkConstraints = addNonLinkConstraints;
+                    auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, nodeSizes, s);
                     return ptr;
                 },
                 py::return_value_policy::take_ownership,
@@ -85,10 +104,20 @@ namespace agglo{
                 py::arg("notMergePrios"),
                 py::arg("isMergeEdge"),
                 py::arg("edgeSizes"),
+                py::arg("nodeSizes"),
                 py::arg("updateRule0"),
                 py::arg("updateRule1"),
                 py::arg("zeroInit") = false,
-                py::arg("numberOfNodesStop") = 1
+                py::arg("initSignedWeights") = false,
+                py::arg("numberOfNodesStop") = 1,
+                py::arg("sizeRegularizer") = 0.,
+                py::arg("sizeThreshMin") = 0.,
+                py::arg("sizeThreshMax") = 300.,
+                py::arg("postponeThresholding") = true,
+                py::arg("costsInPQ") = false,
+                py::arg("checkForNegCosts") = true,
+                py::arg("addNonLinkConstraints") = false,
+                py::arg("threshold") = 0.5 // Merge all: 0.0; split all: 1.0
             );
 
             // export the agglomerative clustering functionality for this cluster operator
@@ -109,6 +138,7 @@ namespace agglo{
     void exportfixationClusterPolicyOuter(py::module & aggloModule) {
         typedef GRAPH GraphType;
 
+        typedef merge_rules::SumEdgeMap<GraphType, float >  SumAcc;
         typedef merge_rules::ArithmeticMeanEdgeMap<GraphType, float >  ArithmeticMeanAcc;
         typedef merge_rules::GeneralizedMeanEdgeMap<GraphType, float > GeneralizedMeanAcc;
         typedef merge_rules::SmoothMaxEdgeMap<GraphType, float >       SmoothMaxAcc;
@@ -117,6 +147,7 @@ namespace agglo{
         typedef merge_rules::MinEdgeMap<GraphType, float >             MinAcc;
         
 
+        exportfixationClusterPolicyTT<GraphType, ACC_0, SumAcc,  false>(aggloModule);
         exportfixationClusterPolicyTT<GraphType, ACC_0, ArithmeticMeanAcc,  false>(aggloModule);
         exportfixationClusterPolicyTT<GraphType, ACC_0, GeneralizedMeanAcc, false>(aggloModule);
         exportfixationClusterPolicyTT<GraphType, ACC_0, SmoothMaxAcc,       false>(aggloModule);
@@ -132,6 +163,7 @@ namespace agglo{
 
 
 
+            typedef merge_rules::SumEdgeMap<GraphType, float >  SumAcc;
             typedef merge_rules::ArithmeticMeanEdgeMap<GraphType, float >  ArithmeticMeanAcc;
             typedef merge_rules::GeneralizedMeanEdgeMap<GraphType, float > GeneralizedMeanAcc;
             typedef merge_rules::SmoothMaxEdgeMap<GraphType, float >       SmoothMaxAcc;
@@ -140,6 +172,7 @@ namespace agglo{
             typedef merge_rules::MinEdgeMap<GraphType, float >             MinAcc;
 
 
+            exportfixationClusterPolicyOuter<GraphType, SumAcc >(aggloModule);
             exportfixationClusterPolicyOuter<GraphType, ArithmeticMeanAcc >(aggloModule);
             exportfixationClusterPolicyOuter<GraphType, SmoothMaxAcc      >(aggloModule);
             exportfixationClusterPolicyOuter<GraphType, GeneralizedMeanAcc>(aggloModule);

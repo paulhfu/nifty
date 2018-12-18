@@ -25,6 +25,13 @@ namespace agglo{
             })
         ;
 
+        py::class_<merge_rules::SumSettings>(aggloModule, "SumSettings")
+                .def(py::init<>())
+                .def("__str__",[](const merge_rules::SumSettings & self){
+                    return self.name();
+                })
+                ;
+
         py::class_<merge_rules::GeneralizedMeanSettings>(aggloModule, "GeneralizedMeanSettings")
 
             // .def(
