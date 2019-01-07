@@ -13,7 +13,6 @@ SET(MOD_SOURCES
         fusion_move_based.cxx
         lifted_graph_features.cxx
         chained_solvers.cxx
-        # pixel_wise_lifted_multicut.cxx
 )
 
 if(WITH_LP_MP)
