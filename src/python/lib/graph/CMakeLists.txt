@@ -4,6 +4,7 @@ addPythonModule(
         nifty/graph  
     SOURCES
         graph.cxx
+        light_graph.cxx
         undirected_list_graph.cxx
         undirected_grid_graph.cxx
         undirected_long_range_grid_graph.cxx
