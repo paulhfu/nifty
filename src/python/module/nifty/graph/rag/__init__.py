@@ -24,13 +24,14 @@ except ImportError:
 
 
 def gridRag(labels,
-            numberOfLabels,
+            numberOfLabels=None,
             blockShape=None,
             numberOfThreads=-1,
             serialization=None,
             dtype='uint32'):
     labels = numpy.require(labels, dtype=dtype)
     dim = labels.ndim
+    numberOfLabels = labels.max() + 1 if numberOfLabels is None else numberOfLabels
     blockShape_ = [100] * dim if blockShape is None else blockShape
 
     if dim == 2:
