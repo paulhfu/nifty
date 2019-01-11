@@ -50,6 +50,7 @@ namespace graph{
         clsT.def(py::init([](
             std::array<int, DIM>    shape,
             xt::pytensor<int64_t, 2> offsets,
+            xt::pytensor<int64_t, 1> longRangeStrides,
             xt::pytensor<uint32_t, DIM> & nodeLabels,
             xt::pytensor<float, 1> offsetsProbs,
             xt::pytensor<float, DIM+1> & randomProbs,
@@ -58,6 +59,7 @@ namespace graph{
                  ){
                     typedef typename GraphType::OffsetVector OffsetVector;
                     typedef typename GraphType::OffsetProbsType OffsetProbsType;
+                     typedef typename GraphType::StridesType StridesType;
                     typedef typename GraphType::BoolVectorType isLocalType;
                     typedef typename GraphType::ShapeType ShapeType;
 
@@ -76,11 +78,18 @@ namespace graph{
                             offsetVector[i][d] = offsets(i, d);
                         }
                     }
+
+                    StridesType stridesVector(longRangeStrides.shape()[0]);
+                    for(auto d=0; d<DIM; ++d){
+                         stridesVector[d] = longRangeStrides(d);
+                     }
+
                      py::gil_scoped_release release;
-                    return new GraphType(s, offsetVector, nodeLabels, offsetProbsVector, isLocalVector, randomProbs, startFromLabelSegm);
+                    return new GraphType(s, offsetVector, stridesVector, nodeLabels, offsetProbsVector, isLocalVector, randomProbs, startFromLabelSegm);
         }),
         py::arg("shape"),
         py::arg("offsets"),
+        py::arg("longRangeStrides"),
          py::arg("nodeLabels"),
          py::arg("offsetsProbs"),
          py::arg("randomProbs"),

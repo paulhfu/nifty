@@ -125,7 +125,7 @@ def undirectedGridGraph(shape, simpleNh=True):
 
 gridGraph = undirectedGridGraph
 
-def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None):
+def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None, strides=None):
     """
     :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a dense graph is used
     :param labels: Indices of a passed segmentation (uint64)
@@ -135,6 +135,7 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
     offsets = numpy.require(offsets, dtype='int64')
     assert offsets.shape[0] == is_local_offset.shape[0]
     is_local_offset = is_local_offset.astype(numpy.bool)
+
 
     shape = list(shape)
     if len(shape) == 2:
@@ -152,15 +153,26 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         start_from_labels = True
 
 
+    randomProbsShape = tuple(shape) + (offsets.shape[0],)
     if offsets_probabilities is None:
         offsets_probabilities = numpy.ones((offsets.shape[0],), dtype='float')
+        randomProbs = numpy.ones(randomProbsShape, dtype='float') * 0.5
     else:
         assert offsets_probabilities.shape[0] == offsets.shape[0]
         offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
+        # Randomly select which edges to add or not
+        # FIXME: (multi-thread bug in C++, need to do it on the python side)
+        randomProbs = numpy.random.rand(randomProbsShape)
 
-    randomProbs = numpy.random.rand(*tuple(shape) + (offsets.shape[0],))
+    if strides is None:
+        strides = numpy.ones(len(shape), dtype='int')
+    else:
+        if isinstance(strides, list):
+            strides = numpy.array(strides)
+        assert strides.shape[0] == len(shape)
 
-    return G(shape, offsets, labels, offsets_probabilities, randomProbs, is_local_offset, start_from_labels)
+
+    return G(shape, offsets, strides, labels, offsets_probabilities, randomProbs, is_local_offset, start_from_labels)
 
 longRangeGridGraph = undirectedLongRangeGridGraph
 

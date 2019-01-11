@@ -28,49 +28,7 @@ namespace graph{
     namespace detail_graph{
 
         template<std::size_t DIM>
-        class UndirectedLongRangeGridGraphAssign;
-
-        template<>
-        class UndirectedLongRangeGridGraphAssign<2>{
-        public:
-            template<class G,
-                    class D,
-                    class F>
-            static void assign(
-                    G & graph,
-                    const xt::xexpression<D> & nodeLabelsExp,
-                    const xt::xexpression<F> & randomProbsExp
-
-            ){
-                NIFTY_CHECK(false,"Not implemented");
-                const auto & shape = graph.shape();
-                const auto & offsets = graph.offsets();
-                const auto & offsets_probs = graph.offsetsProbs();
-                srand (static_cast <unsigned> (time(0)));
-                uint64_t u=0;
-                for(int p0=0; p0< graph.shape()[0]; ++p0)
-                for(int p1=0; p1< graph.shape()[1]; ++p1){
-                    for(int io=0; io<offsets.size(); ++io){
-                        const int q0 = p0 + offsets[io][0];
-                        const int q1 = p1 + offsets[io][1];
-                        float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-                        if (r<=offsets_probs[io]) {
-                            if (q0 >= 0 && q0 < shape[0] && q1 >= 0 && q1 < shape[1]) {
-                                const auto v = q0 * shape[1] + q1;
-                                const auto e = graph.insertEdge(u, v);
-                            }
-                        }
-                    }
-                    ++u;
-                }
-            }
-
-
-
-        };
-
-        template<>
-        class UndirectedLongRangeGridGraphAssign<3>{
+        class UndirectedLongRangeGridGraphAssign{
         public:
             template<class G,
                     class D,
@@ -96,35 +54,53 @@ namespace graph{
 //                thread_local std::mt19937 gen(rd());
 //                thread_local std::uniform_real_distribution<> rng;
 //                rng = std::uniform_real_distribution<>(0., 1.);
-                uint64_t u=0;
 
-                for(int p0=0; p0<shape[0]; ++p0)
-                for(int p1=0; p1<shape[1]; ++p1)
-                for(int p2=0; p2<shape[2]; ++p2){
-                    const auto labelU = nodeLabels(p0,p1,p2);
+                uint64_t u=0;
+                nifty::tools::forEachCoordinate( shape,[&](const auto & coordP){
+                    const auto labelP = nodeLabels[coordP];
                     for(int io=0; io<offsets.size(); ++io){
-                        const int q0 = p0 + offsets[io][0];
-                        const int q1 = p1 + offsets[io][1];
-                        const int q2 = p2 + offsets[io][2];
-                        const auto labelV = nodeLabels(q0,q1,q2);
-                        if (randomProbs(p0,p1,p2,io) < offsets_probs[io] || isLocalOffset[io]) {
-                            if (q0 >= 0 && q0 < shape[0] && q1 >= 0 && q1 < shape[1] && q2 >= 0 && q2 < shape[2]) {
+                        const auto offset = offsets[io];
+                        const auto coordQ = offset + coordP;
+                        // Check if both coordinates are in the volume:
+                        if(coordQ.allInsideShape(shape)){
+                            const auto v = graph.coordianteToNode(coordQ);
+                            const auto labelQ = nodeLabels[coordQ];
+
+                            // Check if the edge is valid
+                            bool isValidEdge = true;
+                            if (not isLocalOffset[io]) {
+                                // Check the longRangeStrides:
+                                for(int d=0; d<DIM; ++d){
+                                    if (coordP[d] % graph.longRangeStrides()[d] != 0) {
+                                        isValidEdge = false;
+                                    }
+                                }
+                                // Check if the edge should be added according to the probability:
+                                array::StaticArray<int64_t, DIM + 1> noise_index;
+                                std::copy(std::begin(coordP), std::end(coordP), std::begin(noise_index));
+                                noise_index[DIM] = io;
+                                if (randomProbs[noise_index] >= offsets_probs[io])
+                                    isValidEdge = false;
+                            }
+
+                            // Insert new edge in graph:
+                            if (isValidEdge) {
                                 if (startFromLabelSegm) {
-                                    if (labelU != labelV) {
-                                        auto e = graph.findEdge(labelU,labelV);
+                                    if (labelP != labelQ) {
+                                        auto e = graph.findEdge(labelP,labelQ);
                                         if (e<0) {
-                                            e = graph.insertEdge(labelU, labelV);
+                                            e = graph.insertEdge(labelP, labelQ);
                                         }
                                     }
                                 } else {
-                                    const auto v = q0 * shape[1] * shape[2] + q1 * shape[2] + q2;
                                     const auto e = graph.insertEdge(u, v);
                                 }
                             }
                         }
                     }
                     ++u;
-                }
+                });
+
             }
         };
     }
@@ -151,6 +127,7 @@ namespace graph{
         UndirectedLongRangeGridGraph(
             const ShapeType &    shape,
             const OffsetVector & offsets,
+            const StridesType & longRangeStrides,
             const xt::xexpression<D> & nodeLabelsExp,
             const OffsetProbsType & offsetsProbs,
             const BoolVectorType & isLocalOffset, // Array of 0 an 1 indicating which offsets are local
@@ -160,6 +137,7 @@ namespace graph{
         :   UndirectedGraph<>(),
             shape_(shape),
             offsets_(offsets),
+            longRangeStrides_(longRangeStrides),
             offsetsProbs_(offsetsProbs),
             isLocalOffset_(isLocalOffset),
             startFromLabelSegm_(startFromLabelSegm)
@@ -558,6 +536,9 @@ namespace graph{
         const auto & offsets()const{
             return offsets_;
         }
+        const auto & longRangeStrides()const{
+            return longRangeStrides_;
+        }
         const auto & offsetsProbs()const{
             return offsetsProbs_;
         }
@@ -570,6 +551,7 @@ namespace graph{
     private:
         ShapeType shape_;
         StridesType strides_;
+        StridesType longRangeStrides_;
         OffsetVector offsets_;
         OffsetProbsType offsetsProbs_;
         BoolVectorType isLocalOffset_;
