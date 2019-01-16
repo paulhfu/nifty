@@ -10,7 +10,7 @@
 #include "nifty/tools/changable_priority_queue.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
 #include "nifty/graph/agglo/cluster_policies/cluster_policies_common.hxx"
-
+#include <iostream>
 
 
 namespace nifty{
@@ -65,6 +65,8 @@ public:
         bool costsInPQ{true};
         bool checkForNegCosts{true};
         bool addNonLinkConstraints{false};
+        bool removeSmallSegments{false};
+        uint64_t smallSegmentsThresh{10};
     };
 
     enum class EdgeStates : uint8_t { 
@@ -72,6 +74,12 @@ public:
         LOCAL = 1,
         LIFTED = 2,
         PURE_LIFTED = 3
+    };
+
+    enum class EdgeSizeStates : uint8_t {
+        SMALL = 0,
+        FROM_SMALL_TO_BIG = 1,
+        BIG = 2,
     };
 
 
@@ -133,6 +141,11 @@ public:
 
 
     bool isMergeAllowed(const uint64_t edge) const{
+        if (settings_.removeSmallSegments
+            && !settings_.addNonLinkConstraints && !settings_.costsInPQ && edgeSizeState_[edge] == EdgeSizeStates::SMALL) {
+            return true;
+        }
+
         // Here we do not care about the fact that an edge is lifted or not.
         // We just look at the costs
         if (settings_.checkForNegCosts && acc0_[edge] < 0)
@@ -197,6 +210,8 @@ private:
     NodeSizesType nodeSizes_;
 
     typename GRAPH:: template EdgeMap<EdgeStates>  edgeState_;
+    typename GRAPH:: template EdgeMap<EdgeSizeStates>  edgeSizeState_;
+    typename GRAPH:: template NodeMap<EdgeSizeStates>  nodeSizeState_;
 
     SettingsType        settings_;
     
@@ -228,6 +243,8 @@ FixationClusterPolicy(
     acc1_(graph, notMergePrios, edgeSizes, settings.updateRule1),
     edgeState_(graph),
     nodeSizes_(graph),
+    edgeSizeState_(graph),
+    nodeSizeState_(graph),
     pq_(graph.edgeIdUpperBound()+1),
     settings_(settings),
     edgeContractionGraph_(graph, *this)
@@ -235,12 +252,17 @@ FixationClusterPolicy(
 //    phase_ = 0;
     graph_.forEachNode([&](const uint64_t node) {
         nodeSizes_[node] = nodeSizes[node];
+        // FIXME: only true if we start from pixels!
+        nodeSizeState_[node] = EdgeSizeStates::SMALL;
     });
 
 //    std::cout << "Size reg:" << settings_.sizeRegularizer << "\n";
     graph_.forEachEdge([&](const uint64_t edge){
 
         const auto loc = isLocalEdge[edge];
+
+        // FIXME: only true if we start from pixels!
+        edgeSizeState_[edge] = EdgeSizeStates::SMALL;
 
         // TODO: better possible solution: pure_repulsive, pure_attractive
 //        if(settings_.initSignedWeights) {
@@ -400,6 +422,13 @@ mergeNodes(
     const uint64_t deadNode
 ){
     nodeSizes_[aliveNode] +=nodeSizes_[deadNode];
+    if (settings_.removeSmallSegments
+        && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
+        if (nodeSizes_[aliveNode] >= settings_.smallSegmentsThresh &&
+                (nodeSizeState_[aliveNode] == EdgeSizeStates::SMALL || nodeSizeState_[deadNode] == EdgeSizeStates::SMALL)) {
+            nodeSizeState_[aliveNode] = EdgeSizeStates::FROM_SMALL_TO_BIG;
+        }
+    }
 
     if (settings_.addNonLinkConstraints) {
         auto  & aliveNodeNlc = nonLinkConstraints_[aliveNode];
@@ -524,6 +553,27 @@ contractEdgeDone(
             pq_.push(edge, computeWeight(edge));
         }
     }
+    // Only in the case when the segments size went over the threshold,
+    // we update the edgeSizeLabels and the edge costs in PQ:
+    if (settings_.removeSmallSegments
+        && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
+        const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
+        if (nodeSizeState_[u] == EdgeSizeStates::FROM_SMALL_TO_BIG) {
+            for(auto adj : edgeContractionGraph_.adjacency(u)){
+                const auto edge = adj.edge();
+                const auto v = adj.node();
+                if (nodeSizeState_[v] == EdgeSizeStates::BIG) {
+                    edgeSizeState_[edge] = EdgeSizeStates::BIG;
+                    pq_.push(edge, computeWeight(edge));
+                }
+//              else {
+//                    edgeSizeState_[edge] = EdgeSizeStates::SMALL;
+//                }
+
+            }
+            nodeSizeState_[u] = EdgeSizeStates::BIG;
+        }
+    }
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
@@ -546,6 +596,11 @@ computeWeight(
 //        }
         return fromEdge * (1. / sFac);
     } else {
+        if (settings_.removeSmallSegments && (edgeSizeState_[edge] == EdgeSizeStates::SMALL)
+            && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
+            // Here we increase the priority of edges involving small segments:
+            return fromEdge + 1.0;
+        }
         return fromEdge;
     }
 

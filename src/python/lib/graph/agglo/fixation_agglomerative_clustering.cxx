@@ -78,7 +78,9 @@ namespace agglo{
                     const bool costsInPQ,
                     const bool checkForNegCosts,
                     const bool addNonLinkConstraints,
-                    const double threshold
+                    const double threshold,
+                    const bool removeSmallSegments,
+                    const uint64_t smallSegmentsThresh
                 ){
                     typename ClusterPolicyType::SettingsType s;
                     s.numberOfNodesStop = numberOfNodesStop;
@@ -94,6 +96,8 @@ namespace agglo{
                     s.costsInPQ = costsInPQ;
                     s.checkForNegCosts = checkForNegCosts;
                     s.addNonLinkConstraints = addNonLinkConstraints;
+                    s.smallSegmentsThresh = smallSegmentsThresh;
+                    s.removeSmallSegments = removeSmallSegments;
                     auto ptr = new ClusterPolicyType(graph, mergePrios, notMergePrios, isLocalEdge, edgeSizes, nodeSizes, s);
                     return ptr;
                 },
@@ -117,7 +121,9 @@ namespace agglo{
                 py::arg("costsInPQ") = false,
                 py::arg("checkForNegCosts") = true,
                 py::arg("addNonLinkConstraints") = false,
-                py::arg("threshold") = 0.5 // Merge all: 0.0; split all: 1.0
+                py::arg("threshold") = 0.5, // Merge all: 0.0; split all: 1.0
+                py::arg("removeSmallSegments") = false,
+                py::arg("smallSegmentsThresh") = 10
             );
 
             // export the agglomerative clustering functionality for this cluster operator

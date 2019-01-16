@@ -196,10 +196,13 @@ def greedyGraphEdgeContraction(graph,
                           node_sizes = None,
                           is_merge_edge = None,
                           size_regularizer = 0.0,
+                          ignored_edge_weights = None,
+                          remove_small_segments = False,
+                          small_segments_thresh = 10
                           ):
     """
-
-    :param graph:
+    :param ignored_edge_weights: boolean array, if an edge label is True, than the passed signed weight is ignored
+            (neither attractive nor repulsive)
     :return:
     """
     def parse_update_rule(rule):
@@ -225,8 +228,15 @@ def greedyGraphEdgeContraction(graph,
     #     assert threshold is not None, "For unsigned weights it is necessary to define a threshold parameter!"
     #     signed_edge_weights = unsigned_edge_weights - threshold
 
-    merge_prio = numpy.where(signed_edge_weights > 0, signed_edge_weights, -1.)
+    merge_prio = numpy.where(signed_edge_weights >= 0, signed_edge_weights, -1.)
     not_merge_prio = numpy.where(signed_edge_weights < 0, -signed_edge_weights, -1.)
+
+    assert ignored_edge_weights is None, "Temp check"
+    if ignored_edge_weights is not None:
+        assert ignored_edge_weights.shape == signed_edge_weights.shape
+        assert ignored_edge_weights.dtype == 'bool'
+        merge_prio = numpy.where(ignored_edge_weights, -1., merge_prio)
+        not_merge_prio = numpy.where(ignored_edge_weights, -1., not_merge_prio)
 
     parsed_rule = parse_update_rule(update_rule)
 
@@ -254,7 +264,9 @@ def greedyGraphEdgeContraction(graph,
                           costsInPQ=costs_in_PQ,
                           checkForNegCosts=True,
                           addNonLinkConstraints=add_cannot_link_constraints,
-                          threshold=threshold)
+                          threshold=threshold,
+                                 removeSmallSegments=remove_small_segments,
+                                 smallSegmentsThresh=small_segments_thresh)
 
 
 greedyGraphEdgeContraction.__doc__ = """
