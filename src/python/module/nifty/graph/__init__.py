@@ -125,7 +125,8 @@ def undirectedGridGraph(shape, simpleNh=True):
 
 gridGraph = undirectedGridGraph
 
-def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None, strides=None):
+def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None, strides=None,
+                                 number_of_threads=1):
     """
     :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a dense graph is used
     :param labels: Indices of a passed segmentation (uint64)
@@ -149,6 +150,7 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         labels = numpy.zeros(shape, dtype=numpy.uint32)
         start_from_labels = False
     else:
+        raise NotImplementedError("Atm node labels are no longer supported")
         labels = labels.astype(numpy.uint32)
         start_from_labels = True
 
@@ -162,7 +164,7 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
         # Randomly select which edges to add or not
         # FIXME: (multi-thread bug in C++, need to do it on the python side)
-        randomProbs = numpy.random.rand(randomProbsShape)
+        randomProbs = numpy.random.random(randomProbsShape)
 
     if strides is None:
         strides = numpy.ones(len(shape), dtype='int')
@@ -172,7 +174,7 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         assert strides.shape[0] == len(shape)
 
 
-    return G(shape, offsets, strides, labels, offsets_probabilities, randomProbs, is_local_offset, start_from_labels)
+    return G(shape, offsets, strides, offsets_probabilities, randomProbs, is_local_offset, number_of_threads)
 
 longRangeGridGraph = undirectedLongRangeGridGraph
 

@@ -47,15 +47,18 @@ namespace graph{
         const auto clsName = GraphName<GraphType>::name();
         auto clsT = py::class_<GraphType,BaseGraph>(ragModule, clsName.c_str());
 
+        // TODO: add input numberOfThreads and second constructor implementation
+        // TODO: probably for the lables I need py::arg("labels").noconvert()
         clsT.def(py::init([](
             std::array<int, DIM>    shape,
             xt::pytensor<int64_t, 2> offsets,
             xt::pytensor<int64_t, 1> longRangeStrides,
-            xt::pytensor<uint32_t, DIM> & nodeLabels,
+//            xt::pytensor<uint32_t, DIM> &
             xt::pytensor<float, 1> offsetsProbs,
             xt::pytensor<float, DIM+1> & randomProbs,
             xt::pytensor<bool, 1> isLocalOffset,
-            bool startFromLabelSegm
+//            bool startFromLabelSegm,
+            const uint64_t numberOfThreads
                  ){
                     typedef typename GraphType::OffsetVector OffsetVector;
                     typedef typename GraphType::OffsetProbsType OffsetProbsType;
@@ -85,16 +88,17 @@ namespace graph{
                      }
 
                      py::gil_scoped_release release;
-                    return new GraphType(s, offsetVector, stridesVector, nodeLabels, offsetProbsVector, isLocalVector, randomProbs, startFromLabelSegm);
+                    return new GraphType(s, offsetVector, stridesVector, offsetProbsVector, isLocalVector, randomProbs, numberOfThreads);
         }),
         py::arg("shape"),
         py::arg("offsets"),
         py::arg("longRangeStrides"),
-         py::arg("nodeLabels"),
+//         py::arg("nodeLabels"),
          py::arg("offsetsProbs"),
          py::arg("randomProbs"),
          py::arg("isLocalOffset"),
-         py::arg("startFromLabelSegm"))
+         py::arg("numberOfThreads") = 1
+                )
         // FIXME: I need to check that the edges indeed exists
 //        .def("nodeFeatureDiffereces", [](
 //            const GraphType & g,
