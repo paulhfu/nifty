@@ -1075,37 +1075,37 @@ namespace graph{
         );
     }
 
-    #ifdef WITH_HDF5
-    template<std::size_t DIM, class RAG, class DATA_T>
-    void exportAccumulateMeanAndLengthHdf5(
-        py::module & ragModule
-    ){
-        ragModule.def("accumulateMeanAndLength",
-        [](
-            const RAG & rag,
-            const nifty::hdf5::Hdf5Array<DATA_T> & data,
-            array::StaticArray<int64_t, DIM> blockShape,
-            const int numberOfThreads,
-            const bool saveMemory
-        ){
-            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
-            typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
-            NumpyArrayType edgeOut({int64_t(rag.edgeIdUpperBound()+1), int64_t(2)});
-            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(2)});
-            {
-                py::gil_scoped_release allowThreads;
-                accumulateMeanAndLength(rag, data, blockShape, edgeOut, nodeOut, numberOfThreads);
-            }
-            return OutType(edgeOut, nodeOut);;
-        },
-        py::arg("rag"),
-        py::arg("data"),
-        py::arg("blockShape") = array::StaticArray<int64_t,DIM>(100),
-        py::arg("numberOfThreads")= -1,
-        py::arg_t<bool>("saveMemory",false)
-        );
-    }
-    #endif
+//    #ifdef WITH_HDF5
+//    template<std::size_t DIM, class RAG, class DATA_T>
+//    void exportAccumulateMeanAndLengthHdf5(
+//        py::module & ragModule
+//    ){
+//        ragModule.def("accumulateMeanAndLength",
+//        [](
+//            const RAG & rag,
+//            const nifty::hdf5::Hdf5Array<DATA_T> & data,
+//            array::StaticArray<int64_t, DIM> blockShape,
+//            const int numberOfThreads,
+//            const bool saveMemory
+//        ){
+//            typedef xt::pytensor<DATA_T, 2> NumpyArrayType;
+//            typedef std::pair<NumpyArrayType, NumpyArrayType>  OutType;
+//            NumpyArrayType edgeOut({int64_t(rag.edgeIdUpperBound()+1), int64_t(2)});
+//            NumpyArrayType nodeOut({int64_t(rag.nodeIdUpperBound()+1), int64_t(2)});
+//            {
+//                py::gil_scoped_release allowThreads;
+//                accumulateMeanAndLength(rag, data, blockShape, edgeOut, nodeOut, numberOfThreads);
+//            }
+//            return OutType(edgeOut, nodeOut);;
+//        },
+//        py::arg("rag"),
+//        py::arg("data"),
+//        py::arg("blockShape") = array::StaticArray<int64_t,DIM>(100),
+//        py::arg("numberOfThreads")= -1,
+//        py::arg_t<bool>("saveMemory",false)
+//        );
+//    }
+//    #endif
 
 
 
@@ -1345,7 +1345,7 @@ namespace graph{
             #ifdef WITH_HDF5
             typedef GridRag<3, Hdf5Labels<3, uint64_t>  >  RagH53d;
             //exportAccumulateMeanAndLengthHdf5<3,RagH53d, float>(ragModule);
-            exportAccumulateStandartFeaturesHdf5<3, RagH53d, uint8_t >(ragModule);
+//            exportAccumulateStandartFeaturesHdf5<3, RagH53d, uint8_t >(ragModule);
             #endif
 
         }

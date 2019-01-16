@@ -30,7 +30,7 @@ package:
     version: {{tagged_version}}
 
 source:
-  path: ../
+  git_url: ../
   patches:
     # See https://github.com/ukoethe/vigra/issues/386
     - patches/vigra-std-threading-detection.patch

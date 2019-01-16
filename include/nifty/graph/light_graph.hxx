@@ -14,7 +14,7 @@ namespace graph {
     typedef int64_t EdgeIndexType;
 
     typedef std::pair<NodeType, NodeType> EdgeType;
-    typedef boost::hash<EdgeType> EdgeHash;
+//    typedef boost::hash<EdgeType> EdgeHash;
 
     // Perfoemance for extraction of 50 x 512 x 512 cube (real labels)
     // (including some overhead (python cals, serializing the graph, etc.))
