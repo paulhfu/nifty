@@ -141,6 +141,7 @@ public:
 
 
     bool isMergeAllowed(const uint64_t edge) const{
+        // In the case that the edge involves small segments, we cannot constrain it:
         if (settings_.removeSmallSegments
             && !settings_.addNonLinkConstraints && !settings_.costsInPQ && edgeSizeState_[edge] == EdgeSizeStates::SMALL) {
             return true;
@@ -178,7 +179,14 @@ public:
             if (settings_.addNonLinkConstraints) {
                 return std::max(acc0_[edge], acc1_[edge]);
             } else {
-                return acc0_[edge];
+                const auto attrFromEdge = acc0_[edge];
+                // If we force small segments to merge, we want to put repulsive (not allowed) in PQ to be merged.
+                if (settings_.removeSmallSegments
+                    && !settings_.addNonLinkConstraints && !settings_.costsInPQ && attrFromEdge < 0) {
+                    return 1. - acc1_[edge];
+                } else {
+                    return attrFromEdge;
+                }
             }
         }
     }
@@ -249,6 +257,11 @@ FixationClusterPolicy(
     settings_(settings),
     edgeContractionGraph_(graph, *this)
 {
+    // FIXME: are ignored segments with both -1 handled well in general?
+    if (settings_.removeSmallSegments && (!settings_.checkForNegCosts || settings_.addNonLinkConstraints || settings_.costsInPQ) ) {
+        NIFTY_CHECK(false,"Small segments not supported atm without checkForNegCosts, with logCosts or with constraints!");
+    }
+
 //    phase_ = 0;
     graph_.forEachNode([&](const uint64_t node) {
         nodeSizes_[node] = nodeSizes[node];
@@ -322,6 +335,19 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
 ){
     while(true) {
         while(!pq_.empty() && !isNegativeInf(pq_.topPriority())){
+            // TEMP MOD: we stop as soon as we got rid of all the small segments:
+            if (settings_.removeSmallSegments && pq_.topPriority() < 1.0
+                && !settings_.addNonLinkConstraints && !settings_.costsInPQ ) {
+
+//                graph_.forEachEdge([&](const uint64_t edge) {
+//                    if (edgeSizeState_[edge] == EdgeSizeStates::SMALL && !isNegativeInf(this->computeWeight(edge))) {
+//                        std::cout << ".";
+//                    }
+//                });
+
+
+                return true;
+            }
 
             // Here we already know that the edge is not lifted
             // (Otherwise we would have inf cost in PQ)
@@ -566,9 +592,9 @@ contractEdgeDone(
                     edgeSizeState_[edge] = EdgeSizeStates::BIG;
                     pq_.push(edge, computeWeight(edge));
                 }
-//              else {
-//                    edgeSizeState_[edge] = EdgeSizeStates::SMALL;
-//                }
+              else {
+                    edgeSizeState_[edge] = EdgeSizeStates::SMALL;
+                }
 
             }
             nodeSizeState_[u] = EdgeSizeStates::BIG;
@@ -599,7 +625,11 @@ computeWeight(
         if (settings_.removeSmallSegments && (edgeSizeState_[edge] == EdgeSizeStates::SMALL)
             && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
             // Here we increase the priority of edges involving small segments:
-            return fromEdge + 1.0;
+            // (ignored edges could get fromEdge = -1, but we want to merge them anyway)
+            if (!isNegativeInf(fromEdge) && fromEdge < 0.0 ) {
+                std::cout << "|" << fromEdge << "|";
+            }
+            return fromEdge + 10.0;
         }
         return fromEdge;
     }
