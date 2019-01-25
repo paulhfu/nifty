@@ -226,29 +226,42 @@ namespace distributed {
     inline void accumulateBoundaryMap(const Graph & graph,
                                       std::unique_ptr<z5::Dataset> dataDs,
                                       std::unique_ptr<z5::Dataset> labelsDs,
-                                      const std::vector<size_t> & roiBegin,
-                                      const std::vector<size_t> & roiEnd,
+                                      const std::vector<std::size_t> & roiBegin,
+                                      const std::vector<std::size_t> & roiEnd,
                                       const std::string & blockStoragePath,
                                       const FeatureType dataMin,
                                       const FeatureType dataMax,
-                                      const bool ignoreLabel) {
+                                      const bool ignoreLabel,
+                                      const bool increaseRoi=false) {
         // xtensor typedegs
         typedef xt::xtensor<NodeType, 3> LabelArray;
         typedef xt::xtensor<InputType, 3> DataArray;
+
+        // check if we need to increase the roi
+        // if specified, we decrease roiBegin by 1.
+        // to match what was done in the graph extraction when increaseRoi is true
+        std::vector<std::size_t> actualRoiBegin = roiBegin;
+        if(increaseRoi) {
+            for(int axis = 0; axis < 3; ++axis) {
+                if(actualRoiBegin[axis] > 0) {
+                    --actualRoiBegin[axis];
+                }
+            }
+        }
 
         // get the shapes
         Shape3Type shape;
         CoordType blockShape;
         for(unsigned axis = 0; axis < 3; ++axis) {
-            shape[axis] = roiEnd[axis] - roiBegin[axis];
+            shape[axis] = roiEnd[axis] - actualRoiBegin[axis];
             blockShape[axis] = shape[axis];
         }
 
         // load data and labels
         DataArray data(shape);
         LabelArray labels(shape);
-        z5::multiarray::readSubarray<InputType>(dataDs, data, roiBegin.begin());
-        z5::multiarray::readSubarray<NodeType>(labelsDs, labels, roiBegin.begin());
+        z5::multiarray::readSubarray<InputType>(dataDs, data, actualRoiBegin.begin());
+        z5::multiarray::readSubarray<NodeType>(labelsDs, labels, actualRoiBegin.begin());
 
         // create nifty accumulator vector
         AccumulatorVector accumulators(graph.numberOfEdges());
@@ -455,10 +468,11 @@ namespace distributed {
                                                      const std::vector<size_t> & blockIds,
                                                      const std::string & tmpFeatureStorage,
                                                      const FeatureType dataMin=0,
-                                                     const FeatureType dataMax=1) {
+                                                     const FeatureType dataMax=1,
+                                                     const bool increaseRoi=false) {
 
         // TODO could also use the std::bind pattern and std::function
-        auto accumulator = [dataMin, dataMax](
+        auto accumulator = [dataMin, dataMax, increaseRoi](
                 const Graph & graph,
                 std::unique_ptr<z5::Dataset> dataDs,
                 std::unique_ptr<z5::Dataset> labelsDs,
@@ -469,7 +483,8 @@ namespace distributed {
 
             accumulateBoundaryMap<InputType>(graph, std::move(dataDs), std::move(labelsDs),
                                              roiBegin, roiEnd, blockStoragePath,
-                                             dataMin, dataMax, ignoreLabel);
+                                             dataMin, dataMax, ignoreLabel,
+                                             increaseRoi);
         };
 
         extractBlockFeaturesImpl(blockPrefix,
@@ -549,29 +564,34 @@ namespace distributed {
         // merge the mean
         const FeatureType meanA = targetFeatures(targetId, off);
         const FeatureType meanB = tmpFeatures(tmpId, off);
-        const FeatureType newMean = ratioA * meanA + ratioB * meanB;
-        targetFeatures(targetId, off) = newMean;
+        const FeatureType mean = replaceIfNotFinite(ratioA * meanA + ratioB * meanB, 0);
+        targetFeatures(targetId, off) = mean;
 
         // merge the variance (feature id 1), see
         // https://stackoverflow.com/questions/1480626/merging-two-statistical-result-sets
         const FeatureType varA = targetFeatures(targetId, off + 1);
         const FeatureType varB = tmpFeatures(tmpId, off + 1);
-        targetFeatures(targetId, off + 1) = ratioA * (varA + (meanA - newMean) * (meanA - newMean));
-        targetFeatures(targetId, off + 1) += ratioB * (varB + (meanB - newMean) * (meanB - newMean));
+        const FeatureType var = ratioA * (varA + (meanA - mean) * (meanA - mean)) +
+                                ratioB * (varB + (meanB - mean) * (meanB - mean));
+        targetFeatures(targetId, off + 1) = replaceIfNotFinite(var, 0);
 
         // merge the min (feature id 2)
-        targetFeatures(targetId, off + 2) = std::min(targetFeatures(targetId, off + 2),
-                                                     tmpFeatures(tmpId, off + 2));
+        const FeatureType min = std::min(targetFeatures(targetId, off + 2),
+                                         tmpFeatures(tmpId, off + 2));
+        targetFeatures(targetId, off + 2) = replaceIfNotFinite(min, mean);
 
         // merge the quantiles (not min and max !) via weighted average
         // this is not correct, but the best we can do for now
         for(size_t featId = 3 + off; featId < 8 + off; ++featId) {
-            targetFeatures(targetId, featId) = ratioA * targetFeatures(targetId, featId) + ratioB * tmpFeatures(tmpId, featId);
+            const FeatureType quant = ratioA * targetFeatures(targetId, featId) +
+                                      ratioB * tmpFeatures(tmpId, featId);
+            targetFeatures(targetId, featId) = replaceIfNotFinite(quant, mean);
         }
 
         // merge the max (feature id 8)
-        targetFeatures(targetId, off + 8) = std::max(targetFeatures(targetId, off + 8),
-                                                     tmpFeatures(tmpId, off + 8));
+        const FeatureType max = std::max(targetFeatures(targetId, off + 8),
+                                                        tmpFeatures(tmpId, off + 8));
+        targetFeatures(targetId, off + 8) = replaceIfNotFinite(max, mean);
     }
 
 
@@ -726,21 +746,21 @@ namespace distributed {
 
 
     inline void findRelevantBlocks(const std::string & graphBlockPrefix,
-                                   const std::vector<size_t> & blockIds,
-                                   const size_t edgeIdBegin,
-                                   const size_t edgeIdEnd,
+                                   const std::vector<std::size_t> & blockIds,
+                                   const std::size_t edgeIdBegin,
+                                   const std::size_t edgeIdEnd,
                                    nifty::parallel::ThreadPool & threadpool,
-                                   std::vector<size_t> & relevantBlocks) {
+                                   std::vector<std::size_t> & relevantBlocks) {
 
-        const size_t nThreads = threadpool.nThreads();
-        std::vector<std::set<size_t>> perThreadData(nThreads);
+        const std::size_t nThreads = threadpool.nThreads();
+        std::vector<std::set<std::size_t>> perThreadData(nThreads);
 
-        const size_t numberOfBlocks = blockIds.size();
+        const std::size_t numberOfBlocks = blockIds.size();
 
         nifty::parallel::parallel_foreach(threadpool, numberOfBlocks, [&](const int tId,
                                                                           const int blockIndex) {
 
-            const size_t blockId = blockIds[blockIndex];
+            const std::size_t blockId = blockIds[blockIndex];
 
             const std::string blockPath = graphBlockPrefix + std::to_string(blockId);
             std::vector<EdgeIndexType> blockEdgeIndices;

@@ -108,9 +108,9 @@ namespace distributed {
 
     inline bool loadEdgeIndices(const std::string & graphPath,
                                 std::vector<EdgeIndexType> & edgeIndices,
-                                const size_t offset,
+                                const std::size_t offset,
                                 const int nThreads=1) {
-        const std::vector<size_t> zero1Coord({0});
+        const std::vector<std::size_t> zero1Coord({0});
         const std::vector<std::string> keys = {"numberOfEdges"};
 
         // get handle and check if we have edges
@@ -341,7 +341,7 @@ namespace distributed {
         path /= keyToLabels;
         auto ds = z5::openDataset(path.string());
 
-        // if specified, we incresae roiEnd by 1.
+        // if specified, we decrease roiBegin by 1.
         // this is necessary to capture edges that lie in between of block boundaries
         // However, we don't want to add the nodes to nodes in the sub-graph !
         COORD actualRoiBegin = roiBegin;

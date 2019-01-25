@@ -102,9 +102,11 @@ def __extendLiftedMulticutObj(objectiveCls, objectiveName):
 
     O = objectiveCls
 
-    def verboseVisitor(visitNth=1):
+    def verboseVisitor(visitNth=1,
+                       timeLimitSolver=float('inf'),
+                       timeLimitTotal=float('inf')):
         V = getLmcCls("LiftedMulticutVerboseVisitor")
-        return V(visitNth)
+        return V(visitNth, float(timeLimitSolver), float(timeLimitTotal))
     O.verboseVisitor = staticmethod(verboseVisitor)
 
 
@@ -213,7 +215,7 @@ def __extendLiftedMulticutObj(objectiveCls, objectiveName):
     O.fusionMoveBasedFactory = staticmethod(fusionMoveBasedFactory)
 
 
-    def liftedMulticutGreedyAdditiveFactory( weightStopCond=0.0, nodeNumStopCond=-1.0):
+    def liftedMulticutGreedyAdditiveFactory(weightStopCond=0.0, nodeNumStopCond=-1.0):
         s,F = getSettingsAndFactoryCls("LiftedMulticutGreedyAdditive")
         s.weightStopCond = float(weightStopCond)
         s.nodeNumStopCond = float(nodeNumStopCond)
@@ -221,9 +223,9 @@ def __extendLiftedMulticutObj(objectiveCls, objectiveName):
     O.liftedMulticutGreedyAdditiveFactory = staticmethod(liftedMulticutGreedyAdditiveFactory)
 
 
-    def liftedMulticutKernighanLinFactory( numberOfOuterIterations=1000000,
-                                            numberOfInnerIterations=100,
-                                            epsilon=1e-7):
+    def liftedMulticutKernighanLinFactory(numberOfOuterIterations=1000000,
+                                          numberOfInnerIterations=100,
+                                          epsilon=1e-7):
         s,F = getSettingsAndFactoryCls("LiftedMulticutKernighanLin")
         s.numberOfOuterIterations = int(numberOfOuterIterations)
         s.numberOfInnerIterations = int(numberOfInnerIterations)
@@ -232,9 +234,9 @@ def __extendLiftedMulticutObj(objectiveCls, objectiveName):
     O.liftedMulticutKernighanLinFactory = staticmethod(liftedMulticutKernighanLinFactory)
 
 
-    def liftedMulticutAndresKernighanLinFactory( numberOfOuterIterations=1000000,
-                                            numberOfInnerIterations=100,
-                                            epsilon=1e-7):
+    def liftedMulticutAndresKernighanLinFactory(numberOfOuterIterations=1000000,
+                                                numberOfInnerIterations=100,
+                                                epsilon=1e-7):
         s,F = getSettingsAndFactoryCls("LiftedMulticutAndresKernighanLin")
         s.numberOfOuterIterations = int(numberOfOuterIterations)
         s.numberOfInnerIterations = int(numberOfInnerIterations)
