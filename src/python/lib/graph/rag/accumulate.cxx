@@ -379,6 +379,120 @@ namespace graph{
         );
     }
 
+//    template<std::size_t DIM, class DATA_T>
+//    void exportGetUvIdsLongRangeRAG(
+//            py::module & ragModule
+//    ) {
+//        ragModule.def("getUvIdsLongRangeRAG",
+//                      [](
+//                              xt::pytensor<uint64_t, DIM> labels,
+//                              xt::pytensor<float, DIM + 1> affinities,
+//                              xt::pytensor<int64_t, 2> offsets,
+//                              xt::pytensor<uint64_t, 1> downscaling_factors,
+//                              nifty::marray::PyView<DATA_T, 1> affinities_weigths,
+//                              const int numberOfThreads
+//                      ) {
+//                          array::StaticArray<int64_t, DIM> shape;
+//
+////                          std::array<int,DIM> shape;
+//                          // Check inputs:
+//                          for(auto d=0; d<DIM; ++d){
+//                              shape[d] = labels.shape(d);
+//                              NIFTY_CHECK_OP(shape[d],==,affinities.shape(d), "affinities have wrong shape");
+//                          }
+//                          NIFTY_CHECK_OP(offsets.shape(0),==,affinities.shape(DIM), "Affinities and offsets do not match");
+//                          NIFTY_CHECK_OP(offsets.shape(0),==,affinities_weigths.shape(0), "Affinities weights and offsets do not match");
+//
+//                          // Create outputs:
+//                          typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
+//                          typedef std::tuple<NumpyArrayType, NumpyArrayType, NumpyArrayType>  OutType;
+//
+//                          std::array<int,2> shapeRetArray;
+//                          shapeRetArray[0] = numberOfThreads;
+//                          shapeRetArray[1] = uint64_t(graph.edgeIdUpperBound()+1);
+//
+//                          NumpyArrayType accAff(shapeRetArray.begin(), shapeRetArray.end());
+//                          NumpyArrayType maxAff(shapeRetArray.begin(), shapeRetArray.end());
+//                          NumpyArrayType counter(shapeRetArray.begin(), shapeRetArray.end());
+//
+//                          std::fill(accAff.begin(), accAff.end(), 0.);
+//                          std::fill(maxAff.begin(), maxAff.end(), 0.);
+//                          std::fill(counter.begin(), counter.end(), 0.);
+//
+//                          {
+//                              py::gil_scoped_release allowThreads;
+//
+//                              // Create thread pool:
+//                              nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+//                              nifty::parallel::ThreadPool threadpool(pOpts);
+//                              const std::size_t actualNumberOfThreads = pOpts.getActualNumThreads();
+//
+//                              if(DIM == 3){
+//                                  nifty::tools::parallelForEachCoordinate(threadpool,
+//                                                                          shape,
+//                                                                          [&](const auto threadId, const auto & coordP){
+//                                                                              const auto u = labels(coordP[0],coordP[1],coordP[2]);
+//                                                                              for(auto i=0; i<offsets.shape(0); ++i){
+//                                                                                  auto coordQ = coordP;
+//                                                                                  coordQ[0] += offsets(i, 0);
+//                                                                                  coordQ[1] += offsets(i, 1);
+//                                                                                  coordQ[2] += offsets(i, 2);
+//                                                                                  if(coordQ.allInsideShape(shape)){
+//                                                                                      const auto v = labels(coordQ[0],coordQ[1],coordQ[2]);
+//                                                                                      if(u != v){
+//                                                                                          const auto edge = graph.findEdge(u,v);
+//                                                                                          if (edge >=0 ){
+//                                                                                              const auto aff_value = affinities(coordP[0],coordP[1],coordP[2],i);
+//                                                                                              if (aff_value > maxAff(threadId, edge))
+//                                                                                                  maxAff(threadId, edge) = aff_value;
+//                                                                                              counter(threadId,edge) += affinities_weigths(i);
+//                                                                                              // accAff(edge) = 0.;
+//                                                                                              accAff(threadId,edge) += aff_value*affinities_weigths(i);
+//                                                                                          }
+//                                                                                      }
+//                                                                                  }
+//                                                                              }
+//                                                                          });
+//                              }
+//
+//                          }
+//
+//                          NumpyArrayType accAff_out({uint64_t(graph.edgeIdUpperBound()+1)});
+//                          NumpyArrayType counter_out({uint64_t(graph.edgeIdUpperBound()+1)});
+//                          NumpyArrayType maxAff_out({uint64_t(graph.edgeIdUpperBound()+1)});
+//
+//                          // Normalize:
+//                          for(auto i=0; i<uint64_t(graph.edgeIdUpperBound()+1); ++i){
+//                              maxAff_out(i) = maxAff(0,i);
+//                              for(auto thr=1; thr<numberOfThreads; ++thr){
+//                                  counter(0,i) += counter(thr,i);
+//                                  accAff(0,i) += accAff(thr,i);
+//                                  if (maxAff(thr,i) > maxAff_out(i))
+//                                      maxAff_out(i) = maxAff(thr,i);
+//                              }
+//                              if(counter(0,i)>0.5){
+//                                  accAff_out(i) = accAff(0,i) / counter(0,i);
+//                                  counter_out(i) = counter(0,i);
+//                              } else {
+//                                  accAff_out(i) = 0.;
+//                                  counter_out(i) = 0.;
+//                              }
+//                          }
+//                          return OutType(accAff_out, counter_out, maxAff_out);;
+//
+//
+//                      },
+//                      py::arg("graph"),
+//                      py::arg("labels"),
+//                      py::arg("affinities"),
+//                      py::arg("offsets"),
+//                      py::arg("affinitiesWeights"),
+//                      py::arg("numberOfThreads")  = 8
+//
+//        );
+//    }
+
+
 
     template<std::size_t DIM, class DATA_T>
     void exportConnectedComponentsFromEdgeLabels(
@@ -999,7 +1113,7 @@ namespace graph{
         ragModule.def("accumulateEdgeMeanAndLength",
         [](
             const RAG & rag,
-            const xt::pytensor<DATA_T, DIM> & data,
+            xt::pytensor<DATA_T, DIM> & data,
             array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads
         ){
@@ -1052,7 +1166,7 @@ namespace graph{
         ragModule.def("accumulateMeanAndLength",
         [](
             const RAG & rag,
-            const xt::pytensor<DATA_T, DIM> & data,
+            xt::pytensor<DATA_T, DIM> & data,
             array::StaticArray<int64_t, DIM> blockShape,
             const int numberOfThreads,
             const bool saveMemory
@@ -1117,7 +1231,7 @@ namespace graph{
         ragModule.def("accumulateStandartFeatures",
         [](
             const RAG & rag,
-            const xt::pytensor<DATA_T, DIM> & data,
+            xt::pytensor<DATA_T, DIM> & data,
             const double minVal,
             const double maxVal,
             array::StaticArray<int64_t, DIM> blockShape,
@@ -1187,7 +1301,7 @@ namespace graph{
         ragModule.def("accumulateNodeStandartFeatures",
         [](
             const RAG & rag,
-            const xt::pytensor<DATA_T, DIM> & data,
+            xt::pytensor<DATA_T, DIM> & data,
             const double minVal,
             const double maxVal,
             array::StaticArray<int64_t, DIM> blockShape,
@@ -1217,7 +1331,7 @@ namespace graph{
         ragModule.def("accumulateEdgeStandartFeatures",
         [](
             const RAG & rag,
-            const xt::pytensor<DATA_T, DIM> & data,
+            xt::pytensor<DATA_T, DIM> & data,
             const double minVal,
             const double maxVal,
             array::StaticArray<int64_t, DIM> blockShape,
@@ -1276,8 +1390,8 @@ namespace graph{
             typedef xt::pytensor<uint32_t, 3> ExplicitPyLabels3D;
             typedef GridRag<3, ExplicitPyLabels3D> Rag3d;
 
-            typedef xt::pytensor<uint32_t, 2> ExplicitPyLabels2D;
-            typedef GridRag<2, ExplicitPyLabels2D> Rag2d;
+//            typedef xt::pytensor<uint32_t, 2> ExplicitPyLabels2D;
+//            typedef GridRag<2, ExplicitPyLabels2D> Rag2d;
 
 //            typedef ExplicitLabelsGridRag<2, uint64_t> Rag2d;
 //            typedef ExplicitLabelsGridRag<3, uint64_t> Rag3d;
@@ -1294,7 +1408,7 @@ namespace graph{
             exportAccumulateAffinitiesMeanAndLength<3, GraphType, float>(ragModule);
 //
 //
-            exportMapFeaturesToBoundaries<2, Rag2d, ContractionGraphType, float>(ragModule);
+//            exportMapFeaturesToBoundaries<2, Rag2d, ContractionGraphType, float>(ragModule);
             exportMapFeaturesToBoundaries<3, Rag3d, ContractionGraphType, float>(ragModule);
 
             // exportBoundaryMaskLongRange<2, Rag2d, ContractionGraphType, float>(ragModule);
@@ -1312,30 +1426,30 @@ namespace graph{
 
             // Previous exports:
 
-            exportAccumulateEdgeMeanAndLength<2, Rag2d, float>(ragModule);
+//            exportAccumulateEdgeMeanAndLength<2, Rag2d, float>(ragModule);
             exportAccumulateEdgeMeanAndLength<3, Rag3d, float>(ragModule);
 
 
 
 
 
-            exportAccumulateMeanAndLength<2, Rag2d, float>(ragModule);
+//            exportAccumulateMeanAndLength<2, Rag2d, float>(ragModule);
             exportAccumulateMeanAndLength<3, Rag3d, float>(ragModule);
 
 
-            exportAccumulateStandartFeatures<2, Rag2d, float>(ragModule);
+//            exportAccumulateStandartFeatures<2, Rag2d, float>(ragModule);
             exportAccumulateStandartFeatures<3, Rag3d, float>(ragModule);
 
-            exportAccumulateNodeStandartFeatures<2, Rag2d, float>(ragModule);
+//            exportAccumulateNodeStandartFeatures<2, Rag2d, float>(ragModule);
             exportAccumulateNodeStandartFeatures<3, Rag3d, float>(ragModule);
 
-            exportAccumulateEdgeStandartFeatures<2, Rag2d, float>(ragModule);
+//            exportAccumulateEdgeStandartFeatures<2, Rag2d, float>(ragModule);
             exportAccumulateEdgeStandartFeatures<3, Rag3d, float>(ragModule);
 
-            exportAccumulateGeometricNodeFeatures<2, Rag2d, float>(ragModule);
+//            exportAccumulateGeometricNodeFeatures<2, Rag2d, float>(ragModule);
             exportAccumulateGeometricNodeFeatures<3, Rag3d, float>(ragModule);
 
-            exportAccumulateGeometricEdgeFeatures<2, Rag2d, float>(ragModule);
+//            exportAccumulateGeometricEdgeFeatures<2, Rag2d, float>(ragModule);
             exportAccumulateGeometricEdgeFeatures<3, Rag3d, float>(ragModule);
 
 
