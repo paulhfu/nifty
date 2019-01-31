@@ -126,11 +126,12 @@ def undirectedGridGraph(shape, simpleNh=True):
 gridGraph = undirectedGridGraph
 
 def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probabilities=None, labels=None, strides=None,
-                                 number_of_threads=1):
+                                 number_of_threads=1, affinity_mask=None):
     """
     :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a dense graph is used
     :param labels: Indices of a passed segmentation (uint64)
     :param is_local_offset: boolean array of shape=nb_offsets
+    :param affinity_mask: Skip some of the edges in the graph (bool array of shape (nb_offsets, x, y, z), False skips the edge)
     """
     # TODO: bad design. Local edges could be skipped.
     offsets = numpy.require(offsets, dtype='int64')
@@ -165,6 +166,10 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         # Randomly select which edges to add or not
         # FIXME: (multi-thread bug in C++, need to do it on the python side)
         randomProbs = numpy.random.random(randomProbsShape)
+
+    if affinity_mask is not None:
+        assert affinity_mask.shape == randomProbs.shape
+        randomProbs *= affinity_mask
 
     if strides is None:
         strides = numpy.ones(len(shape), dtype='int')

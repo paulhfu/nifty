@@ -274,7 +274,6 @@ namespace agglo{
 
 
             // factory
-//            TODO: how do I add another function to get back the targets, new SP sizes, new GT labels
             aggloModule.def(clusterPolicyFacName.c_str(),
                             [](
                                     const GraphType & graph,
@@ -649,8 +648,8 @@ namespace agglo{
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
-            exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
-            exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
+//            exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
+//            exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
             exportMinimumNodeSizeClusterPolicy<GraphType>(aggloModule);
 
@@ -673,8 +672,8 @@ namespace agglo{
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
-            exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
-            exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
+//            exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
+//            exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
             exportMinimumNodeSizeClusterPolicy<GraphType>(aggloModule);
 
@@ -697,8 +696,8 @@ namespace agglo{
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
-            exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
-            exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
+//            exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
+//            exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
             exportMinimumNodeSizeClusterPolicy<GraphType>(aggloModule);
 
