@@ -46,11 +46,20 @@ namespace agglo{
             const auto clusterPolicyFacName = lowerFirst(clusterPolicyBaseName);
 
             // the cluster operator cls
-            py::class_<ClusterPolicyType>(aggloModule, clusterPolicyClsName.c_str())
+            auto clusterClass = py::class_<ClusterPolicyType>(aggloModule, clusterPolicyClsName.c_str())
                 //.def_property_readonly("mergePrios", &ClusterPolicyType::mergePrios)
                 //.def_property_readonly("notMergePrios", &ClusterPolicyType::notMergePrios)
                 //.def_property_readonly("edgeSizes", &ClusterPolicyType::edgeSizes)
             ;
+
+            clusterClass
+                    .def("exportAgglomerationData", [](
+                            ClusterPolicyType * self
+                         ){
+                             return self->exportAgglomerationData();
+                         }
+                    );
+
 
             // factory
             aggloModule.def(clusterPolicyFacName.c_str(),

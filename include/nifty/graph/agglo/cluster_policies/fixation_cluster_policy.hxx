@@ -6,6 +6,7 @@
 #include <boost/container/flat_set.hpp>
 #include <string>
 #include <cmath>        // std::abs
+#include <math.h>  // sqrt
 
 #include "nifty/tools/changable_priority_queue.hxx"
 #include "nifty/graph/edge_contraction_graph.hxx"
@@ -27,7 +28,7 @@ class FixationClusterPolicy{
         GRAPH, ACC_0, ACC_1, ENABLE_UCM
     > SelfType;
 
-private:    
+private:
     typedef typename GRAPH:: template EdgeMap<uint8_t> UInt8EdgeMap;
     typedef typename GRAPH:: template EdgeMap<float> FloatEdgeMap;
     typedef typename GRAPH:: template NodeMap<float> FloatNodeMap;
@@ -69,8 +70,8 @@ public:
         uint64_t smallSegmentsThresh{10};
     };
 
-    enum class EdgeStates : uint8_t { 
-        PURE_LOCAL = 0, 
+    enum class EdgeStates : uint8_t {
+        PURE_LOCAL = 0,
         LOCAL = 1,
         LIFTED = 2,
         PURE_LIFTED = 3
@@ -98,11 +99,11 @@ private:
 public:
 
     template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE, class EDGE_SIZES, class NODE_SIZES>
-    FixationClusterPolicy(const GraphType &, 
-                              const MERGE_PRIOS & , 
+    FixationClusterPolicy(const GraphType &,
+                              const MERGE_PRIOS & ,
                               const NOT_MERGE_PRIOS &,
                               const IS_LOCAL_EDGE &,
-                              const EDGE_SIZES & , 
+                              const EDGE_SIZES & ,
                               const NODE_SIZES & ,
                               const SettingsType & settings = SettingsType());
 
@@ -111,7 +112,7 @@ public:
     bool isDone();
 
     // callback called by edge contraction graph
-    
+
     EdgeContractionGraphType & edgeContractionGraph();
 
 private:
@@ -200,6 +201,21 @@ public:
         nonLinkConstraints_[uv.second].insert(uv.first);
     }
 
+    auto exportAgglomerationData(){
+        typename xt::xtensor<float, 2>::shape_type retshape;
+        retshape[0] = graph_.nodeIdUpperBound()+1;
+        retshape[1] = 4;
+        xt::xtensor<float, 2> out(retshape);
+
+        graph_.forEachNode([&](const uint64_t node) {
+            out(node, 0) = maxNodeSize_per_iter_[node];
+            out(node, 1) = maxCostInPQ_per_iter_[node];
+            out(node, 2) = meanNodeSize_per_iter_[node];
+            out(node, 3) = variance_[node];
+        });
+        return out;
+    }
+
 
 
 private:
@@ -216,13 +232,24 @@ private:
     ACC_0 acc0_;
     ACC_1 acc1_;
     NodeSizesType nodeSizes_;
+    NodeSizesType maxNodeSize_per_iter_;
+    NodeSizesType meanNodeSize_per_iter_;
+    NodeSizesType variance_;
+    NodeSizesType maxCostInPQ_per_iter_;
+    uint64_t max_node_size_;
+    uint64_t sum_node_size_;
+    uint64_t quadratic_sum_node_size_;
+    uint64_t nb_performed_contractions_;
+
+
+
 
     typename GRAPH:: template EdgeMap<EdgeStates>  edgeState_;
     typename GRAPH:: template EdgeMap<EdgeSizeStates>  edgeSizeState_;
     typename GRAPH:: template NodeMap<EdgeSizeStates>  nodeSizeState_;
 
     SettingsType        settings_;
-    
+
     // INTERNAL
     EdgeContractionGraphType edgeContractionGraph_;
     QueueType pq_;
@@ -255,7 +282,15 @@ FixationClusterPolicy(
     nodeSizeState_(graph),
     pq_(graph.edgeIdUpperBound()+1),
     settings_(settings),
-    edgeContractionGraph_(graph, *this)
+    edgeContractionGraph_(graph, *this),
+    maxNodeSize_per_iter_(graph),
+    maxCostInPQ_per_iter_(graph),
+    variance_(graph),
+    meanNodeSize_per_iter_(graph),
+    max_node_size_(0),
+    sum_node_size_(0),
+    quadratic_sum_node_size_(0),
+    nb_performed_contractions_(0)
 {
     // FIXME: are ignored segments with both -1 handled well in general?
     if (settings_.removeSmallSegments && (!settings_.checkForNegCosts || settings_.addNonLinkConstraints || settings_.costsInPQ) ) {
@@ -265,6 +300,11 @@ FixationClusterPolicy(
 //    phase_ = 0;
     graph_.forEachNode([&](const uint64_t node) {
         nodeSizes_[node] = nodeSizes[node];
+        sum_node_size_ += nodeSizes[node];
+        quadratic_sum_node_size_ += nodeSizes[node] * nodeSizes[node];
+        if (nodeSizes[node] > max_node_size_)
+            max_node_size_ = uint8_t(nodeSizes[node]);
+
         // FIXME: only true if we start from pixels!
         nodeSizeState_[node] = EdgeSizeStates::SMALL;
     });
@@ -323,14 +363,14 @@ FixationClusterPolicy(
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline std::pair<uint64_t, double> 
+inline std::pair<uint64_t, double>
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
-edgeToContractNext() const {    
+edgeToContractNext() const {
     return std::pair<uint64_t, double>(edgeToContractNext_,edgeToContractNextMergePrio_) ;
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline bool 
+inline bool
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
 ){
     while(true) {
@@ -402,7 +442,7 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline double 
+inline double
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 pqMergePrio(
     const uint64_t edge
@@ -425,29 +465,43 @@ pqMergePrio(
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline void 
+inline void
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
 ){
+    // Remember about the highest cost in PQ:
+    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeToContractNextMergePrio_;
     pq_.deleteItem(edgeToContract);
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline typename FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::EdgeContractionGraphType & 
+inline typename FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::EdgeContractionGraphType &
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 edgeContractionGraph(){
     return edgeContractionGraph_;
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline void 
+inline void
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 mergeNodes(
-    const uint64_t aliveNode, 
+    const uint64_t aliveNode,
     const uint64_t deadNode
 ){
-    nodeSizes_[aliveNode] +=nodeSizes_[deadNode];
+    // Save data about max_node_size
+    maxNodeSize_per_iter_[nb_performed_contractions_] = max_node_size_;
+    const auto remaining_nodes = edgeContractionGraph_.numberOfNodes();
+    meanNodeSize_per_iter_[nb_performed_contractions_] = float(sum_node_size_) / float(remaining_nodes);
+    variance_[nb_performed_contractions_] =  float(quadratic_sum_node_size_) / float(remaining_nodes) - std::pow(meanNodeSize_per_iter_[nb_performed_contractions_], 2);
+
+    quadratic_sum_node_size_ += std::pow(nodeSizes_[deadNode] + nodeSizes_[aliveNode], 2) - std::pow(nodeSizes_[aliveNode], 2) - std::pow(nodeSizes_[deadNode], 2);
+
+    nodeSizes_[aliveNode] += nodeSizes_[deadNode];
+    if (nodeSizes_[aliveNode] > max_node_size_)
+        max_node_size_ = uint64_t(nodeSizes_[aliveNode]);
+
+
     if (settings_.removeSmallSegments
         && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
         if (nodeSizes_[aliveNode] >= settings_.smallSegmentsThresh &&
@@ -476,10 +530,10 @@ mergeNodes(
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline void 
+inline void
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 mergeEdges(
-    const uint64_t aliveEdge, 
+    const uint64_t aliveEdge,
     const uint64_t deadEdge
 ){
 
@@ -488,9 +542,9 @@ mergeEdges(
     NIFTY_ASSERT(pq_.contains(deadEdge));
 
     pq_.deleteItem(deadEdge);
-   
+
     // update merge prio
-    
+
     auto & sa = edgeState_[aliveEdge];
     const auto  sd = edgeState_[deadEdge];
 
@@ -536,7 +590,7 @@ mergeEdges(
 //    else if(settings_.zeroInit  && sa != EdgeStates::PURE_LOCAL &&  sd ==  EdgeStates::PURE_LOCAL) {}
 //    else
 //        acc1_.merge(aliveEdge, deadEdge);
-    
+
 
     // update state
     if(sa == EdgeStates::PURE_LIFTED &&  sd == EdgeStates::PURE_LIFTED){
@@ -547,7 +601,7 @@ mergeEdges(
     }
     else if(
         sa == EdgeStates::PURE_LOCAL ||  sa == EdgeStates::LOCAL ||
-        sd == EdgeStates::PURE_LOCAL ||  sd == EdgeStates::LOCAL 
+        sd == EdgeStates::PURE_LOCAL ||  sd == EdgeStates::LOCAL
     ){
         sa = EdgeStates::LOCAL;
     }
@@ -560,12 +614,12 @@ mergeEdges(
     const auto sr = settings_.sizeRegularizer;
     if (sr < 0.000001)
         pq_.push(aliveEdge, this->computeWeight(aliveEdge));
-    
+
 }
 
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline void 
+inline void
 FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
@@ -600,6 +654,9 @@ contractEdgeDone(
             nodeSizeState_[u] = EdgeSizeStates::BIG;
         }
     }
+
+    nb_performed_contractions_++;
+
 }
 
 template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
