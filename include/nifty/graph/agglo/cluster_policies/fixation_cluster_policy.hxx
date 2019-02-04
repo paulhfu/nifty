@@ -155,7 +155,13 @@ public:
         else if (settings_.checkForNegCosts && acc1_[edge] < 0)
             return true;
         else {
-            return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
+            if (mean_rule_) {
+                // Remember that atm the costs are in [0., 0.5]:
+                // TODO: fix this mess of costs in [0., 0.5]....
+                return acc0_[edge] > settings_.threshold;
+            } else {
+                return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
+            }
         }
     }
 
@@ -178,12 +184,17 @@ public:
         }
         else {
             if (settings_.addNonLinkConstraints) {
-                return std::max(acc0_[edge], acc1_[edge]);
+                if (mean_rule_) {
+                    return std::max(acc0_[edge], float(0.5) - acc0_[edge]);
+                } else {
+                    return std::max(acc0_[edge], acc1_[edge]);
+                }
             } else {
                 const auto attrFromEdge = acc0_[edge];
                 // If we force small segments to merge, we want to put repulsive (not allowed) in PQ to be merged.
                 if (settings_.removeSmallSegments
                     && !settings_.addNonLinkConstraints && !settings_.costsInPQ && attrFromEdge < 0) {
+                    // FIXME: values in PQ are between 0.5 and 0.!!!!
                     return 1. - acc1_[edge];
                 } else {
                     return attrFromEdge;
@@ -241,6 +252,7 @@ private:
     uint64_t quadratic_sum_node_size_;
     uint64_t nb_performed_contractions_;
 
+    bool mean_rule_;
 
 
 
@@ -290,7 +302,8 @@ FixationClusterPolicy(
     max_node_size_(0),
     sum_node_size_(0),
     quadratic_sum_node_size_(0),
-    nb_performed_contractions_(0)
+    nb_performed_contractions_(0),
+    mean_rule_(false)
 {
     // FIXME: are ignored segments with both -1 handled well in general?
     if (settings_.removeSmallSegments && (!settings_.checkForNegCosts || settings_.addNonLinkConstraints || settings_.costsInPQ) ) {
@@ -314,33 +327,18 @@ FixationClusterPolicy(
 
         const auto loc = isLocalEdge[edge];
 
+        mean_rule_ = acc0_.name() == std::string("ArithmeticMean");
+        if (mean_rule_) {
+            if (acc0_[edge] < 0.) {
+                NIFTY_ASSERT_OP(acc1_[edge],>=,0.);
+                acc0_.set(edge, 0.5 - acc1_[edge], acc1_.weight(edge));
+            } else {
+                acc0_.set(edge, 0.5 + acc0_[edge], acc0_.weight(edge));
+            }
+        }
+
         // FIXME: only true if we start from pixels!
         edgeSizeState_[edge] = EdgeSizeStates::SMALL;
-
-        // TODO: better possible solution: pure_repulsive, pure_attractive
-//        if(settings_.initSignedWeights) {
-//            if (mergePrios[edge] > settings_.threshold) {
-//                // Set repulsion to zero:
-//                acc1_.set(edge, -1.0, edgeSizes[edge]);
-//            } else {
-////            if(loc == 1)
-////                // Set repulsion to zero:
-////                acc1_.set(edge, -1.0, edgeSizes[edge]);
-////            else {
-////                // Set attraction to zero:
-//                acc0_.set(edge, -1.0, edgeSizes[edge]);
-////            }
-//
-//            }
-////        if(loc == 1){
-////            // Set repulsion to zero:
-////            acc1_.set(edge, -1.0, edgeSizes[edge]);
-////        } else {
-////            // Set attraction to zero:
-////
-////            acc0_.set(edge, -1.0, edgeSizes[edge]);
-////        }
-//        }
 
         // TODO: get rid of this
         if(settings_.zeroInit){
@@ -455,6 +453,8 @@ pqMergePrio(
     else{
         // In this case the edge is lifted, so we need to be careful.
         // It can be inserted in the PQ to constrain, but not to merge.
+        // REMARK: The second condition  "isMergeAllowed" is actually not necessary, because it is anyway checked
+        // again in isDone before to actually contract the edge...
         if (!settings_.addNonLinkConstraints || this->isMergeAllowed(edge))
             costInPQ = -1.0*std::numeric_limits<double>::infinity();
         else {
@@ -471,7 +471,8 @@ contractEdge(
     const uint64_t edgeToContract
 ){
     // Remember about the highest cost in PQ:
-    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeToContractNextMergePrio_;
+//    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeToContractNextMergePrio_;
+    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeContractionGraph_.numberOfEdges();
     pq_.deleteItem(edgeToContract);
 }
 
@@ -555,41 +556,36 @@ mergeEdges(
 //    std::cout << "[MP<0 "<< mergePrioAlive < 0. || mergePrioDead < 0. <<" ]; ";
 //    std::cout << "[nMP<0 "<< notMergePrioAlive< 0. || notMergePrioAlive < 0. <<" ]; ";
 
-    if (settings_.checkForNegCosts && mergePrioAlive < 0.) {
+    if (! mean_rule_) {
+        if (settings_.checkForNegCosts && mergePrioAlive < 0.) {
 //        std::cout << "[MergePrioDead "<< mergePrioDead <<" ]; ";
-        acc0_.setFrom(aliveEdge, deadEdge);
-    } else if (settings_.checkForNegCosts && mergePrioDead < 0.) {
+            acc0_.setFrom(aliveEdge, deadEdge);
+        } else if (settings_.checkForNegCosts && mergePrioDead < 0.) {
 //        std::cout << "[MergePrioAlive "<< mergePrioAlive <<" ]; ";
-    }
-    else {
+        } else {
+            acc0_.merge(aliveEdge, deadEdge);
+        }
+    } else {
         acc0_.merge(aliveEdge, deadEdge);
     }
 
-    if (settings_.checkForNegCosts && notMergePrioAlive < 0.) {
+
+    // Update repulsiveness:
+    if (! mean_rule_) {
+        if (settings_.checkForNegCosts && notMergePrioAlive < 0.) {
 //        std::cout << ".";
-        acc1_.setFrom(aliveEdge, deadEdge);
-    } else if (settings_.checkForNegCosts && notMergePrioDead < 0.) {
+            acc1_.setFrom(aliveEdge, deadEdge);
+        } else if (settings_.checkForNegCosts && notMergePrioDead < 0.) {
 //        std::cout << "/";
 //        std::cout << "[notMergePrioAlive "<< notMergePrioAlive <<" ]; ";
-    }
-    else {
+        }
+        else {
 //        std::cout << "[bothRep]";
-        acc1_.merge(aliveEdge, deadEdge);
+            acc1_.merge(aliveEdge, deadEdge);
+        }
     }
 
-//    if(settings_.zeroInit  && sa == EdgeStates::PURE_LIFTED &&  sd != EdgeStates::PURE_LIFTED)
-//        acc0_.setValueFrom(aliveEdge, deadEdge);
-//    else if (settings_.zeroInit  && sa != EdgeStates::PURE_LIFTED &&  sd == EdgeStates::PURE_LIFTED) {}
-//    else
-//        acc0_.merge(aliveEdge, deadEdge);
-//
-//    // update notMergePrio
-//    if(settings_.zeroInit  && sa == EdgeStates::PURE_LOCAL &&  sd !=  EdgeStates::PURE_LOCAL)
-//        acc1_.setValueFrom(aliveEdge, deadEdge);
-//        // FIXME: here weight is not updated!!!
-//    else if(settings_.zeroInit  && sa != EdgeStates::PURE_LOCAL &&  sd ==  EdgeStates::PURE_LOCAL) {}
-//    else
-//        acc1_.merge(aliveEdge, deadEdge);
+
 
 
     // update state
