@@ -94,98 +94,6 @@ namespace graph{
                     }
                 );
             }
-
-//            // TODO: generalize for accepting node labels (subclass!)
-//            template<class G,
-//                    class D,
-//                    class F,
-//                            class RAG>
-//            static void assign(
-//                    G & graph,
-//                    const xt::xexpression<D> & nodeLabelsExp,
-//                    const xt::xexpression<F> & randomProbsExp
-//
-//            ){
-//                const auto & nodeLabels = nodeLabelsExp.derived_cast();
-//                const auto & randomProbs = randomProbsExp.derived_cast();
-//                const auto & shape = graph.shape();
-//                const auto & offsets = graph.offsets();
-//                const auto & offsets_probs = graph.offsetsProbs();
-//                const auto & isLocalOffset = graph.isLocalOffset();
-//                const auto & startFromLabelSegm = graph.startFromLabelSegm();
-//                typename xt::xtensor<bool, 1>::shape_type retshape;
-//                retshape[0] = graph.numberOfNodes();
-//                xt::xtensor<int32_t, 1> ret(retshape);
-////                const auto randValues = xt::random::rand<double>({shape[0], shape[1], shape[2]});
-////                thread_local std::random_device rd;
-////                thread_local std::mt19937 gen(rd());
-////                thread_local std::uniform_real_distribution<> rng;
-////                rng = std::uniform_real_distribution<>(0., 1.);
-//
-//                uint64_t u=0;
-//
-//                nifty::parallel::ParallelOptions pOpts(numberOfThreads);
-//                nifty::parallel::ThreadPool threadpool(pOpts);
-//                const std::size_t actualNumberOfThreads = pOpts.getActualNumThreads();
-//
-//                nifty::tools::parallelForEachCoordinate(threadpool,
-//                                                        shape,
-//                                                        [&](const auto threadId, const auto & coordP){
-//                                                            const auto label = labelArray(coordP[0],coordP[1],coordP[2]);
-//                                                            if (label!=ignoreLabel && label<featureArray.shape(0)) {
-//                                                                for(auto f=0; f<featureArray.shape(1); ++f){
-//                                                                    featureImage(coordP[0],coordP[1],coordP[2],f) = featureArray(label,f);
-//                                                                }
-//                                                            }
-//                                                        });
-//
-//                nifty::tools::forEachCoordinate( shape,[&](const auto & coordP){
-//                    const auto labelP = nodeLabels[coordP];
-//                    for(int io=0; io<offsets.size(); ++io){
-//                        const auto offset = offsets[io];
-//                        const auto coordQ = offset + coordP;
-//                        // Check if both coordinates are in the volume:
-//                        if(coordQ.allInsideShape(shape)){
-//                            const auto v = graph.coordianteToNode(coordQ);
-//                            const auto labelQ = nodeLabels[coordQ];
-//
-//                            // Check if the edge is valid
-//                            bool isValidEdge = true;
-//                            if (not isLocalOffset[io]) {
-//                                // Check the longRangeStrides:
-//                                for(int d=0; d<DIM; ++d){
-//                                    if (coordP[d] % graph.longRangeStrides()[d] != 0) {
-//                                        isValidEdge = false;
-//                                    }
-//                                }
-//                                // Check if the edge should be added according to the probability:
-//                                array::StaticArray<int64_t, DIM + 1> noise_index;
-//                                std::copy(std::begin(coordP), std::end(coordP), std::begin(noise_index));
-//                                noise_index[DIM] = io;
-//                                if (randomProbs[noise_index] >= offsets_probs[io])
-//                                    isValidEdge = false;
-//                            }
-//
-//                            // Insert new edge in graph:
-//                            if (isValidEdge) {
-//                                if (startFromLabelSegm) {
-//                                    if (labelP != labelQ) {
-//                                        auto e = graph.findEdge(labelP,labelQ);
-//                                        if (e<0) {
-//                                            e = graph.insertEdge(labelP, labelQ);
-//                                        }
-//                                    }
-//                                } else {
-//                                    const auto e = graph.insertEdge(u, v);
-//                                }
-//                            }
-//                        }
-//                    }
-//                    ++u;
-//                });
-//
-//            }
-
         };
     }
     ///\endcond
@@ -244,56 +152,6 @@ namespace graph{
             }
             HelperType::assign(*this, randomProbsExp, numberOfThreads);
         }
-
-//        template<class D, class F, class RAG>
-//        UndirectedLongRangeGridGraph(
-//                const RAG & rag,
-//                const OffsetVector & offsets,
-//                const StridesType & longRangeStrides,
-//                const LabelsType & labels,
-//                const OffsetProbsType & offsetsProbs,
-//                const xt::xexpression<F> & randomProbsExp,
-//                const int numberOfThreads
-//        )
-//                :   UndirectedGraph<>(),
-//                    shape_(shape),
-//                    offsets_(offsets),
-//                    longRangeStrides_(longRangeStrides),
-//                    offsetsProbs_(offsetsProbs),
-//                    isLocalOffset_(isLocalOffset),
-//                    startFromLabelSegm_(true),
-//                    labels_(std::make_unique<LabelsType>(labels))
-//        {
-//            // TODO: node_labels are not necessary...
-////            const auto & labels = rag.labels();
-//            const auto & shape = rag.shape();
-//            shape_(shape);
-//
-//            NIFTY_CHECK(DIM==2 || DIM==3,"wrong dimension");
-//
-//            typedef typename D::value_type value_type;
-//            const auto & nodeLabels = nodeLabelsExp.derived_cast();
-//
-//            for(auto d=0; d<DIM; ++d){
-//                NIFTY_CHECK_OP(shape_[d],==,nodeLabels.shape()[d], "input has wrong shape");
-//            }
-//
-////            uint64_t nNodes = shape_[0];
-////            const auto maxValue = xt::amax(nodeLabels);
-////
-////            nNodes = maxValue(0) + 1;
-//
-//            this->assign(rag.nodeIdUpperBound()+1);
-//
-//            strides_.back() = 1;
-//            for(int d=int(DIM)-2; d>=0; --d){
-//                strides_[d] = shape_[d+1] * strides_[d+1];
-//            }
-//            HelperType::assign(*this, rag, randomProbsExp, numberOfThreads);
-//        }
-
-
-
 
         auto edgeOffsetIndex(
         )const{
@@ -679,5 +537,116 @@ namespace graph{
 //        StorageType labels_;
 
     };
-}
+
+
+////    typedef array::StaticArray<int64_t, DIM>    ShapeType;
+//    typedef array::StaticArray<int64_t, DIM>    StridesType;
+//    typedef array::StaticArray<int64_t, DIM>    CoordinateType;
+//    typedef array::StaticArray<int64_t, DIM>    OffsetType;
+////        typedef LABELS                              LabelsType;
+//
+////    typedef std::vector<bool>    BoolVectorType;
+//    typedef std::vector<float>    OffsetProbsType;
+//    typedef std::vector<OffsetType>     OffsetVector;
+
+
+    template<std::size_t DIM, class LAB_TYPE, class RAG, class F>
+    auto computeLongRangeEdgesFromRagAndOffsets(
+            const RAG & rag,
+            const std::vector<array::StaticArray<int64_t, DIM>> & offsets,
+//            const array::StaticArray<int64_t, DIM> & longRangeStrides,
+            const xt::xexpression<LAB_TYPE> & nodeLabelsExp,
+            const std::vector<float> & offsetsProbs,
+            const xt::xexpression<F> & randomProbsExp,
+            const int numberOfThreads
+    ) {
+        // TODO: node_labels are not necessary...
+        const auto & labels = rag.labels();
+        const auto & shape = rag.shape();
+
+        NIFTY_CHECK(DIM==2 || DIM==3,"wrong dimension");
+
+//        typedef typename LAB_TYPE::value_type value_type;
+        const auto & nodeLabels = nodeLabelsExp.derived_cast();
+
+        for(auto d=0; d<DIM; ++d){
+            NIFTY_CHECK_OP(shape[d],==,nodeLabels.shape()[d], "input has wrong shape");
+        }
+
+//            uint64_t nNodes = shape_[0];
+//            const auto maxValue = xt::amax(nodeLabels);
+//
+//            nNodes = maxValue(0) + 1;
+
+        const auto & randomProbs = randomProbsExp.derived_cast();
+
+        // Look for longRange edges:
+        std::vector<std::vector<std::pair<uint64_t,uint64_t>>> longRangePairs(numberOfThreads);
+
+
+        nifty::parallel::ParallelOptions pOpts(numberOfThreads);
+        nifty::parallel::ThreadPool threadpool(pOpts);
+        const std::size_t actualNumberOfThreads = pOpts.getActualNumThreads();
+
+        nifty::tools::parallelForEachCoordinate(threadpool,
+                                                shape,
+            [&](const auto threadId, const auto & coordP){
+                const auto u = labels[coordP];
+                for(int io=0; io<offsets.size(); ++io){
+                    const auto offset = offsets[io];
+                    const auto coordQ = offset + coordP;
+                    // Check if both coordinates are in the volume:
+                    if(coordQ.allInsideShape(shape)){
+                        const auto v = labels[coordQ];
+
+                        // Insert new edge in graph:
+                        if (u != v) {
+                            const auto edge = rag.findEdge(u, v);
+                            if (edge < 0) {
+                                // Check if the edge should be added according to the probability:
+                                array::StaticArray<int64_t, DIM + 1> noise_index;
+                                std::copy(std::begin(coordP), std::end(coordP), std::begin(noise_index));
+                                noise_index[DIM] = io;
+                                if (randomProbs[noise_index] < offsetsProbs[io]) {
+                                    const std::pair <uint64_t, uint64_t> newPair(u, v);
+                                    longRangePairs[threadId].push_back(newPair);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+
+
+        // Export results:
+        int total_nb_edges = 0;
+        std::vector<int> index_offset(numberOfThreads);
+        for (int i=0; i<numberOfThreads; i++) {
+            index_offset[i] = total_nb_edges;
+            total_nb_edges += longRangePairs[i].size();
+//            std::cout << total_nb_edges <<  "\n";
+        }
+
+        std::cout << "DONE with edges! \n";
+        // TODO: test time until here!
+
+        typename xt::xtensor<uint64_t, 2>::shape_type retshape;
+        retshape[0] = total_nb_edges;
+        retshape[1] = 2;
+        xt::xtensor<uint64_t, 2> out(retshape);
+        for (int i=0; i<numberOfThreads; i++) {
+            for (int j=0; j<longRangePairs[i].size(); j++) {
+                out(index_offset[i]+j,0) = longRangePairs[i][j].first;
+                out(index_offset[i]+j,1) = longRangePairs[i][j].second;
+            }
+        }
+
+        return out;
+
+    }
+
+
+    }
 }

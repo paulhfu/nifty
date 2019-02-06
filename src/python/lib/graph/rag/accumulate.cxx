@@ -405,6 +405,10 @@ namespace graph{
                           typedef nifty::marray::PyView<DATA_T> NumpyArrayType;
                           typedef std::tuple<NumpyArrayType, NumpyArrayType, NumpyArrayType>  OutType;
 
+                          // TODO: try to make it more memory and computational efficient
+                          // filling is slow (and the more threads, the more memory)
+                          // Same for collecting the results afterwards
+
                           std::array<int,2> shapeRetArray;
                           shapeRetArray[0] = numberOfThreads;
                           shapeRetArray[1] = uint64_t(graph.nodeIdUpperBound()+1);

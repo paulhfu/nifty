@@ -9,7 +9,7 @@
 #include <cstddef>
 //#include "nifty/python/converter.hxx"
 #include "nifty/python/graph/undirected_long_range_grid_graph.hxx"
-
+#include "nifty/graph/rag/grid_rag.hxx"
 
 
 
@@ -35,6 +35,56 @@ namespace graph{
         ;
     }
 
+
+    template<std::size_t DIM, class RAG>
+    void exportComputeLongRangeEdgesFromRagAndOffsets(
+            py::module & graphModule
+    ){
+        graphModule.def("computeLongRangeEdgesFromRagAndOffsets_impl",
+                      [](
+                              const RAG & rag,
+//                              std::array<int, DIM>       shape,
+                              xt::pytensor<int64_t, 2> offsets,
+//                              xt::pytensor<int64_t, 1> longRangeStrides,
+//            xt::pytensor<uint32_t, DIM> &
+                              xt::pytensor<uint64_t, DIM> & labels,
+                              xt::pytensor<float, 1> offsetsProbs,
+                              xt::pytensor<float, DIM+1> & randomProbs,
+                              const int numberOfThreads
+                      ){
+                          typedef typename std::vector<array::StaticArray<int64_t, DIM>> OffsetVectorType;
+                          typedef typename std::vector<float> OffsetProbsType;
+
+                          OffsetVectorType offsetVector(offsets.shape()[0]);
+                          OffsetProbsType offsetProbsVector(offsetsProbs.shape()[0]);
+
+                          for(auto i=0; i<offsetVector.size(); ++i){
+                              offsetProbsVector[i] = offsetsProbs(i);
+                              for(auto d=0; d<DIM; ++d){
+                                  offsetVector[i][d] = offsets(i, d);
+                              }
+                          }
+
+                         // FIXME: no brackets???
+//                          xt::pytensor<uint64_t, 2> edgeOut;
+//                          {
+//                              py::gil_scoped_release release;
+//                              edgeOut = computeLongRangeEdgesFromRagAndOffsets(rag, offsetVector, labels, numberOfThreads);
+//                          }
+//                          return edgeOut;
+                            py::gil_scoped_release release;
+                          return computeLongRangeEdgesFromRagAndOffsets(rag, offsetVector, labels,  offsetProbsVector, randomProbs, numberOfThreads);
+
+                      },
+                      py::arg("rag"),
+                      py::arg("offsets"),
+                        py::arg("labels"),
+                        py::arg("offsetsProbs"),
+
+                      py::arg("randomProbs"),
+                      py::arg("numberOfThreads") = 1
+        );
+    };
 
 
     template<std::size_t DIM, class LABELS>
@@ -87,6 +137,7 @@ namespace graph{
                          stridesVector[d] = longRangeStrides(d);
                      }
 
+                     // FIXME: no brackets???
                      py::gil_scoped_release release;
                     return new GraphType(s, offsetVector, stridesVector, offsetProbsVector, isLocalVector, randomProbs, numberOfThreads);
         }),
@@ -116,7 +167,7 @@ namespace graph{
             const GraphType & g,
             xt::pytensor<float, DIM+1> nodeFeatures
         ){
-            return g.edgeValues(nodeFeatures);
+                return g.edgeValues(nodeFeatures);
         })
         .def("nodeValues", [](
                 const GraphType & g,
@@ -154,10 +205,15 @@ namespace graph{
 
 
 
-    void exportUndirectedLongRangeGridGraph(py::module & ragModule) {
+    void exportUndirectedLongRangeGridGraph(py::module & graphModule) {
 
-        exportUndirectedLongRangeGridGraphT<2, uint32_t>(ragModule);
-        exportUndirectedLongRangeGridGraphT<3, uint32_t>(ragModule);
+        typedef xt::pytensor<uint32_t, 3> ExplicitLabels3D;
+        typedef GridRag<3, ExplicitLabels3D> Rag3d;
+        exportComputeLongRangeEdgesFromRagAndOffsets<3, Rag3d >(graphModule);
+
+        exportUndirectedLongRangeGridGraphT<2, uint32_t>(graphModule);
+        exportUndirectedLongRangeGridGraphT<3, uint32_t>(graphModule);
+
 
   
     }

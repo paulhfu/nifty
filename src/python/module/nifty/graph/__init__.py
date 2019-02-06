@@ -161,10 +161,14 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
         offsets_probabilities = numpy.ones((offsets.shape[0],), dtype='float')
         randomProbs = numpy.ones(randomProbsShape, dtype='float') * 0.5
     else:
-        assert offsets_probabilities.shape[0] == offsets.shape[0]
-        offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
+        if isinstance(offsets_probabilities, float):
+            offsets_probabilities = numpy.ones((offsets.shape[0],), dtype='float') * offsets_probabilities
+        else:
+            assert offsets_probabilities.shape[0] == offsets.shape[0]
+            offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
         # Randomly select which edges to add or not
         # FIXME: (multi-thread bug in C++, need to do it on the python side)
+        # It could be because atm we cannot initialize the graph in a 'thread-safe' way...
         randomProbs = numpy.random.random(randomProbsShape)
 
     if affinity_mask is not None:
@@ -182,6 +186,42 @@ def undirectedLongRangeGridGraph(shape, offsets, is_local_offset, offsets_probab
     return G(shape, offsets, strides, offsets_probabilities, randomProbs, is_local_offset, number_of_threads)
 
 longRangeGridGraph = undirectedLongRangeGridGraph
+
+
+def compute_lifted_edges_from_rag_and_offsets(rag,
+                                              labels,
+                                        offsets,
+                                        offsets_probabilities=None,
+                                        number_of_threads=1):
+    """
+    :param offsets_probabilities: Probability that a repulsive long-range edge is intriduced. If None a "dense" graph is used
+    :param labels: Indices of a passed segmentation (uint64)
+    :param is_local_offset: boolean array of shape=nb_offsets
+    :param affinity_mask: Skip some of the edges in the graph (bool array of shape (nb_offsets, x, y, z), False skips the edge)
+    """
+    # TODO: bad design. Local edges could be skipped.
+    offsets = numpy.require(offsets, dtype='int64')
+
+    shape = list(labels.shape)
+
+    randomProbsShape = tuple(shape) + (offsets.shape[0],)
+    if offsets_probabilities is None:
+        offsets_probabilities = numpy.ones((offsets.shape[0],), dtype='float')
+        randomProbs = numpy.ones(randomProbsShape, dtype='float') * 0.5
+    else:
+        if isinstance(offsets_probabilities, float):
+            offsets_probabilities = numpy.ones((offsets.shape[0],), dtype='float') * offsets_probabilities
+        else:
+            if isinstance(offsets_probabilities, list):
+                offsets_probabilities = numpy.array(offsets_probabilities)
+            assert offsets_probabilities.shape[0] == offsets.shape[0]
+            offsets_probabilities = numpy.require(offsets_probabilities, dtype='float')
+        # Randomly select which edges to add or not
+        randomProbs = numpy.random.random(randomProbsShape)
+
+    return computeLongRangeEdgesFromRagAndOffsets_impl(rag, offsets,labels,offsets_probabilities,randomProbs,
+                                                                   number_of_threads)
+
 
 
 def drawGraph(graph, method='spring'):
