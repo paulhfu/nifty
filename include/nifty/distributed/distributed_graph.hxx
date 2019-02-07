@@ -32,6 +32,28 @@ namespace distributed {
             initGraph();
         }
 
+        // FIXME useless argument to enable constructor over-loading
+        Graph(const std::string & blockPath,
+              const std::size_t blockId,
+              const bool dummy) : nodeMaxId_(0) {
+            const auto ds = z5::openDataset(blockPath);
+            bool varlen;
+            std::vector<size_t> chunkId;
+            ds->chunking().blockIdToBlockCoordinate(blockId, chunkId);
+            const std::size_t edgeLen = ds->getDiscChunkSize(chunkId, varlen);
+
+            if(edgeLen > 0) {
+                std::vector<NodeType> edgeVec(edgeLen);
+                ds->readChunk(chunkId, &edgeVec[0]);
+                const std::size_t nEdges = edgeLen / 2;
+                edges_.resize(nEdges);
+                for(std::size_t edgeId = 0; edgeId < nEdges; edgeId++) {
+                    edges_[edgeId] = std::make_pair(edgeVec[2 * edgeId], edgeVec[2 * edgeId + 1]);
+                }
+            }
+            initGraph();
+        }
+
         // This is a bit weird (constructor with side effects....)
         // but I don't want the edge id mapping to be part of this class
         Graph(const std::vector<std::string> & blockPaths,

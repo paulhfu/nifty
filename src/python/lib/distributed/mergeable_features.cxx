@@ -23,20 +23,21 @@ namespace distributed {
                                        const std::string & tmpFeatureStorage,
                                        const FeatureType dataMin,
                                        const FeatureType dataMax,
-                                       const bool increaseRoi) {
+                                       const bool increaseRoi,
+                                       const bool ignoreLabel) {
             py::gil_scoped_release allowThreads;
             extractBlockFeaturesFromBoundaryMaps<T>(blockPrefix, dataPath, dataKey,
                                                     labelPath, labelKey, blockIds,
                                                     tmpFeatureStorage,
                                                     dataMin, dataMax,
-                                                    increaseRoi);
+                                                    increaseRoi, ignoreLabel);
 
         }, py::arg("blockPrefix"),
            py::arg("dataPath"), py::arg("dataKey"),
            py::arg("labelPath"), py::arg("labelKey"),
            py::arg("blockIds"), py::arg("tmpFeatureStorage"),
            py::arg("dataMin")=0., py::arg("dataMax")=1.,
-           py::arg("increaseRoi")=false);
+           py::arg("increaseRoi")=false, py::arg("ignoreLabel")=true);
 
 
         const std::string fuName2 = "extractBlockFeaturesFromAffinityMaps" + typeName;
@@ -49,18 +50,20 @@ namespace distributed {
                                        const std::string & tmpFeatureStorage,
                                        const std::vector<OffsetType> & offsets,
                                        const FeatureType dataMin,
-                                       const FeatureType dataMax) {
+                                       const FeatureType dataMax,
+                                       const bool ignoreLabel) {
             py::gil_scoped_release allowthreads;
             extractBlockFeaturesFromAffinityMaps<T>(blockPrefix, dataPath, dataKey,
                                                     labelPath, labelKey, blockIds,
                                                     tmpFeatureStorage, offsets,
-                                                    dataMin, dataMax);
+                                                    dataMin, dataMax, ignoreLabel);
 
         }, py::arg("blockPrefix"),
            py::arg("dataPath"), py::arg("dataKey"),
            py::arg("labelPath"), py::arg("labelKey"),
            py::arg("blockIds"), py::arg("tmpFeatureStorage"), py::arg("offsets"),
-           py::arg("dataMin")=0., py::arg("dataMax")=1.);
+           py::arg("dataMin")=0., py::arg("dataMax")=1.,
+           py::arg("ignoreLabel")=true);
     }
 
 
