@@ -20,65 +20,76 @@ namespace distributed {
         module.def("computeMergeableRegionGraph", [](
             const std::string & pathToLabels,
             const std::string & keyToLabels,
-            const CoordinateType & roiBegin,
-            const CoordinateType & roiEnd,
-            const std::string & pathToGraph,
-            const std::string & keyToGraph,
+            const std::vector<std::size_t> & chunkId,
+            const std::string & nodeDsPath,
+            const std::string & edgeDsPath,
             const bool ignoreLabel,
             const bool increaseRoi
         ) {
 
             py::gil_scoped_release allowThreads;
             computeMergeableRegionGraph(pathToLabels, keyToLabels,
-                                        roiBegin, roiEnd,
-                                        pathToGraph, keyToGraph,
+                                        chunkId,
+                                        nodeDsPath, edgeDsPath,
                                         ignoreLabel, increaseRoi);
 
         }, py::arg("pathToLabels"), py::arg("keyToLabels"),
-           py::arg("roiBegin"), py::arg("roiEnd"),
-           py::arg("pathToGraph"), py::arg("keyToGraph"),
+           py::arg("chunkId"),
+           py::arg("nodeDsPath"), py::arg("edgeDsPath"),
            py::arg("ignoreLabel")=false,
            py::arg("increaseRoi")=false);
 
 
         module.def("mergeSubgraphs", [](
             const std::string & pathToGraph,
-            const std::string & blockPrefix,
-            const std::vector<size_t> & blockIds,
+            const std::string & dsNodePath,
+            const std::string & dsEdgePath,
+            const std::vector<size_t> & chunkIds,
             const std::string & outKey,
+            const bool ignoreLabel,
             const int numberOfThreads
         ) {
             py::gil_scoped_release allowThreads;
-            mergeSubgraphs(pathToGraph, blockPrefix, blockIds,
-                           outKey, numberOfThreads);
-        }, py::arg("pathToGraph"), py::arg("blockPrefix"), py::arg("blockIds"),
-           py::arg("outKey"), py::arg("numberOfThreads")=1);
+            mergeSubgraphs(pathToGraph, dsNodePath, dsEdgePath,
+                           chunkIds, outKey, ignoreLabel, numberOfThreads);
+        }, py::arg("pathToGraph"),
+           py::arg("dsNodePath"),
+           py::arg("dsEdgePath"),
+           py::arg("chunkIds"),
+           py::arg("outKey"),
+           py::arg("ignoreLabel"),
+           py::arg("numberOfThreads")=1);
 
 
         module.def("mapEdgeIds", [](
             const std::string & pathToGraph,
             const std::string & graphGroup,
-            const std::string & blockPrefix,
-            const std::vector<size_t> & blockIds,
+            const std::string & edgeDsPath,
+            const std::string & outputDsPath,
+            const std::vector<size_t> & chunkIds,
             const int numberOfThreads
         ) {
             py::gil_scoped_release allowThreads;
-            mapEdgeIds(pathToGraph, graphGroup, blockPrefix, blockIds, numberOfThreads);
+            mapEdgeIds(pathToGraph, graphGroup, edgeDsPath, outputDsPath,
+                       chunkIds, numberOfThreads);
         }, py::arg("pathToGraph"), py::arg("graphGroup"),
-           py::arg("blockPrefix"), py::arg("blockIds"), py::arg("numberOfThreads")=1);
+           py::arg("edgeDsPath"), py::arg("outputDsPath"),
+           py::arg("chunkIds"), py::arg("numberOfThreads")=1);
 
 
         module.def("mapEdgeIdsForAllBlocks", [](
             const std::string & pathToGraph,
             const std::string & graphGroup,
-            const std::string & blockPrefix,
+            const std::string & edgeDsPath,
+            const std::string & outputDsPath,
             const size_t numberOfBlocks,
             const int numberOfThreads
         ) {
             py::gil_scoped_release allowThreads;
-            mapEdgeIds(pathToGraph, graphGroup, blockPrefix, numberOfBlocks, numberOfThreads);
+            mapEdgeIds(pathToGraph, graphGroup, edgeDsPath, outputDsPath, numberOfBlocks, numberOfThreads);
         }, py::arg("pathToGraph"), py::arg("graphGroup"),
-           py::arg("blockPrefix"), py::arg("numberOfBlocks"), py::arg("numberOfThreads")=1);
+           py::arg("edgeDsPath"), py::arg("outputDsPath"),
+           py::arg("numberOfBlocks"), py::arg("numberOfThreads")=1);
 
 
         module.def("loadAsUndirectedGraphWithRelabeling", []( const std::string & pathToGraph) {

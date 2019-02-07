@@ -416,13 +416,18 @@ namespace distributed {
 
     template<class COORD>
     inline void computeMergeableRegionGraph(const std::string & pathToLabels,
-                                     const std::string & keyToLabels,
-                                     const COORD & roiBegin,
-                                     const COORD & roiEnd,
-                                     const std::string & pathToGraph,
-                                     const std::string & keyToRoi,
-                                     const bool ignoreLabel=false,
-                                     const bool increaseRoi=false) {
+                                            const std::string & keyToLabels,
+                                            const COORD & chunkId,
+                                            const std::string & nodeDsPath,
+                                            const std::string & edgeDsPath,
+                                            const bool ignoreLabel=false,
+                                            const bool increaseRoi=false) {
+        // get the roi corresponding to this chunk id
+        const auto dsNodes = z5::openDataset(nodeDsPath);
+        const auto & chunking = dsNodes->chunking();
+        std::vector<std::size_t> roiBegin, roiEnd;
+        chunking.getBlockBeginAndEnd(chunkId, roiBegin, roiEnd);
+
         // extract graph nodes and edges from roi
         NodeSet nodes;
         EdgeSet edges;
@@ -430,46 +435,45 @@ namespace distributed {
                             roiBegin, roiEnd,
                             nodes, edges,
                             ignoreLabel, increaseRoi);
-        // serialize the graph
-        serializeGraph(pathToGraph, keyToRoi,
-                       nodes, edges,
-                       roiBegin, roiEnd,
-                       ignoreLabel);
+
+        // TODO handle empty blocks !!!
+        // serialize the sub-graph nodes and edges
+        std::vector<NodeType> nodeVec(nodes.begin(), nodes.end());
+        dsNodes->writeChunk(chunkId, &nodeVec[0], true, nodeVec.size());
+
+        const auto dsEdges = z5::openDataset(edgeDsPath);
+        // flatten the edges for storage
+        std::vector<NodeType> edgeVec(2 * edges.size());
+        std::size_t edgeId = 0;
+        for(const auto & edge: edges) {
+            edgeVec[2 * edgeId] = edge.first;
+            edgeVec[2 * edgeId + 1] = edge.second;
+            ++edgeId;
+        }
+        dsEdges->writeChunk(chunkId, &edgeVec[0], true, edgeVec.size());
     }
 
 
     inline void mergeSubgraphsSingleThreaded(const fs::path & graphPath,
-                                             const std::string & blockPrefix,
-                                             const std::vector<size_t> & blockIds,
+                                             const std::string & dsNodePath,
+                                             const std::string & dsEdgePath,
+                                             const std::vector<std::size_t> & chunkIds,
                                              NodeSet & nodes,
                                              EdgeSet & edges,
-                                             std::vector<size_t> & roiBegin,
-                                             std::vector<size_t> & roiEnd,
-                                             bool & ignoreLabel) {
-        const std::vector<std::string> keys({"roiBegin", "roiEnd", "ignoreLabel"});
+                                             std::vector<std::size_t> & roiBegin,
+                                             std::vector<std::size_t> & roiEnd) {
+        const auto dsNodes = z5::openDataset(dsNodePath);
+        const auto dsEdges = z5::openDataset(dsEdgePath);
+        const auto & chunking = dsNodes->chunking();
 
-        fs::path blockPath;
-        std::string blockKey;
+        for(std::size_t chunkId : chunkIds) {
 
-        for(size_t blockId : blockIds) {
-
-            nlohmann::json j;
-            // open the group associated with the sub-graph corresponding to this block
-            blockKey = blockPrefix + std::to_string(blockId);
-            blockPath = graphPath;
-            blockPath /= blockKey;
-
-            // load nodes and edgees
-            loadNodes(blockPath.string(), nodes);
-            loadEdges(blockPath.string(), edges);
-
-            // read the rois from attributes
-            z5::handle::Group group(blockPath.string());
-            z5::readAttributes(group, keys, j);
+            std::vector<std::size_t> chunkIndex;
+            chunking.blockIdToBlockCoordinate(chunkId, chunkIndex);
 
             // merge the rois
-            const auto & blockBegin = j[keys[0]];
-            const auto & blockEnd = j[keys[1]];
+            std::vector<std::size_t> blockBegin, blockEnd;
+            chunking.getBlockBeginAndEnd(chunkIndex, blockBegin, blockEnd);
 
             for(int axis = 0; axis < 3; ++axis) {
                 roiBegin[axis] = std::min(roiBegin[axis],
@@ -478,22 +482,39 @@ namespace distributed {
                                         static_cast<size_t>(blockEnd[axis]));
             }
 
-            // TODO we should make sure that the ignore label
-            // is consistent along blocks
-            ignoreLabel = j[keys[2]];
+            // load nodes
+            bool isVarlen;
+            const std::size_t nNodes = dsNodes->getDiscChunkSize(chunkIndex, isVarlen);
+            if(nNodes == 0) {
+                continue;
+            }
+            std::vector<NodeType> nodeVec(nNodes);
+            dsNodes->readChunk(chunkIndex, &nodeVec[0]);
+            nodes.insert(nodeVec.begin(), nodeVec.end());
+
+            // load edges
+            const std::size_t nEdges = dsEdges->getDiscChunkSize(chunkIndex, isVarlen);
+            if(nEdges == 0) {
+                continue;
+            }
+            std::vector<NodeType> edgeVec(nEdges);
+            dsEdges->readChunk(chunkIndex, &edgeVec[0]);
+            for(std::size_t edgeId = 0; edgeId < nEdges / 2; ++edgeId) {
+                edges.insert(std::make_pair(edgeVec[2 * edgeId], edgeVec[2 * edgeId + 1]));
+            }
         }
 
     }
 
 
     inline void mergeSubgraphsMultiThreaded(const fs::path & graphPath,
-                                            const std::string & blockPrefix,
-                                            const std::vector<size_t> & blockIds,
+                                            const std::string & dsNodePath,
+                                            const std::string & dsEdgePath,
+                                            const std::vector<size_t> & chunkIds,
                                             NodeSet & nodes,
                                             EdgeSet & edges,
                                             std::vector<size_t> & roiBegin,
                                             std::vector<size_t> & roiEnd,
-                                            bool & ignoreLabel,
                                             const int numberOfThreads) {
         // construct threadpool
         nifty::parallel::ThreadPool threadpool(numberOfThreads);
@@ -501,28 +522,29 @@ namespace distributed {
 
         // initialize thread data
         struct PerThreadData {
-            std::vector<size_t> roiBegin;
-            std::vector<size_t> roiEnd;
+            std::vector<std::size_t> roiBegin;
+            std::vector<std::size_t> roiEnd;
             NodeSet nodes;
             EdgeSet edges;
-            bool ignoreLabel;
         };
         std::vector<PerThreadData> threadData(nThreads);
+        const std::size_t maxSizeT = std::numeric_limits<std::size_t>::max();
         for(int t = 0; t < nThreads; ++t) {
-            // FIXME should use some max uint value here
-            threadData[t].roiBegin = std::vector<size_t>({10000000, 10000000, 10000000});
+            threadData[t].roiBegin = std::vector<size_t>({maxSizeT, maxSizeT, maxSizeT});
             threadData[t].roiEnd = std::vector<size_t>({0, 0, 0});
         }
 
-        // merge nodes and edges multi threaded
-        size_t nBlocks = blockIds.size();
-        const std::vector<std::string> keys({"roiBegin", "roiEnd", "ignoreLabel"});
+        const auto dsNodes = z5::openDataset(dsNodePath);
+        const auto dsEdges = z5::openDataset(dsEdgePath);
+        const auto & chunking = dsNodes->chunking();
 
-        nifty::parallel::parallel_foreach(threadpool, nBlocks, [&](const int tid,
-                                                                   const int blockIndex){
+        // merge nodes and edges multi threaded
+        size_t nChunks = chunkIds.size();
+        nifty::parallel::parallel_foreach(threadpool, nChunks, [&](const int tid,
+                                                                   const int chunkIndex){
 
             // get the thread data
-            auto blockId = blockIds[blockIndex];
+            const auto chunkId = chunkIds[chunkIndex];
             // for thread 0, we use the input sets instead of our thread data
             // to avoid one sequential merge in the end
             auto & threadNodes = (tid == 0) ? nodes : threadData[tid].nodes;
@@ -530,23 +552,12 @@ namespace distributed {
             auto & threadBegin = threadData[tid].roiBegin;
             auto & threadEnd = threadData[tid].roiEnd;
 
-            // open the group associated with the sub-graph corresponding to this block
-            std::string blockKey = blockPrefix + std::to_string(blockId);
-            fs::path blockPath = graphPath;
-            blockPath /= blockKey;
-
-            // load nodes and edgees
-            loadNodes(blockPath.string(), threadNodes);
-            loadEdges(blockPath.string(), threadEdges);
-
-            // read the rois from attributes
-            nlohmann::json j;
-            z5::handle::Group group(blockPath.string());
-            z5::readAttributes(group, keys, j);
+            std::vector<std::size_t> chunkCoord;
+            chunking.blockIdToBlockCoordinate(chunkId, chunkCoord);
 
             // merge the rois
-            const auto & blockBegin = j[keys[0]];
-            const auto & blockEnd = j[keys[1]];
+            std::vector<std::size_t> blockBegin, blockEnd;
+            chunking.getBlockBeginAndEnd(chunkCoord, blockBegin, blockEnd);
 
             for(int axis = 0; axis < 3; ++axis) {
                 threadBegin[axis] = std::min(threadBegin[axis],
@@ -554,7 +565,27 @@ namespace distributed {
                 threadEnd[axis] = std::max(threadEnd[axis],
                                            static_cast<size_t>(blockEnd[axis]));
             }
-            threadData[tid].ignoreLabel = j[keys[2]];
+
+            // load nodes
+            bool isVarlen;
+            const std::size_t nNodes = dsNodes->getDiscChunkSize(chunkCoord, isVarlen);
+            if(nNodes == 0) {
+                return;
+            }
+            std::vector<NodeType> nodeVec(nNodes);
+            dsNodes->readChunk(chunkCoord, &nodeVec[0]);
+            threadNodes.insert(nodeVec.begin(), nodeVec.end());
+
+            // load edges
+            const std::size_t nEdges = dsEdges->getDiscChunkSize(chunkCoord, isVarlen);
+            if(nEdges == 0) {
+                return;
+            }
+            std::vector<NodeType> edgeVec(nEdges);
+            dsEdges->readChunk(chunkCoord, &edgeVec[0]);
+            for(std::size_t edgeId = 0; edgeId < nEdges / 2; ++edgeId) {
+                threadEdges.insert(std::make_pair(edgeVec[2 * edgeId], edgeVec[2 * edgeId + 1]));
+            }
         });
 
         // merge into final nodes and edges
@@ -575,36 +606,33 @@ namespace distributed {
                                         static_cast<size_t>(threadEnd[axis]));
             }
         }
-
-        // TODO should check for ignore label consistency
-        ignoreLabel = threadData[0].ignoreLabel;
     }
 
 
     inline void mergeSubgraphs(const std::string & pathToGraph,
-                               const std::string & blockPrefix,
-                               const std::vector<size_t> & blockIds,
+                               const std::string & dsNodePath,
+                               const std::string & dsEdgePath,
+                               const std::vector<size_t> & chunkIds,
                                const std::string & outKey,
+                               const bool ignoreLabel,
                                const int numberOfThreads=1) {
-        // TODO we should try unordered sets again here
         NodeSet nodes;
         EdgeSet edges;
 
-        // FIXME should use some max uint value here
-        std::vector<size_t> roiBegin({10000000, 10000000, 10000000});
-        std::vector<size_t> roiEnd({0, 0, 0});
-        bool ignoreLabel;
+        const std::size_t maxSizeT = std::numeric_limits<std::size_t>::max();
+        std::vector<std::size_t> roiBegin({maxSizeT, maxSizeT, maxSizeT});
+        std::vector<std::size_t> roiEnd({0, 0, 0});
 
         if(numberOfThreads == 1) {
-            mergeSubgraphsSingleThreaded(pathToGraph, blockPrefix, blockIds,
+            mergeSubgraphsSingleThreaded(pathToGraph,
+                                         dsNodePath, dsEdgePath,
+                                         chunkIds,
                                          nodes, edges,
-                                         roiBegin, roiEnd,
-                                         ignoreLabel);
+                                         roiBegin, roiEnd);
         } else {
-            mergeSubgraphsMultiThreaded(pathToGraph, blockPrefix,
-                                        blockIds, nodes, edges,
+            mergeSubgraphsMultiThreaded(pathToGraph, dsNodePath, dsEdgePath,
+                                        chunkIds, nodes, edges,
                                         roiBegin, roiEnd,
-                                        ignoreLabel,
                                         numberOfThreads);
         }
 
@@ -624,8 +652,9 @@ namespace distributed {
 
     inline void mapEdgeIds(const std::string & pathToGraph,
                            const std::string & graphKey,
-                           const std::string & blockPrefix,
-                           const std::vector<size_t> & blockIds,
+                           const std::string & edgeDsPath,
+                           const std::string & outputDsPath,
+                           const std::vector<size_t> & chunkIds,
                            const int numberOfThreads=1) {
 
         const std::vector<size_t> zero1Coord({0});
@@ -637,68 +666,74 @@ namespace distributed {
         graphPath /= graphKey;
         loadEdges(graphPath.string(), edges, 0);
 
-        // iterate over the blocks and insert the nodes and edges
+        // iterate over the chunks and insert the nodes and edges
         // construct threadpool
         nifty::parallel::ThreadPool threadpool(numberOfThreads);
         auto nThreads = threadpool.nThreads();
-        size_t nBlocks = blockIds.size();
+        const std::size_t nChunks = chunkIds.size();
 
-        // handle all the blocks in parallel
-        nifty::parallel::parallel_foreach(threadpool, nBlocks, [&](const int tid,
-                                                                   const int blockIndex){
+        const auto dsEdges = z5::openDataset(edgeDsPath);
+        const auto dsOut = z5::openDataset(outputDsPath);
+        const auto & chunking = dsEdges->chunking();
 
-            auto blockId = blockIds[blockIndex];
+        // handle all the chunks in parallel
+        nifty::parallel::parallel_foreach(threadpool, nChunks, [&](const int tid,
+                                                                   const int chunkIndex){
 
-            // open the group associated with the sub-graph corresponding to this block
-            const std::string blockKey = blockPrefix + std::to_string(blockId);
-            fs::path blockPath(pathToGraph);
-            blockPath /= blockKey;
+            const auto chunkId = chunkIds[chunkIndex];
+            std::vector<std::size_t> chunkCoord;
+            chunking.blockIdToBlockCoordinate(chunkId, chunkCoord);
 
-            // load the block edges
-            std::vector<EdgeType> blockEdges;
-            bool haveEdges = loadEdges(blockPath.string(), blockEdges, 0);
-            if(!haveEdges) {
+            // load the chunk edges
+            bool isVarlen;
+            const std::size_t nEdges = dsEdges->getDiscChunkSize(chunkCoord, isVarlen);
+            if(nEdges == 0) {
                 return;
+            }
+            std::vector<NodeType> edgeVec(nEdges);
+            dsEdges->readChunk(chunkCoord, &edgeVec[0]);
+
+            // copy to vector of pairs
+            std::vector<EdgeType> chunkEdges(nEdges / 2);
+            for(std::size_t edgeId = 0; edgeId < nEdges / 2; ++edgeId) {
+                chunkEdges[edgeId] = std::make_pair(edgeVec[2 * edgeId], edgeVec[2 * edgeId + 1]);
             }
 
             // label the local edges acccording to the global edge ids
-            std::vector<EdgeIndexType> edgeIds(blockEdges.size());
+            std::vector<EdgeIndexType> edgeIds(chunkEdges.size());
 
             // find the first local edge in the global edges
-            auto edgeIt = std::lower_bound(edges.begin(), edges.end(), blockEdges[0]);
+            auto edgeIt = std::lower_bound(edges.begin(), edges.end(), chunkEdges[0]);
 
             // it is guaranteed that all local edges are 'above' the lowest we just found,
             // hence we start searching from this edge, and always try to increase the
             // edge iterator by one before searching again, because edges are likely to be close spatially
-            for(EdgeIndexType localEdgeId = 0; localEdgeId < blockEdges.size(); ++localEdgeId) {
+            for(EdgeIndexType localEdgeId = 0; localEdgeId < chunkEdges.size(); ++localEdgeId) {
                 const EdgeType & edge = *edgeIt;
-                if(blockEdges[localEdgeId] == edge) {
+                if(chunkEdges[localEdgeId] == edge) {
                     edgeIds[localEdgeId] = std::distance(edges.begin(), edgeIt);
                     ++edgeIt;
                 } else {
-                    edgeIt = std::lower_bound(edgeIt, edges.end(), blockEdges[localEdgeId]);
+                    edgeIt = std::lower_bound(edgeIt, edges.end(), chunkEdges[localEdgeId]);
                     edgeIds[localEdgeId] = std::distance(edges.begin(), edgeIt);
                 }
             }
 
             // serialize the edge ids
-            std::vector<size_t> idShape = {edgeIds.size()};
-            auto idView = xt::adapt(edgeIds, idShape);
-            z5::handle::Group block(blockPath.string());
-            auto dsIds = z5::createDataset(block, "edgeIds", "int64", idShape, idShape, false);
-            z5::multiarray::writeSubarray<EdgeIndexType>(dsIds, idView, zero1Coord.begin());
+            dsOut->writeChunk(chunkCoord, &edgeIds[0], true, edgeIds.size());
         });
     }
 
 
     inline void mapEdgeIds(const std::string & pathToGraph,
                     const std::string & graphKey,
-                    const std::string & blockPrefix,
+                    const std::string & edgeDsPath,
+                    const std::string & outputDsPath,
                     const size_t numberOfBlocks,
                     const int numberOfThreads=1) {
         std::vector<size_t> blockIds(numberOfBlocks);
         std::iota(blockIds.begin(), blockIds.end(), 0);
-        mapEdgeIds(pathToGraph, graphKey, blockPrefix, blockIds, numberOfThreads);
+        mapEdgeIds(pathToGraph, graphKey, edgeDsPath, outputDsPath, blockIds, numberOfThreads);
     }
 
 }
