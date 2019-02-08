@@ -101,9 +101,76 @@ namespace distributed {
     }
 
 
-    // FIXME this sometimes fails with a floating point exception, but not really reproducible
-    template<class NODE_ARRAY, class EDGE_ARRAY>
-    inline void serializeMergedGraph(const std::string & graphBlockPrefix,
+    template<class NODE_ARRAY>
+    inline void serializeMergedNodes(const std::string & nodeDsPath,
+                                     const std::vector<std::size_t> & newBlockIds,
+                                     const NODE_ARRAY & nodeLabeling,
+                                     const std::string & outDsPath,
+                                     const int numberOfThreads){
+        typedef std::set<NodeType> BlockNodeStorage;
+        nifty::parallel::ThreadPool threadpool(numberOfThreads);
+
+        const auto & dsIn = z5::openDataset(nodeDsPath);
+        const auto & dsOut = z5::openDataset(outDsPath);
+
+        // FIXME we really want the shape types to be compatible ;(
+        // CoordType shape, blockShape, newBlockShape;
+        const CoordType shape = {dsIn->shape(0), dsIn->shape(1), dsIn->shape(2)};
+        const CoordType blockShape = {dsIn->maxChunkShape(0), dsIn->maxChunkShape(1), dsIn->maxChunkShape(2)};
+        const CoordType newBlockShape = {dsOut->maxChunkShape(0), dsOut->maxChunkShape(1), dsOut->maxChunkShape(2)};
+        const CoordType roiBegin = {0, 0, 0};
+        nifty::tools::Blocking<3> blocking(roiBegin, shape, blockShape);
+        nifty::tools::Blocking<3> newBlocking(roiBegin, shape, newBlockShape);
+
+        const auto & chunking = dsIn->chunking();
+        const auto & newChunking = dsOut->chunking();
+
+        const std::size_t numberOfNewBlocks = newBlockIds.size();
+        nifty::parallel::parallel_foreach(threadpool,
+                                          numberOfNewBlocks, [&](const int tId,
+                                                                 const size_t blockIndex){
+            const std::size_t blockId = newBlockIds[blockIndex];
+            BlockNodeStorage newBlockNodes;
+
+            // find the relevant old blocks
+            const auto & newBlock = newBlocking.getBlock(blockId);
+            std::vector<std::size_t> oldBlockIds;
+            blocking.getBlockIdsInBoundingBox(newBlock.begin(), newBlock.end(), oldBlockIds);
+
+            // iterate over the old blocks and find all nodes
+            for(const std::size_t oldBlockId : oldBlockIds) {
+
+                // load the nodes from the old block
+                std::vector<std::size_t> oldChunkId;
+                chunking.blockIdToBlockCoordinate(oldBlockId, oldChunkId);
+                bool varlen;
+                const std::size_t oldNodeSize = dsIn->getDiscChunkSize(oldChunkId, varlen);
+
+                // if we are dealing with region of interests, the sub-graph might actually not exist
+                // so we need to check and skip if it does not exist.
+                if(oldNodeSize == 0) {
+                    continue;
+                }
+                std::vector<NodeType> blockNodes(oldNodeSize);
+                dsIn->readChunk(oldChunkId, &blockNodes[0]);
+                for(const NodeType node : blockNodes) {
+                    newBlockNodes.insert(nodeLabeling(node));
+                }
+            }
+
+            // serialize the new nodes
+            std::vector<NodeType> outNodes(newBlockNodes.begin(), newBlockNodes.end());
+            std::vector<std::size_t> chunkId;
+            newChunking.blockIdToBlockCoordinate(blockId, chunkId);
+            dsOut->writeChunk(chunkId, &outNodes[0], true, outNodes.size());
+        });
+    }
+
+
+    // leaving this here for reference, because this might be useful at some point again
+    /*
+    template<class EDGE_ARRAY>
+    inline void serializeMergedEdges(const std::string & subgraphPrefix,
                                      const CoordType & shape,
                                      const CoordType & blockShape,
                                      const CoordType & newBlockShape,
@@ -248,12 +315,10 @@ namespace distributed {
             nlohmann::json attrs;
             attrs["numberOfNodes"] = nNewNodes;
             attrs["numberOfEdges"] = nNewEdges;
-            // TODO ideally we would get the rois from the prev. graph block too, but I am too lazy right now
-            // attrs["roiBegin"] = std::vector<size_t>(roiBegin.begin(), roiBegin.end());
-            // attrs["roiEnd"] = std::vector<size_t>(roiEnd.begin(), roiEnd.end());
             z5::writeAttributes(group, attrs);
         });
     }
+    */
 
 
     // we have to look at surprisingly many blocks, which makes

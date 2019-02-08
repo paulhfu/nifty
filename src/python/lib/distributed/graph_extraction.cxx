@@ -193,33 +193,20 @@ namespace distributed {
            py::arg("shape"), py::arg("blockShape"), py::arg("startBlockId"));
 
 
-        module.def("serializeMergedGraph", [](const std::string & graphBlockPrefix,
-                                              const CoordType & shape,
-                                              const CoordType & blockShape,
-                                              const CoordType & newBlockShape,
+        module.def("serializeMergedNodes", [](const std::string & nodeDsPath,
                                               const std::vector<size_t> & newBlockIds,
                                               const xt::pytensor<NodeType, 1> & nodeLabeling,
-                                              const xt::pytensor<EdgeIndexType, 1> & edgeLabeling,
-                                              const std::string & graphOutPrefix,
-                                              const int numberOfThreads,
-                                              const bool serializeEdges) {
+                                              const std::string & outDsPath,
+                                              const int numberOfThreads) {
             py::gil_scoped_release allowThreads;
-            serializeMergedGraph(graphBlockPrefix, shape,
-                                 blockShape, newBlockShape, newBlockIds,
-                                 nodeLabeling, edgeLabeling,
-                                 graphOutPrefix,
-                                 numberOfThreads,
-                                 serializeEdges);
-        }, py::arg("graphBlockPrefix"),
-           py::arg("shape"),
-           py::arg("blockShape"),
-           py::arg("newBlockShape"),
+            serializeMergedNodes(nodeDsPath, newBlockIds,
+                                 nodeLabeling, outDsPath,
+                                 numberOfThreads);
+        }, py::arg("nodeDsPath"),
            py::arg("newBlockIds"),
            py::arg("nodeLabeling"),
-           py::arg("edgeLabeling"),
-           py::arg("graphOutPrefix"),
-           py::arg("numberOfThreads")=-1,
-           py::arg("serializeEdges")=true);
+           py::arg("outDsPath"),
+           py::arg("numberOfThreads")=-1);
 
 
         module.def("connectedComponents", [](const Graph & graph,
