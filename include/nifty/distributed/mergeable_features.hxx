@@ -548,6 +548,7 @@ namespace distributed {
         // TODO don't hardcode number of features here and/or double check that numbers add up
         const std::size_t nFeats = 10;
         std::vector<FeatureType> featVec(discSize);
+        featDs->readChunk(chunkId, &featVec[0]);
         // TODO use xadapt
         for(std::size_t edgeId = 0; edgeId < features.shape()[0]; ++edgeId) {
             for(std::size_t featId = 0; featId < nFeats; ++featId) {
@@ -602,8 +603,8 @@ namespace distributed {
                                            const EdgeIndexType targetId,
                                            std::vector<bool> & hasFeatures) {
 
-        const size_t nFeatures = tmpFeatures.shape()[1];
-        const size_t featsPerType = 9;
+        const std::size_t nFeatures = tmpFeatures.shape()[1];
+        const std::size_t featsPerType = 9;
         if(hasFeatures[targetId]) {
 
             // last index is the count
@@ -625,12 +626,10 @@ namespace distributed {
             targetFeatures(targetId, nFeatures - 1) = nSamplesTot;
 
         } else {
-
             for(size_t featId = 0; featId < nFeatures; ++featId) {
                 targetFeatures(targetId, featId) = tmpFeatures(tmpId, featId);
             }
             hasFeatures[targetId] = true;
-
         }
 
         //// debugging
@@ -671,7 +670,7 @@ namespace distributed {
             ptd.tmpFeatures = xt::xtensor<FeatureType, 2>(tmpInit);
             ptd.edgeHasFeatures = std::vector<bool>(nEdges, false);
         });
-        
+
         const auto dsEdges = z5::openDataset(graphBlockPrefix);
         const auto & chunking = dsEdges->chunking();
 
@@ -691,6 +690,10 @@ namespace distributed {
             chunking.blockIdToBlockCoordinate(blockId, chunkId);
             bool varlen;
             const std::size_t nEdgesBlock = dsEdges->getDiscChunkSize(chunkId, varlen);
+
+            if(nEdgesBlock == 0) {
+                return;
+            }
 
             std::vector<EdgeIndexType> blockEdgeIndices(nEdgesBlock);
             dsEdges->readChunk(chunkId, &blockEdgeIndices[0]);
@@ -713,7 +716,7 @@ namespace distributed {
 
             // iterate over the edges in this block and merge edge features
             // if they are in our edge range
-            for(EdgeIndexType edgeId : blockEdgeIndices) {
+            for(const EdgeIndexType edgeId : blockEdgeIndices) {
                 // only merge if we are in the edge range
                 if(edgeId >= edgeIdBegin && edgeId < edgeIdEnd) {
                     // find the corresponding ids in the dense block edges
@@ -744,7 +747,7 @@ namespace distributed {
 
         // serialize the edge features
         auto dsOut = z5::openDataset(featuresOut);
-        const std::vector<size_t> featOffset({edgeIdBegin, 0});
+        const std::vector<std::size_t> featOffset({edgeIdBegin, 0});
         z5::multiarray::writeSubarray<FeatureType>(dsOut, features, featOffset.begin(),
                                                    threadpool.nThreads());
     }
