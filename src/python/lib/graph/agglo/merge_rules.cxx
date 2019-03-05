@@ -74,6 +74,13 @@ namespace agglo{
             })
         ;
 
+        py::class_<merge_rules::MutexWatershedSettings>(aggloModule, "MutexWatershedSettings")
+                .def(py::init<>())
+                .def("__str__",[](const merge_rules::MutexWatershedSettings & self){
+                    return self.name();
+                })
+                ;
+
         py::class_<merge_rules::MinSettings>(aggloModule, "MinSettings")
             .def(py::init<>())
             .def("__str__",[](const merge_rules::MinSettings & self){

@@ -206,7 +206,7 @@ def greedyGraphEdgeContraction(graph,
     :return:
     """
     def parse_update_rule(rule):
-        accepted_rules_1 = ['max', 'min', 'mean', 'ArithmeticMean', 'sum']
+        accepted_rules_1 = ['max', 'min', 'mean', 'ArithmeticMean', 'sum', 'MutexWatershed']
         accepted_rules_2 = ['generalized_mean', 'rank', 'smooth_max']
         if not isinstance(rule, str):
             rule = rule.copy()
@@ -231,7 +231,7 @@ def greedyGraphEdgeContraction(graph,
     merge_prio = numpy.where(signed_edge_weights >= 0, signed_edge_weights, -1.)
     not_merge_prio = numpy.where(signed_edge_weights < 0, -signed_edge_weights, -1.)
 
-    assert ignored_edge_weights is None, "Temp check"
+    assert ignored_edge_weights is None, "Currently not available"
     if ignored_edge_weights is not None:
         assert ignored_edge_weights.shape == signed_edge_weights.shape
         assert ignored_edge_weights.dtype == 'bool'

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <nifty/histogram/histogram.hxx>
+#include <cmath>
 
 #include "nifty/tools/runtime_check.hxx"
 #include <nifty/nifty.hxx>
@@ -523,6 +524,69 @@ namespace merge_rules{
     private:
         MaxEdgeMapType values_;
     };
+
+    struct MutexWatershedSettings{
+        auto name()const{
+            return std::string("MutexWatershed");
+        }
+    };
+    template<class G, class T>
+    class MutexWatershedEdgeMap{
+    public:
+
+
+        static auto staticName(){
+            return std::string("MutexWatershed");
+        }
+        auto name()const{
+            return staticName();
+        }
+        typedef G GraphType;
+        typedef typename GraphType:: template EdgeMap<double> MutexWatershedEdgeMapType;
+        typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
+
+        typedef MaxSettings SettingsType;
+
+        template<class VALUES, class WEIGHTS>
+        MutexWatershedEdgeMap(
+                const GraphType & g,
+                const VALUES & values,
+                const WEIGHTS & weights,
+                const SettingsType & settings = SettingsType()
+        ):  values_(g)
+        {
+            for(auto edge : g.edges()){
+                values_[edge] = values[edge];
+            }
+        }
+
+        void merge(const uint64_t aliveEdge, const uint64_t deadEdge){
+            auto & aliveValue = values_[aliveEdge];
+            auto const deadValue = values_[deadEdge];
+            aliveValue = (std::abs(aliveValue) > std::abs(deadValue)) ? aliveValue : deadValue;
+        }
+
+        void setValueFrom(const uint64_t targetEdge, const uint64_t sourceEdge){
+            values_[targetEdge] = values_[sourceEdge];
+        }
+        void setFrom(const uint64_t targetEdge, const uint64_t sourceEdge){
+            values_[targetEdge] = values_[sourceEdge];
+        }
+        void set(const uint64_t targetEdge, const T & value, const T &  weight){
+            values_[targetEdge] = value;
+        }
+        T weight(const uint64_t edge)const{
+            NIFTY_CHECK(false,"Not implemented");
+            return values_[edge];
+        }
+
+        T operator[](const uint64_t edge)const{
+            return values_[edge];
+        }
+    private:
+        MutexWatershedEdgeMapType values_;
+    };
+
 
     struct MinSettings{
         auto name()const{
