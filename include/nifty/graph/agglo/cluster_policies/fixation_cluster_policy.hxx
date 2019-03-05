@@ -20,12 +20,12 @@ namespace agglo{
 
 
 template<
-    class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM
+    class GRAPH, class ACC_0, bool ENABLE_UCM
 >
 class FixationClusterPolicy{
 
     typedef FixationClusterPolicy<
-        GRAPH, ACC_0, ACC_1, ENABLE_UCM
+        GRAPH, ACC_0,  ENABLE_UCM
     > SelfType;
 
 private:
@@ -37,10 +37,8 @@ private:
     typedef typename GRAPH:: template NodeMap<SetType > NonLinkConstraints;
 
     typedef ACC_0 Acc0Type;
-    typedef ACC_1 Acc1Type;
 public:
     typedef typename Acc0Type::SettingsType Acc0SettingsType;
-    typedef typename Acc1Type::SettingsType Acc1SettingsType;
 
 
     // input types
@@ -53,7 +51,6 @@ public:
 
         // TODO: make threshold-check optional
         Acc0SettingsType updateRule0;
-        Acc1SettingsType updateRule1;
         bool zeroInit = false; // DEPRECATED
         bool initSignedWeights = false; // DEPRECATED
         uint64_t numberOfNodesStop{1};
@@ -61,13 +58,13 @@ public:
         double sizeThreshMin{10.}; // DEPRECATED
         double sizeThreshMax{30.}; // DEPRECATED
         bool postponeThresholding{true}; // DEPRECATED
-        double threshold{0.5}; // Merge all: 0.0; split all: 1.0
+        double threshold{0.5}; // Merge all: 0.0; split all: 1.0 // DEPRECATED
         //uint64_t numberOfBins{40};
-        bool costsInPQ{true};
-        bool checkForNegCosts{true};
+        bool costsInPQ{true}; // DEPRECATED
+        bool checkForNegCosts{true}; // DEPRECATED
         bool addNonLinkConstraints{false};
-        bool removeSmallSegments{false};
-        uint64_t smallSegmentsThresh{10};
+        bool removeSmallSegments{false}; // DEPRECATED
+        uint64_t smallSegmentsThresh{10}; // DEPRECATED
     };
 
     enum class EdgeStates : uint8_t {
@@ -98,10 +95,9 @@ private:
 
 public:
 
-    template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE, class EDGE_SIZES, class NODE_SIZES>
+    template<class MERGE_PRIOS, class IS_LOCAL_EDGE, class EDGE_SIZES, class NODE_SIZES>
     FixationClusterPolicy(const GraphType &,
                               const MERGE_PRIOS & ,
-                              const NOT_MERGE_PRIOS &,
                               const IS_LOCAL_EDGE &,
                               const EDGE_SIZES & ,
                               const NODE_SIZES & ,
@@ -142,64 +138,17 @@ public:
 
 
     bool isMergeAllowed(const uint64_t edge) const{
-        // In the case that the edge involves small segments, we cannot constrain it:
-        if (settings_.removeSmallSegments
-            && !settings_.addNonLinkConstraints && !settings_.costsInPQ && edgeSizeState_[edge] == EdgeSizeStates::SMALL) {
-            return true;
-        }
-
         // Here we do not care about the fact that an edge is lifted or not.
-        // We just look at the costs
-        if (settings_.checkForNegCosts && acc0_[edge] < 0)
-            return false;
-        else if (settings_.checkForNegCosts && acc1_[edge] < 0)
-            return true;
-        else {
-            if (mean_rule_) {
-                // Remember that atm the costs are in [0., 0.5]:
-                // TODO: fix this mess of costs in [0., 0.5]....
-                return acc0_[edge] > settings_.threshold;
-            } else {
-                return acc0_[edge] - acc1_[edge] > 2 * (settings_.threshold - 0.5);
-            }
-        }
+        // We just look at the priority
+        return acc0_[edge] > 0.;
     }
 
     double edgeCostInPQ(const uint64_t edge) const{
-        if (settings_.costsInPQ) {
-            auto attrFromEdge = acc0_[edge];
-            auto repFromEdge = acc1_[edge];
-            if (settings_.checkForNegCosts && attrFromEdge < 0)
-                attrFromEdge = 0.;
-            if (settings_.checkForNegCosts && repFromEdge < 0)
-                repFromEdge = 0.;
-
-            const auto cost = attrFromEdge - repFromEdge;
-
-            // With constraints, we take the absolute value
-            if (settings_.addNonLinkConstraints)
-                return std::abs(cost);
-            else
-                return cost;
-        }
-        else {
-            if (settings_.addNonLinkConstraints) {
-                if (mean_rule_) {
-                    return std::max(acc0_[edge], float(0.5) - acc0_[edge]);
-                } else {
-                    return std::max(acc0_[edge], acc1_[edge]);
-                }
-            } else {
-                const auto attrFromEdge = acc0_[edge];
-                // If we force small segments to merge, we want to put repulsive (not allowed) in PQ to be merged.
-                if (settings_.removeSmallSegments
-                    && !settings_.addNonLinkConstraints && !settings_.costsInPQ && attrFromEdge < 0) {
-                    // FIXME: values in PQ are between 0.5 and 0.!!!!
-                    return 1. - acc1_[edge];
-                } else {
-                    return attrFromEdge;
-                }
-            }
+        const auto priority = acc0_[edge];
+        if (settings_.addNonLinkConstraints) {
+            return std::abs(priority);
+        } else {
+            return priority;
         }
     }
 
@@ -241,7 +190,6 @@ private:
 //    int phase_;
 
     ACC_0 acc0_;
-    ACC_1 acc1_;
     NodeSizesType nodeSizes_;
     NodeSizesType maxNodeSize_per_iter_;
     NodeSizesType meanNodeSize_per_iter_;
@@ -272,13 +220,12 @@ private:
 
 //    TODO: rename MERGE_PRIO in something like ATTRACTIVE_COSTS
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-template<class MERGE_PRIOS, class NOT_MERGE_PRIOS, class IS_LOCAL_EDGE,class EDGE_SIZES,class NODE_SIZES>
-inline FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
+template<class MERGE_PRIOS, class IS_LOCAL_EDGE,class EDGE_SIZES,class NODE_SIZES>
+inline FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 FixationClusterPolicy(
     const GraphType & graph,
-    const MERGE_PRIOS & mergePrios,
-    const NOT_MERGE_PRIOS & notMergePrios,
+    const MERGE_PRIOS & signedWeights,
     const IS_LOCAL_EDGE & isLocalEdge,
     const EDGE_SIZES      & edgeSizes,
     const NODE_SIZES      & nodeSizes,
@@ -286,8 +233,7 @@ FixationClusterPolicy(
 )
 :   graph_(graph),
     nonLinkConstraints_(graph),
-    acc0_(graph, mergePrios,    edgeSizes, settings.updateRule0),
-    acc1_(graph, notMergePrios, edgeSizes, settings.updateRule1),
+    acc0_(graph, signedWeights, edgeSizes, settings.updateRule0),
     edgeState_(graph),
     nodeSizes_(graph),
     edgeSizeState_(graph),
@@ -302,8 +248,7 @@ FixationClusterPolicy(
     max_node_size_(0),
     sum_node_size_(0),
     quadratic_sum_node_size_(0),
-    nb_performed_contractions_(0),
-    mean_rule_(false)
+    nb_performed_contractions_(0)
 {
     // FIXME: are ignored segments with both -1 handled well in general?
     if (settings_.removeSmallSegments && (!settings_.checkForNegCosts || settings_.addNonLinkConstraints || settings_.costsInPQ) ) {
@@ -327,32 +272,31 @@ FixationClusterPolicy(
 
         const auto loc = isLocalEdge[edge];
 
-        mean_rule_ = acc0_.name() == std::string("ArithmeticMean");
-        if (mean_rule_) {
-            if (acc0_[edge] < 0.) {
-                NIFTY_ASSERT_OP(acc1_[edge],>=,0.);
-                acc0_.set(edge, 0.5 - acc1_[edge], acc1_.weight(edge));
-            } else {
-                acc0_.set(edge, 0.5 + acc0_[edge], acc0_.weight(edge));
-            }
-        }
+//        mean_rule_ = acc0_.name() == std::string("ArithmeticMean");
+//        if (mean_rule_) {
+//            if (acc0_[edge] < 0.) {
+//                NIFTY_ASSERT_OP(acc1_[edge],>=,0.);
+//                acc0_.set(edge, 0.5 - acc1_[edge], acc1_.weight(edge));
+//            } else {
+//                acc0_.set(edge, 0.5 + acc0_[edge], acc0_.weight(edge));
+//            }
+//        }
 
         // FIXME: only true if we start from pixels!
         edgeSizeState_[edge] = EdgeSizeStates::SMALL;
 
         // TODO: get rid of this
-        if(settings_.zeroInit){
-            edgeState_[edge] = (loc ? EdgeStates::PURE_LOCAL : EdgeStates::PURE_LIFTED);
-
-            if(loc == 1){
-                acc1_.set(edge, 0.0, edgeSizes[edge]);
-            }
-            else{
-                acc0_.set(edge, 0.0, edgeSizes[edge]);
-            }
-        } else {
-            edgeState_[edge] = (loc == 1 ? EdgeStates::LOCAL : EdgeStates::LIFTED);
-        }
+//        if(settings_.zeroInit){
+//            edgeState_[edge] = (loc ? EdgeStates::PURE_LOCAL : EdgeStates::PURE_LIFTED);
+//
+//            if(loc == 1){
+//                acc1_.set(edge, 0.0, edgeSizes[edge]);
+//            }
+//            else{
+//                acc0_.set(edge, 0.0, edgeSizes[edge]);
+//            }
+//        } else {
+        edgeState_[edge] = (loc == 1 ? EdgeStates::LOCAL : EdgeStates::LIFTED);
 
         pq_.push(edge, this->computeWeight(edge));
 
@@ -360,38 +304,24 @@ FixationClusterPolicy(
     });
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline std::pair<uint64_t, double>
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 edgeToContractNext() const {
     return std::pair<uint64_t, double>(edgeToContractNext_,edgeToContractNextMergePrio_) ;
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline bool
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::isDone(
 ){
     while(true) {
         while(!pq_.empty() && !isNegativeInf(pq_.topPriority())){
-            // TEMP MOD: we stop as soon as we got rid of all the small segments:
-            if (settings_.removeSmallSegments && pq_.topPriority() < 1.0
-                && !settings_.addNonLinkConstraints && !settings_.costsInPQ ) {
-
-//                graph_.forEachEdge([&](const uint64_t edge) {
-//                    if (edgeSizeState_[edge] == EdgeSizeStates::SMALL && !isNegativeInf(this->computeWeight(edge))) {
-//                        std::cout << ".";
-//                    }
-//                });
-
-
-                return true;
-            }
-
             // Here we already know that the edge is not lifted
             // (Otherwise we would have inf cost in PQ)
             const auto nextActioneEdge = pq_.top();
 
-            // Here we check if some early constraints were enforced:
+            // Check if some early constraints were enforced:
             if (settings_.addNonLinkConstraints) {
                 if(this->isEdgeConstrained(nextActioneEdge)) {
                     pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
@@ -406,42 +336,21 @@ FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::isDone(
                 return false;
             }
             else{
-                // TODO: re-introduce an smart early stop (mean, sum, when thresh is reached, I can stop)
-//                const auto mean = std::string("ArithmeticMean");
-//                if (settings_.sizeThreshMin == 0 && not settings_.postponeThresholding && not settings_.zeroInit
-//                    && acc0_.name() == mean
-//                    && acc1_.name() == mean) {
-//                    return true;
-//                }
-                if (settings_.addNonLinkConstraints) {
-                    this->addNonLinkConstraint(nextActioneEdge);
+                if (! settings_.addNonLinkConstraints) {
+                    // In this case we know that we reached priority zero, so we can already stop
+                    return true;
                 }
+                this->addNonLinkConstraint(nextActioneEdge);
                 pq_.push(nextActioneEdge, -1.0*std::numeric_limits<double>::infinity());
             }
         }
-//        if (phase_ != 0 || settings_.sizeThreshMin == 0 || not settings_.postponeThresholding){
-            return  true;
-//        } else {
-//            phase_ = 1;
-//            std::cout << "Phase 1 done ";
-//            // Insert again all edges in PQ without SizeRegularizer
-//            int counter = 0;
-//            graph_.forEachEdge([&](const uint64_t edge) {
-//                const auto cEdge = edgeContractionGraph_.findRepresentativeEdge(edge);
-//                const auto uv = edgeContractionGraph_.uv(edge);
-//                if (cEdge == edge && cEdge>=0 && uv.first!=uv.second) {
-//                    counter++;
-//                    pq_.push(edge, this->computeWeight(cEdge));
-//                }
-//            });
-//            std::cout << "--> "<< counter<<" new edges inserted!\n";
-//        }
+        return true;
     }
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline double
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 pqMergePrio(
     const uint64_t edge
 ) const {
@@ -464,28 +373,29 @@ pqMergePrio(
     return costInPQ;
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline void
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
 ){
     // Remember about the highest cost in PQ:
-//    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeToContractNextMergePrio_;
+    std::cout << edgeToContractNextMergePrio_ << "\n";
+              //    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeToContractNextMergePrio_;
     maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeContractionGraph_.numberOfEdges();
     pq_.deleteItem(edgeToContract);
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
-inline typename FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::EdgeContractionGraphType &
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
+inline typename FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::EdgeContractionGraphType &
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 edgeContractionGraph(){
     return edgeContractionGraph_;
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline void
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 mergeNodes(
     const uint64_t aliveNode,
     const uint64_t deadNode
@@ -502,14 +412,6 @@ mergeNodes(
     if (nodeSizes_[aliveNode] > max_node_size_)
         max_node_size_ = uint64_t(nodeSizes_[aliveNode]);
 
-
-    if (settings_.removeSmallSegments
-        && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
-        if (nodeSizes_[aliveNode] >= settings_.smallSegmentsThresh &&
-                (nodeSizeState_[aliveNode] == EdgeSizeStates::SMALL || nodeSizeState_[deadNode] == EdgeSizeStates::SMALL)) {
-            nodeSizeState_[aliveNode] = EdgeSizeStates::FROM_SMALL_TO_BIG;
-        }
-    }
 
     if (settings_.addNonLinkConstraints) {
         auto  & aliveNodeNlc = nonLinkConstraints_[aliveNode];
@@ -530,9 +432,9 @@ mergeNodes(
 
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline void
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 mergeEdges(
     const uint64_t aliveEdge,
     const uint64_t deadEdge
@@ -544,51 +446,13 @@ mergeEdges(
 
     pq_.deleteItem(deadEdge);
 
-    // update merge prio
-
-    auto & sa = edgeState_[aliveEdge];
-    const auto  sd = edgeState_[deadEdge];
-
-    const auto mergePrioAlive = acc0_[aliveEdge];
-    const auto mergePrioDead = acc0_[deadEdge];
-    const auto notMergePrioAlive = acc1_[aliveEdge];
-    const auto notMergePrioDead = acc1_[deadEdge];
-//    std::cout << "[MP<0 "<< mergePrioAlive < 0. || mergePrioDead < 0. <<" ]; ";
-//    std::cout << "[nMP<0 "<< notMergePrioAlive< 0. || notMergePrioAlive < 0. <<" ]; ";
-
-    if (! mean_rule_) {
-        if (settings_.checkForNegCosts && mergePrioAlive < 0.) {
-//        std::cout << "[MergePrioDead "<< mergePrioDead <<" ]; ";
-            acc0_.setFrom(aliveEdge, deadEdge);
-        } else if (settings_.checkForNegCosts && mergePrioDead < 0.) {
-//        std::cout << "[MergePrioAlive "<< mergePrioAlive <<" ]; ";
-        } else {
-            acc0_.merge(aliveEdge, deadEdge);
-        }
-    } else {
-        acc0_.merge(aliveEdge, deadEdge);
-    }
-
-
-    // Update repulsiveness:
-    if (! mean_rule_) {
-        if (settings_.checkForNegCosts && notMergePrioAlive < 0.) {
-//        std::cout << ".";
-            acc1_.setFrom(aliveEdge, deadEdge);
-        } else if (settings_.checkForNegCosts && notMergePrioDead < 0.) {
-//        std::cout << "/";
-//        std::cout << "[notMergePrioAlive "<< notMergePrioAlive <<" ]; ";
-        }
-        else {
-//        std::cout << "[bothRep]";
-            acc1_.merge(aliveEdge, deadEdge);
-        }
-    }
-
-
+    // update priority:
+    acc0_.merge(aliveEdge, deadEdge);
 
 
     // update state
+    auto & sa = edgeState_[aliveEdge];
+    const auto  sd = edgeState_[deadEdge];
     if(sa == EdgeStates::PURE_LIFTED &&  sd == EdgeStates::PURE_LIFTED){
         sa =  EdgeStates::PURE_LIFTED;
     }
@@ -614,9 +478,9 @@ mergeEdges(
 }
 
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline void
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1,ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0, ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
 ){
@@ -629,35 +493,14 @@ contractEdgeDone(
             pq_.push(edge, computeWeight(edge));
         }
     }
-    // Only in the case when the segments size went over the threshold,
-    // we update the edgeSizeLabels and the edge costs in PQ:
-    if (settings_.removeSmallSegments
-        && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
-        const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
-        if (nodeSizeState_[u] == EdgeSizeStates::FROM_SMALL_TO_BIG) {
-            for(auto adj : edgeContractionGraph_.adjacency(u)){
-                const auto edge = adj.edge();
-                const auto v = adj.node();
-                if (nodeSizeState_[v] == EdgeSizeStates::BIG) {
-                    edgeSizeState_[edge] = EdgeSizeStates::BIG;
-                    pq_.push(edge, computeWeight(edge));
-                }
-              else {
-                    edgeSizeState_[edge] = EdgeSizeStates::SMALL;
-                }
-
-            }
-            nodeSizeState_[u] = EdgeSizeStates::BIG;
-        }
-    }
 
     nb_performed_contractions_++;
 
 }
 
-template<class GRAPH, class ACC_0, class ACC_1, bool ENABLE_UCM>
+template<class GRAPH, class ACC_0, bool ENABLE_UCM>
 inline double
-FixationClusterPolicy<GRAPH, ACC_0, ACC_1, ENABLE_UCM>::
+FixationClusterPolicy<GRAPH, ACC_0,  ENABLE_UCM>::
 computeWeight(
         const uint64_t edge
 ) const {
@@ -675,15 +518,6 @@ computeWeight(
 //        }
         return fromEdge * (1. / sFac);
     } else {
-        if (settings_.removeSmallSegments && (edgeSizeState_[edge] == EdgeSizeStates::SMALL)
-            && !settings_.addNonLinkConstraints && !settings_.costsInPQ) {
-            // Here we increase the priority of edges involving small segments:
-            // (ignored edges could get fromEdge = -1, but we want to merge them anyway)
-            if (!isNegativeInf(fromEdge) && fromEdge < 0.0 ) {
-                std::cout << "|" << fromEdge << "|";
-            }
-            return fromEdge + 10.0;
-        }
         return fromEdge;
     }
 

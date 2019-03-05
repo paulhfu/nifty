@@ -545,7 +545,7 @@ namespace merge_rules{
         typedef typename GraphType:: template EdgeMap<double> MutexWatershedEdgeMapType;
         typedef typename GraphType:: template EdgeMap<double> SizeEdgeMapType;
 
-        typedef MaxSettings SettingsType;
+        typedef MutexWatershedSettings SettingsType;
 
         template<class VALUES, class WEIGHTS>
         MutexWatershedEdgeMap(

@@ -18,6 +18,8 @@ from ...tools import makeDense as __makeDense
 def updatRule(name, **kwargs):
     if name == 'max':
         return MaxSettings()
+    elif name == 'MutexWatershed':
+        return MutexWatershedSettings()
     elif name == 'min':
         return MinSettings()
     elif name == 'sum':
@@ -206,7 +208,7 @@ def greedyGraphEdgeContraction(graph,
     :return:
     """
     def parse_update_rule(rule):
-        accepted_rules_1 = ['max', 'min', 'mean', 'ArithmeticMean', 'sum', 'MutexWatershed']
+        accepted_rules_1 = ['max', 'min', 'mean', 'sum', 'MutexWatershed']
         accepted_rules_2 = ['generalized_mean', 'rank', 'smooth_max']
         if not isinstance(rule, str):
             rule = rule.copy()
@@ -248,13 +250,11 @@ def greedyGraphEdgeContraction(graph,
 
 
     return fixationClusterPolicy(graph=graph,
-                          mergePrios=merge_prio,
-                          notMergePrios=not_merge_prio,
+                          signedWeights=signed_edge_weights,
                           isMergeEdge=is_merge_edge,
                           edgeSizes=edge_sizes,
                           nodeSizes=node_sizes,
                           updateRule0=parsed_rule,
-                          updateRule1=parsed_rule,
                           zeroInit=False,
                           initSignedWeights=False,
                           sizeRegularizer=size_regularizer,
@@ -274,8 +274,9 @@ Greedy edge contraction of a graph..
 
 Accepted update rules:
  - 'mean'
- - 'max'
- - 'min'
+ - 'max' (single linkage)
+ - 'min' (complete linkage)
+ - 'MutexWatershed'
  - 'sum'
  - {name: 'rank', q=0.5, numberOfBins=40}
  - {name: 'generalized_mean', p=2.0}   # 1.0 is mean
