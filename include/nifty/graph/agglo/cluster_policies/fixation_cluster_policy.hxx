@@ -380,7 +380,7 @@ contractEdge(
     const uint64_t edgeToContract
 ){
     // Remember about the highest cost in PQ:
-    std::cout << edgeToContractNextMergePrio_ << "\n";
+//    std::cout << edgeToContractNextMergePrio_ << "\n";
               //    maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeToContractNextMergePrio_;
     maxCostInPQ_per_iter_[nb_performed_contractions_] = edgeContractionGraph_.numberOfEdges();
     pq_.deleteItem(edgeToContract);

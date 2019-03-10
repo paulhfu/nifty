@@ -271,7 +271,7 @@ namespace graph{
         ragModule.def("accumulateAffinitiesMeanAndLength",
                       [](
                               const GRAPH &graph,
-                              nifty::marray::PyView<int, DIM> labels,
+                              nifty::marray::PyView<int, DIM> labels, // LAbels less then zero are ignored
                               nifty::marray::PyView<DATA_T, DIM + 1> affinities,
                               nifty::marray::PyView<int, 2> offsets,
                               nifty::marray::PyView<DATA_T, 1> affinities_weigths,
@@ -324,7 +324,7 @@ namespace graph{
                                                                                   coordQ[2] += offsets(i, 2);
                                                                                   if(coordQ.allInsideShape(shape)){
                                                                                       const auto v = labels(coordQ[0],coordQ[1],coordQ[2]);
-                                                                                      if(u != v){
+                                                                                      if(u != v && u > 0 && v > 0){
                                                                                           const auto edge = graph.findEdge(u,v);
                                                                                           if (edge >=0 ){
                                                                                               const auto aff_value = affinities(coordP[0],coordP[1],coordP[2],i);

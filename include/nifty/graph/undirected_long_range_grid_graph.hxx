@@ -629,7 +629,7 @@ namespace graph{
 //            std::cout << total_nb_edges <<  "\n";
         }
 
-        std::cout << "DONE with edges! \n";
+//        std::cout << "DONE with edges! \n";
         // TODO: test time until here!
 
         typename xt::xtensor<uint64_t, 2>::shape_type retshape;
