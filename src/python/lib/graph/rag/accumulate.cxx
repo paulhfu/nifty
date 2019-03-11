@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include <array>
 #include <algorithm>
@@ -41,7 +42,7 @@
 #include "nifty/python/graph/undirected_list_graph.hxx"
 #include "nifty/python/graph/edge_contraction_graph.hxx"
 
-
+#include "nifty/external/opensimplex_noise.hxx"
 
 
 namespace py = pybind11;
@@ -51,6 +52,45 @@ namespace nifty{
 namespace graph{
 
     using namespace py;
+
+    template<std::size_t DIM>
+    void exportEvaluateSimplexNoiseOnArrayT(
+            py::module & ragModule
+    ) {
+        ragModule.def("evaluateSimplexNoiseOnArray_impl",
+                           [](
+                                   std::array<int, DIM>    shape,
+                                   int64_t           seed,
+                                   const xt::pytensor<double, 1> & featureSize,
+                                   int numberOfThreads
+                           ) {
+//                               FIXME: make the version in external to work and move!
+                               typedef typename array::StaticArray<int64_t, DIM> ShapeType;
+                               ShapeType s;
+                               std::copy(shape.begin(), shape.end(), s.begin());
+
+                              typename xt::pytensor<double, DIM>::shape_type shape_tensor;
+                               for(int d = 0; d < DIM; ++d) {
+                                   shape_tensor[d] = shape[d];
+                               }
+
+                              xt::pytensor<double, DIM> outArray(shape_tensor);
+
+                               {
+                                   py::gil_scoped_release allowThreads;
+                                   nifty::external::evaluateSimplexNoiseOnArray(seed, s, featureSize, outArray, numberOfThreads);
+                               }
+                               return outArray;
+
+                           },
+                           py::arg("shape"),
+                           py::arg("seed"),
+                           py::arg("featureSize"),
+                           py::arg("numberOfThreads") = -1
+        );
+
+    }
+
 
     template<std::size_t DIM, class RAG, class CONTR_GRAP, class DATA_T>
     void exportAccumulateAffinitiesMeanAndLength(
@@ -1490,6 +1530,11 @@ namespace graph{
 
         //explicit
         {
+            exportEvaluateSimplexNoiseOnArrayT<2>(ragModule);
+            exportEvaluateSimplexNoiseOnArrayT<3>(ragModule);
+            exportEvaluateSimplexNoiseOnArrayT<4>(ragModule);
+
+
             typedef xt::pytensor<uint32_t, 2> ExplicitLabels2D;
             typedef GridRag<2, ExplicitLabels2D> Rag2d;
             typedef xt::pytensor<uint32_t, 3> ExplicitLabels3D;

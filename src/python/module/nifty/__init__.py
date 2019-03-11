@@ -11,6 +11,7 @@ import sys
 from . import graph
 from . import tools
 from . import ufd
+from . import external
 
 
 class Timer:
