@@ -268,11 +268,13 @@ FixationClusterPolicy(
     });
 
 //    std::cout << "Size reg:" << settings_.sizeRegularizer << "\n";
+//    std::cout << acc0_.name() << "\n";
     graph_.forEachEdge([&](const uint64_t edge){
 
         const auto loc = isLocalEdge[edge];
 
 //        mean_rule_ = acc0_.name() == std::string("ArithmeticMean");
+
 //        if (mean_rule_) {
 //            if (acc0_[edge] < 0.) {
 //                NIFTY_ASSERT_OP(acc1_[edge],>=,0.);
