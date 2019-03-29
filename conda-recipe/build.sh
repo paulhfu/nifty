@@ -20,13 +20,9 @@ if [ $(uname) == "Darwin" ]; then
     export CXX=clang++
     export DYLIB="dylib"
 else
-    export CC=gcc
-    export CXX=g++
+    export CC=x86_64-conda_cos6-linux-gnu-gcc
+    export CXX=x86_64-conda_cos6-linux-gnu-g++
     export DYLIB="so"
-    # Check which gcxx abi to use; for compatibility with libs build with gcc < 5:
-    if [[ ${DO_NOT_BUILD_WITH_CXX11_ABI} == '1' ]]; then
-        CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 ${CXXFLAGS}"
-    fi
 fi
 
 # Pre-define special flags, paths, etc. if we're building with CPLEX support.
@@ -164,9 +160,9 @@ cmake .. \
 \
         -DBOOST_ROOT=${PREFIX} \
         -DWITH_HDF5=OFF \
-        -DWITH_Z5=OFF \
-        -DWITH_FASTFILTERS=OFF \
-        -DFASTFILTERS_INCLUDE_DIR=${PREFIX}/include\
+        -DWITH_Z5=ON \
+        -DWITH_ZLIB=ON \
+        -DWITH_BLOSC=ON \
         ${CPLEX_ARGS} \
         ${GUROBI_ARGS} \
 \

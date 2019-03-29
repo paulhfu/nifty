@@ -30,10 +30,8 @@ package:
     version: {{tagged_version}}
 
 source:
-  git_url: ../
-  patches:
-    # See https://github.com/ukoethe/vigra/issues/386
-    - patches/vigra-std-threading-detection.patch
+  path: ..
+
 
 build:
   number: 0
@@ -54,8 +52,11 @@ requirements:
     - python {{PY_VER}}*
     - hdf5 >=1.10
     - numpy >=1.15
-    - xtensor 0.18.1
-    - xtensor-python 0.21.0
+    - xtensor 0.19.3
+    - xtensor-python 0.22.1
+    - nlohmann_json
+    - blosc
+    - z5py
     - vigra
 
     {% if WITH_CPLEX is defined and WITH_CPLEX %}
