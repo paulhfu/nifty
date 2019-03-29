@@ -92,6 +92,7 @@ namespace graph{
     }
 
 
+    /*
     template<std::size_t DIM, class RAG, class CONTR_GRAP, class DATA_T>
     void exportAccumulateAffinitiesMeanAndLength(
         py::module & ragModule
@@ -302,8 +303,10 @@ namespace graph{
         py::arg("offsets")
         );
     }
+    */
 
 
+    /*
     template<std::size_t DIM, class GRAPH, class DATA_T>
     void exportAccumulateAffinitiesMeanAndLength(
             py::module & ragModule
@@ -530,6 +533,7 @@ namespace graph{
 
         );
     }
+    */
 
 
 
@@ -649,6 +653,7 @@ namespace graph{
 
 
 
+    /*
     template<std::size_t DIM, class DATA_T>
     void exportConnectedComponentsFromEdgeLabels(
             py::module & ragModule
@@ -1256,7 +1261,7 @@ namespace graph{
         py::arg("numberOfThreads") = 8
         );
     }
-
+    */
 
 
 
@@ -1552,6 +1557,7 @@ namespace graph{
 //
 //
 ////            exportAccumulateAffinitiesMeanAndLength<2, Rag2d, ContractionGraphType, float>(ragModule);
+            /*
             exportAccumulateAffinitiesMeanAndLength<3, Rag3d, ContractionGraphType, float>(ragModule);
             exportAccumulateAffinitiesMeanAndLength<3, GraphType, float>(ragModule);
             exportAccumulateAffinitiesMeanAndLengthOnNodes<3, GraphType, float>(ragModule);
@@ -1572,6 +1578,7 @@ namespace graph{
 
             // TODO: move to another place!
             exportConnectedComponentsFromEdgeLabels<3, uint64_t>(ragModule);
+            */
 
             // Previous exports:
             exportAccumulateEdgeMeanAndLength<2, Rag2d, float>(ragModule);

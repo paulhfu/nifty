@@ -34,8 +34,8 @@ namespace agglo{
 
         typedef GRAPH GraphType;
         const auto graphName = GraphName<GraphType>::name();
-        typedef nifty::marray::PyView<float, 1> PyViewFloat1;
-        typedef nifty::marray::PyView<int, 1> PyViewInt1;
+        typedef xt::pytensor<float, 1> PyViewFloat1;
+        typedef xt::pytensor<int, 1> PyViewInt1;
 
         const std::string withUcmStr =  WITH_UCM ? std::string("WithUcm") :  std::string() ;
 
@@ -70,23 +70,23 @@ namespace agglo{
                                  ClusterPolicyType * self
                          ){
                              const auto graph = self->graph();
-                             typedef nifty::marray::PyView<float> marrayFloat;
-                             marrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
-                             marrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
-                             marrayFloat nodeGTLabels({size_t(graph.nodeIdUpperBound()+1)});
-                             marrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat edgeIndicators({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat mergeTimes({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat lossTargets({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
+                             typedef xt::pytensor<float, 1> arrayFloat;
+                             arrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
+                             arrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
+                             arrayFloat nodeGTLabels({size_t(graph.nodeIdUpperBound()+1)});
+                             arrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat edgeIndicators({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat mergeTimes({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat lossTargets({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
                              {
                                  py::gil_scoped_release allowThreds;
                                  self->collectDataMilestep(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,edgeIndicators,
                                     dendHeigh,mergeTimes,lossTargets,lossWeights);
                              }
-                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,
-                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,edgeIndicators,
+                             return std::tuple<arrayFloat,arrayFloat,arrayFloat,arrayFloat,arrayFloat,arrayFloat,
+                                     arrayFloat,arrayFloat,arrayFloat>(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,edgeIndicators,
                                                                           dendHeigh,mergeTimes,lossTargets,lossWeights);
                          }
                     )
@@ -199,8 +199,8 @@ namespace agglo{
 
         typedef GRAPH GraphType;
         const auto graphName = GraphName<GraphType>::name();
-        typedef nifty::marray::PyView<float, 1> PyViewFloat1;
-        typedef nifty::marray::PyView<int, 1> PyViewInt1;
+        typedef xt::pytensor<float, 1> PyViewFloat1;
+        typedef xt::pytensor<int, 1> PyViewInt1;
 
         const std::string withUcmStr =  WITH_UCM ? std::string("WithUcm") :  std::string() ;
 
@@ -237,23 +237,24 @@ namespace agglo{
                                  ClusterPolicyType * self
                          ){
                              const auto graph = self->graph();
-                             typedef nifty::marray::PyView<float> marrayFloat;
-                             marrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
-                             marrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
-                             marrayFloat nodeGTLabels({size_t(graph.nodeIdUpperBound()+1)});
-                             marrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat mergePrios({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat mergeTimes({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat lossTargets({size_t(graph.edgeIdUpperBound()+1)});
-                             marrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
+                             typedef xt::pytensor<float, 1> arrayFloat;
+                             // TODO this will create arrays of size 1. use xt::zeros instead
+                             arrayFloat nodeSizes({size_t(graph.nodeIdUpperBound()+1)});
+                             arrayFloat nodeLabels({size_t(graph.nodeIdUpperBound()+1)});
+                             arrayFloat nodeGTLabels({size_t(graph.nodeIdUpperBound()+1)});
+                             arrayFloat edgeSizes({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat mergePrios({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat dendHeigh({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat mergeTimes({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat lossTargets({size_t(graph.edgeIdUpperBound()+1)});
+                             arrayFloat lossWeights({size_t(graph.edgeIdUpperBound()+1)});
                              {
                                  py::gil_scoped_release allowThreds;
                                  self->collectDataMilestep(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,mergePrios,
                                                            dendHeigh,mergeTimes,lossTargets,lossWeights);
                              }
-                             return std::tuple<marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,marrayFloat,
-                                     marrayFloat,marrayFloat,marrayFloat>(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,mergePrios,
+                             return std::tuple<arrayFloat,arrayFloat,arrayFloat,arrayFloat,arrayFloat,arrayFloat,
+                                     arrayFloat,arrayFloat,arrayFloat>(nodeSizes,nodeLabels,nodeGTLabels,edgeSizes,mergePrios,
                                                                           dendHeigh,mergeTimes,lossTargets,lossWeights);
                          }
                     )

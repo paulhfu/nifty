@@ -46,7 +46,7 @@ namespace agglo{
                     AGGLO_CLUSTER_TYPE * self, const bool verbose
                 ){
                     const auto & graph = self->graph();
-                    nifty::marray::PyView<uint64_t> mtimes ( {std::size_t(graph.edgeIdUpperBound()+1)  });
+                    xt::pytensor<uint64_t, 1> mtimes = xt::zeros<uint64_t>({std::size_t(graph.edgeIdUpperBound()+1)});
                     {
                         py::gil_scoped_release allowThreads;
                         self->runAndGetMergeTimes(mtimes, verbose);
@@ -60,15 +60,15 @@ namespace agglo{
                     AGGLO_CLUSTER_TYPE * self, const bool verbose
                 ){
                     const auto & graph = self->graph();
-                    nifty::marray::PyView<double>   dheight( {std::size_t(graph.edgeIdUpperBound()+1)  });
-                    nifty::marray::PyView<uint64_t> mtimes ( {std::size_t(graph.edgeIdUpperBound()+1)  });
+                    xt::pytensor<double, 1> dheight = xt::zeros<double>( {std::size_t(graph.edgeIdUpperBound()+1)  });
+                    xt::pytensor<uint64_t, 1> mtimes = xt::zeros<uint64_t>( {std::size_t(graph.edgeIdUpperBound()+1)  });
                     {
                         py::gil_scoped_release allowThreads;
                         self->runAndGetMergeTimesAndDendrogramHeight(mtimes, dheight,verbose);
                     }
                     return std::pair<
-                        nifty::marray::PyView<uint64_t>,
-                        nifty::marray::PyView<double> 
+                        xt::pytensor<uint64_t, 1>,
+                        xt::pytensor<double, 1>
                     >(mtimes, dheight);
                 }
                 ,
@@ -79,7 +79,7 @@ namespace agglo{
                     AGGLO_CLUSTER_TYPE * self, const bool verbose
                 ){
                     const auto & graph = self->graph();
-                    nifty::marray::PyView<double> dheight( {std::size_t(graph.edgeIdUpperBound()+1)  });
+                    xt::pytensor<double, 1> dheight( {std::size_t(graph.edgeIdUpperBound()+1)  });
                     {
                         py::gil_scoped_release allowThreads;
                         self->runAndGetDendrogramHeight(dheight,verbose);
@@ -95,7 +95,7 @@ namespace agglo{
                     const EdgeMapFloat64 & edgeValues
                 ){
                     const auto & graph = self->graph();
-                    nifty::marray::PyView<double> transformed( {std::size_t(graph.edgeIdUpperBound()+1)  });
+                    xt::pytensor<double, 1> transformed = xt::zeros<double>( {std::size_t(graph.edgeIdUpperBound()+1)  });
                     {
                         py::gil_scoped_release allowThreads;
                         self->ucmTransform(edgeValues, transformed);
@@ -258,7 +258,7 @@ namespace agglo{
                 const AgglomerativeClusteringType * self
             ){
                 const auto graph = self->graph();
-                nifty::marray::PyView<uint64_t> out({size_t(graph.nodeIdUpperBound()+1)});
+                xt::pytensor<uint64_t, 1> out = xt::zeros<uint64_t>({size_t(graph.nodeIdUpperBound()+1)});
                 {
                     py::gil_scoped_release allowThreds;
                     self->result(out);
@@ -269,7 +269,7 @@ namespace agglo{
 
             .def("result", [](
                 const AgglomerativeClusteringType * self,
-                nifty::marray::PyView<uint64_t> out 
+                xt::pytensor<uint64_t, 1> out 
             ){
                 const auto graph = self->graph();
                 {

@@ -280,10 +280,10 @@ namespace graph{
                 .def("nodesLabelsToEdgeLabels",
                      [](
                              const G & g,
-                             nifty::marray::PyView<uint64_t, 1> nodeLabels
+                             xt::pytensor<uint64_t, 1> nodeLabels
                      ){
-                         nifty::marray::PyView<uint8_t> edgeLabels({uint64_t(g.numberOfEdges())});
-                         NIFTY_CHECK_OP(nodeLabels.shape(0),==,g.numberOfNodes(),"Array should have shape (numberOfNodes, )");
+                         xt::pytensor<uint8_t, 1> edgeLabels = xt::zeros<uint8_t>({int64_t(g.numberOfEdges())});
+                         NIFTY_CHECK_OP(nodeLabels.shape()[0],==,g.numberOfNodes(),"Array should have shape (numberOfNodes, )");
                          for(const auto edge : g.edges()){
                              const auto uv = g.uv(edge);
                              edgeLabels(edge) = nodeLabels(uv.first) != nodeLabels(uv.second) ? 1 : 0;
