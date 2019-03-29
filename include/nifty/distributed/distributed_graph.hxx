@@ -105,13 +105,11 @@ namespace distributed {
 
         // extract the subgraph uv-ids (with dense node labels)
         // as well as inner and outer edges associated with the node list
-        template<class NODE_ARRAY>
-        void extractSubgraphFromNodes(const xt::xexpression<NODE_ARRAY> & nodesExp,
+        template<class NODES>
+        void extractSubgraphFromNodes(const NODES & nodes,
                                       const bool allowInvalidNodes,
                                       std::vector<EdgeIndexType> & innerEdgesOut,
                                       std::vector<EdgeIndexType> & outerEdgesOut) const {
-            const auto & nodes = nodesExp.derived_cast();
-
             // build hash set for fast look-up
             std::unordered_set<NodeType> nodeSet(nodes.begin(), nodes.end());
 

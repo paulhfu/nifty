@@ -380,10 +380,10 @@ namespace distributed {
 
 
     template<class EDGES, class NODES>
-    void connectedComponents(const Graph & graph,
-                             const xt::xexpression<EDGES> & edges_exp,
-                             const bool ignoreLabel,
-                             xt::xexpression<NODES> & labels_exp) {
+    inline std::size_t connectedComponents(const Graph & graph,
+                                           const xt::xexpression<EDGES> & edges_exp,
+                                           const bool ignoreLabel,
+                                           xt::xexpression<NODES> & labels_exp) {
         const auto & edges = edges_exp.derived_cast();
         auto & labels = labels_exp.derived_cast();
 
@@ -449,6 +449,92 @@ namespace distributed {
         for(const NodeType node : nodes){
             labels(node) = sets.find_set(labels(node));
         }
+
+        // TODO relabel consecutive
+        // maxId = ...
+        const std::size_t maxId = 0;
+        return maxId + 1;
+    }
+
+
+    // TODO pass the solver
+    template<class WEIGHTS, class NODE_LABELS>
+    inline void decompositionSolver(const Graph & graph, const WEIGHTS & weights,
+                                    const double timeLimit, const int numberOfThreads,
+                                    NODE_LABELS & nodeLabels) {
+        const std::size_t nEdges = graph.numberOfEdges();
+        const std::size_t nNodes = graph.numberOfNodes();
+
+        xt::xtensor<bool, 1> edges = xt::zeros<bool>({nEdges});
+        for(std::size_t edgeId = 0; edgeId < nEdges; ++edgeId) {
+            edges(edgeId) = weights(edgeId) < 0;
+        }
+
+        xt::xtensor<uint64_t, 1> ccLabels = xt::zeros<uint64_t>({nNodes});
+        const std::size_t nComponents = connectedComponents(graph, edges, false, ccLabels);
+        const auto & uvIds = graph.edges();
+
+        // construct threadpool
+        nifty::parallel::ThreadPool threadpool(numberOfThreads);
+        // const auto nThreads = threadpool.nThreads();
+        //
+
+        std::vector<uint64_t> offsets(nComponents);
+
+        // solve subproblems for the components in parallel
+        nifty::parallel::parallel_foreach(threadpool, nComponents, [&](const int tid,
+                                                                       const int cId){
+            // get the nodes of this components
+            std::vector<uint64_t> nodes;
+            for(std::size_t nodeId = 0; nodeId < nNodes; ++nodeId) {
+                if(ccLabels[nodeId] == cId) {
+                    nodes.emplace_back(nodeId);
+                }
+            }
+
+            // get the sub-graph of this component
+            std::vector<EdgeIndexType> innerEdges, outerEdges;
+            graph.extractSubgraphFromNodes(nodes, true, innerEdges, outerEdges);
+
+            // relabel nodes consecutively
+            const std::size_t nSubNodes = nodes.size();
+            std::unordered_map<uint64_t, uint64_t> relabeling;
+            for(std::size_t nodeId = 0; nodeId < nSubNodes; ++nodeId) {
+                relabeling.emplace(nodes[nodeId], nodeId);
+            }
+
+            const std::size_t nSubEdges = innerEdges.size();
+            // get sub-graph and sub weigths
+            graph::UndirectedGraph subGraph(nSubNodes, nSubEdges);
+            std::vector<float> subWeights(nSubEdges);
+
+            for(std::size_t edgeId = 0; edgeId < nSubEdges; ++edgeId) {
+                const EdgeIndexType globalEdge = innerEdges[edgeId];
+
+                const auto & uv = uvIds[globalEdge];
+                int64_t u = relabeling[uv.first];
+                int64_t v = relabeling[uv.second];
+                if(u > v) {
+                    std::swap(u, v);
+                }
+                subGraph.insertEdge(u, v);
+
+                subWeights[edgeId] = weights(globalEdge);
+            }
+
+            // TODO
+            // solve the subproblem
+
+            // TODO
+            // insert sub-solution into global graph
+
+            // TODO 
+            // write the offset
+            // offsets[componentId] = maxId;
+        });
+
+        // TODO
+        // compute offsets from max ids and write them
     }
 
 }
