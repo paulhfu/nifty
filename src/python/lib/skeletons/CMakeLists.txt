@@ -5,6 +5,7 @@ addPythonModule(
     SOURCES
         skeletons.cxx
         evaluation.cxx
+        teasar.cxx
     LIBRRARIES
         ${Z5_COMPRESSION_LIBRARIES}
         ${Boost_FILESYSTEM_LIBRARY}    
