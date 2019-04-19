@@ -1,3 +1,5 @@
+#pragma once
+
 #include "boost/geometry.hpp"
 #include "boost/geometry/index/rtree.hpp"
 #include "boost/serialization/map.hpp"

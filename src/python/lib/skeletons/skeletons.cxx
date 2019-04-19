@@ -17,6 +17,7 @@ namespace nifty{
 namespace skeletons{
 
     void exportEvaluation(py::module &);
+    void exportHelper(py::module &);
 
 }
 }
@@ -33,5 +34,6 @@ PYBIND11_MODULE(_skeletons, module) {
 
     using namespace nifty::skeletons;
     exportEvaluation(module);
+    exportHelper(module);
 }
 #endif
