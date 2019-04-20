@@ -244,12 +244,13 @@ namespace graph{
             exportShortestPathDijkstraT<float, GraphType>(graphModule);
             exportParallelShortestPathT<float>(graphModule);
         }
-        // for grid graph
-        {
-            // TODO more exports
-            typedef UndirectedGridGraph<3, true> GraphType;
-            exportShortestPathDijkstraT<float, GraphType>(graphModule);
-        }
+        // FIXME name clashes
+        // // for grid graph
+        // {
+        //     // TODO more exports
+        //     typedef UndirectedGridGraph<3, true> GraphType;
+        //     exportShortestPathDijkstraT<float, GraphType>(graphModule);
+        // }
     }
 
 } // namespace graph
