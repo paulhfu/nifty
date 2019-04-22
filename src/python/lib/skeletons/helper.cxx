@@ -26,6 +26,20 @@ namespace skeletons {
 
 
         //
+        module.def("dijkstra", [](const xt::pytensor<float, 3> & field,
+                                  const Coord & src, const Coord & target){
+            std::vector<xt::xindex> path;
+            {
+                py::gil_scoped_release lift_gil;
+                dijkstra(field, src, target, path);
+            }
+            return path;
+
+        }, py::arg("field"), py::arg("src"), py::arg("target"));
+
+
+
+        //
         module.def("boundary_voxel", [](const xt::pytensor<bool, 3> & mask){
             Coord coord;
             {
@@ -36,6 +50,25 @@ namespace skeletons {
             return coord;
         }, py::arg("mask"));
 
+
+        //
+        module.def("compute_path_mask", [](const xt::pytensor<float, 3> & distance,
+                                           const std::vector<xt::xindex> & path,
+                                           const double mask_scale,
+                                           const double mask_min_radius,
+                                           const Coord & voxel_size){
+            const std::size_t n_voxels = distance.size();
+            // NOTE we compute flat output mask, needs to be rehaped in pytgon
+            xt::pytensor<bool, 1> out = xt::zeros<bool>({n_voxels});
+            {
+                py::gil_scoped_release lift_gil;
+                compute_path_mask(distance, path, mask_scale, mask_min_radius, voxel_size, out);
+
+            }
+            return out;
+        }, py::arg("distance"), py::arg("path"),
+           py::arg("mask_scale"), py::arg("mask_min_radius"),
+           py::arg("voxel_size"));
     }
 
 }
