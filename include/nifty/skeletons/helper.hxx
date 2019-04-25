@@ -81,6 +81,7 @@ namespace skeletons {
                                    const std::array<float, 3> & voxel_size,
                                    DIST & distance) {
 
+        std::cout << "Start distance computation" << std::endl;
         // number of voxels in volume and in plane
         const auto & shape = mask.shape();
 
@@ -90,7 +91,7 @@ namespace skeletons {
         std::fill(distance.begin(), distance.end(), inf);
         xt::xindex root_coord(3);
         std::copy(root.begin(), root.end(), root_coord.begin());
-        distance[root_coord] = -0;
+        distance[root_coord] = -0.0;
 
         // pq for distance nodes
         typedef std::pair<xt::xindex, float> Node;
@@ -103,11 +104,14 @@ namespace skeletons {
         const auto multipliers = precomputed_multipliers(voxel_size);
         const int nhood_size = nhoods.size();
 
+        std::cout << "Start loooooooop" << std::endl;
         // compute all distances
         while(!pq.empty()) {
+            std::cout  << "top" << std::endl;
             const auto node = pq.top();
             pq.pop();
             const auto & coord = node.first;
+            std::cout << coord[0] << " " << coord[1] << " " << coord[2] << std::endl;
 
             float & dist = distance[coord];
             // negative weights : node was already visited
@@ -115,8 +119,10 @@ namespace skeletons {
                 continue;
             }
 
+            std::cout << "Start with the neighbors" << std::endl;
             // iterate over the indirect neighborhood
             for(int ngb = 0; ngb < nhood_size; ++ngb) {
+                std::cout << "Start ngb " << ngb << std::endl;
                 const auto & nhood = nhoods[ngb];
 
                 // make 3d ngb coordinate and check that it's valid
@@ -134,30 +140,44 @@ namespace skeletons {
                     continue;
                 }
 
+                // std::cout << ngb << std::endl;
+                // std::cout << ngb_coord[0] << " " << ngb_coord[1] << " " << ngb_coord[2] << std::endl;
+                // std::cout << "AAA" << std::endl;
                 // check that ngb is in mask
                 if(!mask[ngb_coord]) {
                     continue;
                 }
 
+                // std::cout << "BBB" << std::endl;
                 float & ngb_dist = distance[ngb_coord];
                 // check if ngb was visited
                 if(std::signbit(ngb_dist)) {
                     continue;
                 }
 
+                // std::cout << "CCC" << std::endl;
+                std::cout << "Here: ngb "  << ngb << std::endl;
+                std::cout << multipliers[ngb] << std::endl;
+                // TODO dist * (1 + multipliers) is what Jan uses
                 ngb_dist = dist + multipliers[ngb];
+                std::cout << "Emplacing " << ngb_dist << std::endl;
                 pq.emplace(ngb_coord, ngb_dist);
+                std::cout << "Done ngb " << ngb << std::endl;
             }
+            std::cout << "Done with the neighbors" << std::endl;
 
             // mark this position as visited
             dist *= -1;
+            break;
         }
+        std::cout << "Done loooooooop" << std::endl;
 
         // TODO can we use xt::abs / xt::fabs
         // make all distances positive again
         for(auto dit = distance.begin(); dit != distance.end(); ++dit) {
             *dit = std::fabs(*dit);
         }
+        std::cout << "Done distance computation" << std::endl;
     }
 
 
