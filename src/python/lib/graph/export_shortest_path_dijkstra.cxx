@@ -244,13 +244,16 @@ namespace graph{
             exportShortestPathDijkstraT<float, GraphType>(graphModule);
             exportParallelShortestPathT<float>(graphModule);
         }
-        // FIXME name clashes
-        // // for grid graph
-        // {
-        //     // TODO more exports
-        //     typedef UndirectedGridGraph<3, true> GraphType;
-        //     exportShortestPathDijkstraT<float, GraphType>(graphModule);
-        // }
+        // NOTE this does not work, because we get overloaded names.
+        // Would need to export Dijstra_undirected_graph etc.
+        // and then implement a python factory
+        /*
+        // for grid graph
+        {
+            typedef UndirectedGridGraph<3, true> GraphType;
+            exportShortestPathDijkstraT<float, GraphType>(graphModule);
+        }
+        */
     }
 
 } // namespace graph
