@@ -124,7 +124,7 @@ namespace skeletons {
                 bool out_of_range = false;
                 for(unsigned d = 0; d < 3; ++d) {
                     ngb_coord[d] += nhood[d];
-                    if(ngb_coord[d] < 0 || ngb_coord[d] > shape[d]) {
+                    if(ngb_coord[d] < 0 || ngb_coord[d] >= shape[d]) {
                         out_of_range = true;
                         break;
                     }
@@ -167,7 +167,7 @@ namespace skeletons {
     template<class COORD, class STRIDES>
     inline int64_t ravel_from_strides(const COORD & coord, const STRIDES & strides) {
         int64_t ret = 0;
-        for(unsigned dim = 0; ++dim; dim < 3) {
+        for(unsigned dim = 0; dim < 3; ++dim) {
             ret += coord[dim] * strides[dim];
         }
         return ret;
