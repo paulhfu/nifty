@@ -81,22 +81,18 @@ namespace skeletons {
                                    const std::array<float, 3> & voxel_size,
                                    DIST & distance) {
 
-        std::cout << "Start distance computation" << std::endl;
         // number of voxels in volume and in plane
         const auto & shape = mask.shape();
 
-        // set all distances to inf; root distance to 0
-        // TODO better way to fill xtensor ?
-        const float inf = std::numeric_limits<float>::infinity();
-        std::fill(distance.begin(), distance.end(), inf);
+        // get the root coordinate as xindex
         xt::xindex root_coord(3);
         std::copy(root.begin(), root.end(), root_coord.begin());
-        distance[root_coord] = -0.0;
 
         // pq for distance nodes
         typedef std::pair<xt::xindex, float> Node;
         auto node_comp = [](const Node & a, const Node & b){return a.second < b.second;};
         std::priority_queue<Node, std::vector<Node>, decltype(node_comp)> pq(node_comp);
+
         pq.emplace(root_coord, 0.0);
 
         // precomputed nhoods and distance multiplier
@@ -104,14 +100,13 @@ namespace skeletons {
         const auto multipliers = precomputed_multipliers(voxel_size);
         const int nhood_size = nhoods.size();
 
-        std::cout << "Start loooooooop" << std::endl;
+        std::cout << "Start distance computation from voxel" << std::endl;
+        std::cout << root[0] << " " << root[1] << " " << root[2] << std::endl;
         // compute all distances
         while(!pq.empty()) {
-            std::cout  << "top" << std::endl;
             const auto node = pq.top();
             pq.pop();
             const auto & coord = node.first;
-            std::cout << coord[0] << " " << coord[1] << " " << coord[2] << std::endl;
 
             float & dist = distance[coord];
             // negative weights : node was already visited
@@ -119,10 +114,8 @@ namespace skeletons {
                 continue;
             }
 
-            std::cout << "Start with the neighbors" << std::endl;
             // iterate over the indirect neighborhood
             for(int ngb = 0; ngb < nhood_size; ++ngb) {
-                std::cout << "Start ngb " << ngb << std::endl;
                 const auto & nhood = nhoods[ngb];
 
                 // make 3d ngb coordinate and check that it's valid
@@ -140,39 +133,29 @@ namespace skeletons {
                     continue;
                 }
 
-                // std::cout << ngb << std::endl;
-                // std::cout << ngb_coord[0] << " " << ngb_coord[1] << " " << ngb_coord[2] << std::endl;
-                // std::cout << "AAA" << std::endl;
                 // check that ngb is in mask
                 if(!mask[ngb_coord]) {
                     continue;
                 }
 
-                // std::cout << "BBB" << std::endl;
                 float & ngb_dist = distance[ngb_coord];
                 // check if ngb was visited
                 if(std::signbit(ngb_dist)) {
                     continue;
                 }
 
-                // std::cout << "CCC" << std::endl;
-                std::cout << "Here: ngb "  << ngb << std::endl;
-                std::cout << multipliers[ngb] << std::endl;
-                // TODO dist * (1 + multipliers) is what Jan uses
+                // TODO Jan uses dist * (1 + multipliers)
                 ngb_dist = dist + multipliers[ngb];
-                std::cout << "Emplacing " << ngb_dist << std::endl;
+                // FIXME this is line sometimes segfaults
+                // (segfault occurs when compiled in Release, not in Debug)
                 pq.emplace(ngb_coord, ngb_dist);
-                std::cout << "Done ngb " << ngb << std::endl;
             }
-            std::cout << "Done with the neighbors" << std::endl;
 
             // mark this position as visited
             dist *= -1;
-            break;
         }
-        std::cout << "Done loooooooop" << std::endl;
 
-        // TODO can we use xt::abs / xt::fabs
+        // TODO can we use xt::abs / xt::fabs ?
         // make all distances positive again
         for(auto dit = distance.begin(); dit != distance.end(); ++dit) {
             *dit = std::fabs(*dit);
@@ -220,14 +203,10 @@ namespace skeletons {
         const auto & shape = field.shape();
         const auto & strides = field.strides();
 
-        // make distance array, set all distances to inf; src distance to 0
-        // TODO better way to fill xtensor ?
-        const float inf = std::numeric_limits<float>::infinity();
+        // initialize distances and coordiantes
         xt::xtensor<float, 3> distances = xt::zeros<float>(shape);
-        std::fill(distances.begin(), distances.end(), inf);
         xt::xindex src_coord(3);
         std::copy(src.begin(), src.end(), src_coord.begin());
-        distances[src_coord] = -0;
 
         xt::xindex target_coord(3);
         std::copy(target.begin(), target.end(), target_coord.begin());
@@ -292,7 +271,7 @@ namespace skeletons {
                 ngb_dist = dist + delta;
 
                 // break if we found the target
-                // goto's are bad, but very convinient here ... :)
+                // (using goto convinience ...)
                 if(ngb_coord == target_coord) {
                     goto DONE;
                 }
