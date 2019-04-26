@@ -146,8 +146,6 @@ namespace skeletons {
 
                 // TODO Jan uses dist * (1 + multipliers)
                 ngb_dist = dist + multipliers[ngb];
-                // FIXME this is line sometimes segfaults
-                // (segfault occurs when compiled in Release, not in Debug)
                 pq.emplace(ngb_coord, ngb_dist);
             }
 
@@ -160,7 +158,6 @@ namespace skeletons {
         for(auto dit = distance.begin(); dit != distance.end(); ++dit) {
             *dit = std::fabs(*dit);
         }
-        std::cout << "Done distance computation" << std::endl;
     }
 
 
@@ -247,7 +244,7 @@ namespace skeletons {
                 bool out_of_range = false;
                 for(unsigned d = 0; d < 3; ++d) {
                     ngb_coord[d] += nhood[d];
-                    if(ngb_coord[d] < 0 || ngb_coord[d] > shape[d]) {
+                    if(ngb_coord[d] < 0 || ngb_coord[d] >= shape[d]) {
                         out_of_range = true;
                         break;
                     }
