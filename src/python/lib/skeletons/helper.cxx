@@ -28,7 +28,7 @@ namespace skeletons {
         //
         module.def("dijkstra", [](const xt::pytensor<float, 3> & field,
                                   const Coord & src, const Coord & target){
-            std::vector<xt::xindex> path;
+            std::vector<Coord> path;
             {
                 py::gil_scoped_release lift_gil;
                 dijkstra(field, src, target, path);
@@ -53,7 +53,7 @@ namespace skeletons {
 
         //
         module.def("compute_path_mask", [](const xt::pytensor<float, 3> & distance,
-                                           const std::vector<xt::xindex> & path,
+                                           const std::vector<Coord> & path,
                                            const double mask_scale,
                                            const double mask_min_radius,
                                            const Coord & voxel_size){

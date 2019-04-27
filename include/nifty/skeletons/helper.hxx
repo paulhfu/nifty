@@ -90,7 +90,7 @@ namespace skeletons {
 
         // pq for distance nodes
         typedef std::pair<xt::xindex, float> Node;
-        auto node_comp = [](const Node & a, const Node & b){return a.second < b.second;};
+        auto node_comp = [](const Node & a, const Node & b){return a.second > b.second;};
         std::priority_queue<Node, std::vector<Node>, decltype(node_comp)> pq(node_comp);
 
         pq.emplace(root_coord, 0.0);
@@ -100,8 +100,8 @@ namespace skeletons {
         const auto multipliers = precomputed_multipliers(voxel_size);
         const int nhood_size = nhoods.size();
 
-        std::cout << "Start distance computation from voxel" << std::endl;
-        std::cout << root[0] << " " << root[1] << " " << root[2] << std::endl;
+        // std::cout << "Start distance computation from voxel" << std::endl;
+        // std::cout << root[0] << " " << root[1] << " " << root[2] << std::endl;
         // compute all distances
         while(!pq.empty()) {
             const auto node = pq.top();
@@ -113,6 +113,8 @@ namespace skeletons {
             if(std::signbit(dist)) {
                 continue;
             }
+            // std::cout << "visit " << coord[0] << " " << coord[1] << " " << coord[2] << std::endl;
+            // std::cout << "at distance " << dist << std::endl;
 
             // iterate over the indirect neighborhood
             for(int ngb = 0; ngb < nhood_size; ++ngb) {
@@ -147,6 +149,10 @@ namespace skeletons {
                 // TODO Jan uses dist * (1 + multipliers)
                 ngb_dist = dist + multipliers[ngb];
                 pq.emplace(ngb_coord, ngb_dist);
+
+                // std::cout << "Placed on queue:" << std::endl;
+                // std::cout <<  ngb_coord[0] << " " << ngb_coord[1] << " " << ngb_coord[2] << std::endl;
+                // std::cout << "at distance  "<< ngb_dist << std::endl;
             }
 
             // mark this position as visited
@@ -174,20 +180,26 @@ namespace skeletons {
     template<class PARENTS, class PATH>
     inline void backtrace_path(const PARENTS & parents, const xt::xindex & target,
                                PATH & path) {
+        typedef typename PATH::value_type CoordType;
+
         const auto & strides = parents.strides();
         const auto & layout = parents.layout();
 
         int64_t current_id = ravel_from_strides(target, strides);
-        xt::xindex current_coord = target;
+        // We need two different pairs of coords, because xtensor
+        // indexing only works with xindex, but unravel_from_strides returns std::array
+        // and we need to return std::array for python bindings
+        xt::xindex index_coord = target;
+        CoordType path_coord;
+        std::copy(target.begin(), target.end(), path_coord.begin());
+        path.emplace_back(path_coord);
 
         // NOTE: parents[src] = 0
-        while(parents[current_coord]) {
-            path.emplace_back(current_coord);
-            current_id = parents[current_coord];
-            // THIS IS STUPID ....
-            // need to copy unravel_from_strides ret type (= std::array) to xindex
-            const auto tmp_coord = xt::unravel_from_strides(current_id, strides, layout);
-            std::copy(tmp_coord.begin(), tmp_coord.end(), current_coord.begin());
+        while(current_id) {
+            current_id = parents[index_coord];
+            path_coord = xt::unravel_from_strides(current_id, strides, layout);
+            std::copy(path_coord.begin(), path_coord.end(), index_coord.begin());
+            path.emplace_back(path_coord);
         }
     }
 
@@ -213,7 +225,7 @@ namespace skeletons {
 
         // priority queue
         typedef std::pair<xt::xindex, float> Node;
-        auto node_comp = [](const Node & a, const Node & b){return a.second < b.second;};
+        auto node_comp = [](const Node & a, const Node & b){return a.second > b.second;};
         std::priority_queue<Node, std::vector<Node>, decltype(node_comp)> pq(node_comp);
         pq.emplace(src_coord, 0.0);
 
