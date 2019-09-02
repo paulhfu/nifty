@@ -4,8 +4,9 @@
 #include "boost/geometry/index/rtree.hpp"
 #include "boost/serialization/map.hpp"
 #include "boost/serialization/unordered_map.hpp"
-#include "boost/archive/binary_iarchive.hpp"
-#include "boost/archive/binary_oarchive.hpp"
+// can't build with boost serialization
+//#include "boost/archive/binary_iarchive.hpp"
+//#include "boost/archive/binary_oarchive.hpp"
 
 #include "nifty/z5/z5.hxx"
 #include "nifty/parallel/threadpool.hxx"
@@ -13,7 +14,16 @@
 namespace bg = boost::geometry;
 namespace bgi = boost::geometry::index;
 
-namespace fs = boost::filesystem;
+#ifdef WITH_BOOST_FS
+    namespace fs = boost::filesystem;
+#else
+    #if __GCC__ > 7
+        namespace fs = std::filesystem;
+    #else
+        namespace fs = std::experimental::filesystem;
+    #endif
+#endif
+
 namespace nifty {
 namespace skeletons {
 
@@ -63,6 +73,8 @@ namespace skeletons {
     // API
     public:
 
+        // needs boost serialization
+        /*
         // constructor from serialization
         SkeletonMetrics(const std::string & segmentationPath,
                         const std::string & skeletonTopFolder,
@@ -72,6 +84,7 @@ namespace skeletons {
                                                                  skeletonIds_(skeletonIds){
             deserialize(dictSerialization);
         }
+        */
 
         // constructor from data
         SkeletonMetrics(const std::string & segmentationPath,
@@ -128,6 +141,9 @@ namespace skeletons {
         // the label id(s) that contain the merge
         void getNodesInFalseMergeLabels(std::map<std::size_t, std::vector<std::size_t>> &, const int) const;
 
+        // we can't build with boost::serialization right now
+        // best would be to reimplement this
+        /*
         // serialize and deserialize node dictionary with boost::serialization
         void serialize(const std::string & path) const {
             std::ofstream os(path.c_str(), std::ofstream::out | std::ofstream::binary);
@@ -140,6 +156,7 @@ namespace skeletons {
             boost::archive::binary_iarchive iarch(is);
             iarch >> skeletonDict_;
         }
+        */
 
         // group skeleton to blocks (= chunks of the segmentation)
         void groupSkeletonBlocks(SkeletonBlockStorage &, std::vector<std::size_t> &, parallel::ThreadPool &);

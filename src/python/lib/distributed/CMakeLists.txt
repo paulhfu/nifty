@@ -11,11 +11,9 @@ addPythonModule(
         lifted_utils.cxx
         morphology.cxx
         edge_morphology.cxx
-        eval_utils.cxx
     LIBRRARIES
         # ${FASTFILTERS_LIBRARY}
         ${Z5_COMPRESSION_LIBRARIES}
-        ${Boost_FILESYSTEM_LIBRARY}    
-        ${Boost_SYSTEM_LIBRARY}    
+        ${FILESYSTEM_LIBRARIES}    
         Threads::Threads
 )
