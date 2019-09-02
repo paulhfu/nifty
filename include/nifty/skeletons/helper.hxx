@@ -205,8 +205,8 @@ namespace skeletons {
 
 
     template<class FIELD, class PATH>
-    inline void dijkstra(const FIELD & field, const Coord & src,
-                         const Coord & target, PATH & path) {
+    inline double dijkstra(const FIELD & field, const Coord & src,
+                           const Coord & target, PATH & path) {
 
         // shape and strides
         const auto & shape = field.shape();
@@ -302,7 +302,7 @@ namespace skeletons {
     template<class MASK, class DIST, class PATH>
     inline void compute_path_mask(const DIST & distance, const PATH & path,
                                   const double mask_scale, const double mask_min_radius,
-                                  const Coord & voxel_size, MASK & out) {
+                                  const std::array<float, 3> & voxel_size, MASK & out) {
         const auto & shape = distance.shape();
         const std::size_t n_vox = distance.size();
         const std::size_t n_vox_xy = shape[1] * shape[2];
@@ -375,6 +375,29 @@ namespace skeletons {
                 }
             }
         }
+    }
+
+
+    template<class PATH>
+    inline double pathlength(const Coord & shape, const PATH & path, const std::array<float, 3> & voxel_size) {
+
+        // precomputed nhoods and distance multiplier
+        const auto nhoods = precomputed_nhoods();
+        const auto multipliers = precomputed_multipliers(voxel_size);
+
+        double len = 0.;
+        for(std::size_t i = 0; i < path.size() - 1; ++i) {
+            const auto & coord = path[i]; 
+            auto diff = path[i + 1];
+            for(int d = 0; d < 3; ++d) {
+                diff[d] -= coord[d];
+            }
+            const auto it = std::find(nhoods.begin(), nhoods.end(), diff);
+            const int nhood_id = std::distance(nhoods.begin(), it);
+            len += multipliers[nhood_id];
+        }
+        
+        return len;
     }
 
 }

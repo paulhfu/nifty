@@ -56,19 +56,31 @@ namespace skeletons {
                                            const std::vector<Coord> & path,
                                            const double mask_scale,
                                            const double mask_min_radius,
-                                           const Coord & voxel_size){
+                                           const std::array<float, 3> & voxel_size){
             const std::size_t n_voxels = distance.size();
             // NOTE we compute flat output mask, needs to be rehaped in pytgon
             xt::pytensor<bool, 1> out = xt::zeros<bool>({n_voxels});
             {
                 py::gil_scoped_release lift_gil;
                 compute_path_mask(distance, path, mask_scale, mask_min_radius, voxel_size, out);
-
             }
             return out;
         }, py::arg("distance"), py::arg("path"),
            py::arg("mask_scale"), py::arg("mask_min_radius"),
            py::arg("voxel_size"));
+
+
+        //
+        module.def("pathlength", [](const Coord & shape,
+                                    const std::vector<Coord> & path,
+                                    const std::array<float, 3> & voxel_size){
+            double len;
+            {
+                py::gil_scoped_release lift_gil;
+                len = pathlength(shape, path, voxel_size);
+            }
+            return len;
+        }, py::arg("shape"), py::arg("path"), py::arg("voxel_size"));
     }
 
 }
