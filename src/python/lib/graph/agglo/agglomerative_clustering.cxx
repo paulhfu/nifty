@@ -321,12 +321,15 @@ namespace agglo{
         {
             typedef PyUndirectedGraph GraphType;
 
+            /*
             exportMalaClusterPolicy<GraphType, false>(aggloModule);
             exportMalaClusterPolicy<GraphType, true>(aggloModule);
+            */
 
             exportEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
+            /*
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
@@ -334,8 +337,10 @@ namespace agglo{
 
             exportLiftedGraphEdgeWeightedPolicy<GraphType, false>(aggloModule);
             exportLiftedGraphEdgeWeightedPolicy<GraphType, true>(aggloModule);
+            */
         }
 
+        /*
         {
             typedef UndirectedGridGraph<2,true> GraphType;
 
@@ -371,6 +376,7 @@ namespace agglo{
             exportLiftedGraphEdgeWeightedPolicy<GraphType, false>(aggloModule);
             exportLiftedGraphEdgeWeightedPolicy<GraphType, true>(aggloModule);
         }
+        */
     }
 
 } // end namespace agglo

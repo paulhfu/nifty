@@ -88,7 +88,7 @@ public:
     bool isDone();
 
     // callback called by edge contraction graph
-    
+
     EdgeContractionGraphType & edgeContractionGraph();
 
 private:

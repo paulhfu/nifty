@@ -63,7 +63,6 @@ public:
     bool isDone() const;
 
     // callback called by edge contraction graph
-    
     EdgeContractionGraphType & edgeContractionGraph();
 
 private:
@@ -87,7 +86,7 @@ public:
     const NodeSizesType & nodeSizes() const {
         return nodeSizes_;
     }
-    
+
 private:
     // INPUT
     const GraphType &   graph_;
@@ -95,7 +94,7 @@ private:
     EdgeSizesType       edgeSizes_;
     NodeSizesType       nodeSizes_;
     SettingsType            settings_;
-    
+
     // INTERNAL
     EdgeContractionGraphType edgeContractionGraph_;
     QueueType pq_;
@@ -132,14 +131,14 @@ EdgeWeightedClusterPolicy(
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline std::pair<uint64_t, double> 
+inline std::pair<uint64_t, double>
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 edgeToContractNext() const {
     return std::pair<uint64_t, double>(pq_.top(),pq_.topPriority()) ;
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline bool 
+inline bool
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 isDone() const {
     if(edgeContractionGraph_.numberOfNodes() <= settings_.numberOfNodesStop)
@@ -151,7 +150,7 @@ isDone() const {
 
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 initializeWeights() {
     for(const auto edge : graph_.edges())
@@ -159,7 +158,7 @@ initializeWeights() {
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline double 
+inline double
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 computeWeight(
     const uint64_t edge
@@ -174,7 +173,7 @@ computeWeight(
 
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 contractEdge(
     const uint64_t edgeToContract
@@ -183,7 +182,7 @@ contractEdge(
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline typename EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::EdgeContractionGraphType & 
+inline typename EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::EdgeContractionGraphType &
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 edgeContractionGraph(){
     return edgeContractionGraph_;
@@ -192,20 +191,20 @@ edgeContractionGraph(){
 
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 mergeNodes(
-    const uint64_t aliveNode, 
+    const uint64_t aliveNode,
     const uint64_t deadNode
 ){
     nodeSizes_[aliveNode] +=nodeSizes_[deadNode];
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 mergeEdges(
-    const uint64_t aliveEdge, 
+    const uint64_t aliveEdge,
     const uint64_t deadEdge
 ){
     pq_.deleteItem(deadEdge);
@@ -217,12 +216,12 @@ mergeEdges(
 }
 
 template<class GRAPH, bool ENABLE_UCM>
-inline void 
+inline void
 EdgeWeightedClusterPolicy<GRAPH, ENABLE_UCM>::
 contractEdgeDone(
     const uint64_t edgeToContract
 ){
-    // HERE WE UPDATE 
+    // HERE WE UPDATE
     const auto u = edgeContractionGraph_.nodeOfDeadEdge(edgeToContract);
     for(auto adj : edgeContractionGraph_.adjacency(u)){
         const auto edge = adj.edge();

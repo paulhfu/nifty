@@ -47,13 +47,13 @@ private:
     typedef typename GraphType:: template EdgeMap<double> CurrentWeightMap;
 
     // internal types
-    
+
     typedef nifty::tools::ChangeablePriorityQueue< double ,std::less<double> > QueueType;
 
 public:
 
     LiftedGraphEdgeWeightedClusterPolicy(
-        const GraphType &, EdgeIndicatorsType, 
+        const GraphType &, EdgeIndicatorsType,
         EdgeSizesType, NodeSizesType,
         EdgeIsLifted,
         const SettingsType & settings = SettingsType());
@@ -62,7 +62,7 @@ public:
     bool isDone() const;
 
     // callback called by edge contraction graph
-    
+
     EdgeContractionGraphType & edgeContractionGraph();
 
 private:
@@ -75,6 +75,10 @@ public:
     void mergeNodes(const uint64_t aliveNode, const uint64_t deadNode);
     void mergeEdges(const uint64_t aliveEdge, const uint64_t deadEdge);
     void contractEdgeDone(const uint64_t edgeToContract);
+
+    const NodeSizesType & nodeSizes() const {
+        return nodeSizes_;
+    }
 
 private:
     // INPUT

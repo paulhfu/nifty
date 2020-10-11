@@ -48,7 +48,7 @@ namespace graph{
         std::function<void(uint64_t,uint64_t) > mergeNodesCallback;
         std::function<void(uint64_t,uint64_t) > mergeEdgesCallback;
         std::function<void(uint64_t) >          contractEdgeDoneCallback;
-    };  
+    };
 
     // \cond SUPPRESS_DOXYGEN
     namespace detail_edge_contraction_graph{
@@ -130,7 +130,7 @@ namespace graph{
 
         typedef typename SetType::const_iterator EdgeIter;
         typedef typename SetType::const_iterator NodeIter;
-    }; 
+    };
 
 
 
@@ -165,7 +165,7 @@ namespace graph{
         typedef SortedTag NodeIdOrderTag;
 
 
-        
+
         EdgeContractionGraphWithSets(const GraphType & graph, OuterCallbackType & outerCallback)
         :   innerCallback_(graph, outerCallback),
             cgraph_(graph, innerCallback_){
@@ -203,7 +203,7 @@ namespace graph{
                 f(node);
             }
         }
- 
+
         AdjacencyIter adjacencyBegin(const int64_t node)const{
             NIFTY_ASSERT(innerCallback_.nodesSet_.find(node)!=innerCallback_.nodesSet_.end());
             return cgraph_.adjacencyBegin(node);
@@ -255,7 +255,7 @@ namespace graph{
             return cgraph_.findEdge(u, v);
         }
 
-        
+
         void contractEdge(const uint64_t edgeToContract){
             NIFTY_ASSERT(innerCallback_.edgesSet_.find(edgeToContract)!=innerCallback_.edgesSet_.end());
             cgraph_.contractEdge(edgeToContract);
@@ -264,7 +264,7 @@ namespace graph{
             cgraph_.reset();
             innerCallback_.initSets();
         }
-       
+
         const GraphType & baseGraph()const{
             return cgraph_.baseGraph();
         }
@@ -356,8 +356,8 @@ namespace graph{
 
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    class EdgeContractionGraph : 
-        public 
+    class EdgeContractionGraph :
+        public
         detail_edge_contraction_graph::EdgeContractionGraphEdgeUfdHelper<GRAPH, WITH_EDGE_UFD>
 
     {
@@ -371,16 +371,16 @@ namespace graph{
         typedef detail_graph::UndirectedAdjacency<int64_t,int64_t,int64_t,int64_t> NodeAdjacency;
         //typedef std::set<NodeAdjacency> NodeStorage;
         typedef nifty::container::BoostFlatSet <NodeAdjacency> NodeStorage;
-        
+
     public:
         typedef std::pair<int64_t,int64_t> EdgeStorage;
         typedef typename NodeStorage::const_iterator AdjacencyIter;
     private:
-        typedef typename GraphType:: template NodeMap<NodeStorage> NodesContainer; 
+        typedef typename GraphType:: template NodeMap<NodeStorage> NodesContainer;
         typedef typename GraphType:: template EdgeMap<EdgeStorage> EdgeContainer;
     public:
 
-        EdgeContractionGraph(const GraphType & graph,   Callback & callback);
+        EdgeContractionGraph(const GraphType & graph, Callback & callback);
 
         struct AdjacencyIterRange :  public tools::ConstIteratorRange<AdjacencyIter>{
             using tools::ConstIteratorRange<AdjacencyIter>::ConstIteratorRange;
@@ -401,7 +401,7 @@ namespace graph{
 
         uint64_t nodeIdUpperBound() const;
         uint64_t edgeIdUpperBound() const;
-        
+
         int64_t findEdge(const int64_t u, const int64_t v)const;
 
 
@@ -413,7 +413,7 @@ namespace graph{
         uint64_t findRepresentativeNode(const uint64_t node)const;
         uint64_t findRepresentativeNode(const uint64_t node);
         uint64_t nodeOfDeadEdge(const uint64_t deadEdge)const;
-            
+
         const NodeUfdType & nodeUfd()const{
             return nodeUfd_;
         }
@@ -437,7 +437,7 @@ namespace graph{
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
     inline EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     EdgeContractionGraph(
-        const GraphType & graph,   
+        const GraphType & graph,
         Callback & callback
     )
     :   detail_edge_contraction_graph::EdgeContractionGraphEdgeUfdHelper<GRAPH, WITH_EDGE_UFD>(graph),
@@ -454,7 +454,7 @@ namespace graph{
 
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIterRange 
+    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIterRange
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     adjacency(
         const int64_t node
@@ -463,7 +463,7 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIter 
+    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIter
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     adjacencyBegin(
         const int64_t node
@@ -472,7 +472,7 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIter 
+    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIter
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     adjacencyEnd(
         const int64_t node
@@ -481,7 +481,7 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIter 
+    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::AdjacencyIter
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     adjacencyOutBegin(
         const int64_t node
@@ -489,8 +489,8 @@ namespace graph{
         return adjacencyBegin(node);
     }
 
-    template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>    
-    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::EdgeStorage 
+    template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
+    inline typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::EdgeStorage
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     uv(
         const uint64_t edge
@@ -500,7 +500,7 @@ namespace graph{
         //return edges_[edge];
     }
 
-    template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>    
+    template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
     inline int64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     u(
@@ -510,7 +510,7 @@ namespace graph{
         //return edges_[edge].first;
     }
 
-    template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>    
+    template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
     inline int64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     v(
@@ -521,38 +521,38 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline uint64_t 
+    inline uint64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     numberOfNodes()const{
         return currentNodeNum_;
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline uint64_t 
+    inline uint64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     numberOfEdges()const{
         return currentEdgeNum_;
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline uint64_t 
+    inline uint64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     nodeIdUpperBound()const{
         return graph_.nodeIdUpperBound();
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline uint64_t 
+    inline uint64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     edgeIdUpperBound()const{
         return graph_.edgeIdUpperBound();
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline int64_t 
+    inline int64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     findEdge(
-        const int64_t u, 
+        const int64_t u,
         const int64_t v
     )const{
         const auto fres =  nodes_[u].find(NodeAdjacency(v));
@@ -564,13 +564,13 @@ namespace graph{
 
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline void 
+    inline void
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     reset(){
         nodeUfd_.reset();
         currentNodeNum_ = graph_.numberOfNodes();
         currentEdgeNum_ = graph_.numberOfEdges();
-        
+
 
         // fill the data-structures for the dynamic graph
         //  nodes:
@@ -591,26 +591,26 @@ namespace graph{
             #endif
         }
 
-        
+
         // // edges:
         // for(const auto edge: graph_.edges()){
         //     const auto uv = graph_.uv(edge);
         //     const auto edgeStorage = EdgeStorage(uv.first, uv.second);
         //     edges_[edge] = edgeStorage;
-        // }            
+        // }
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline void 
+    inline void
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     contractEdge(
         const uint64_t edgeToContract
     ){
 
-        // 
+        //
         callback_.contractEdge(edgeToContract);
         --currentEdgeNum_;
-        
+
         // get the u and v we need to merge into a single node
         const auto uv = this->uv(edgeToContract);
         //const auto uv = edges_[edgeToContract];
@@ -628,7 +628,7 @@ namespace graph{
         // also known as 'aliveNode' and which is the deadNode
         const auto aliveNode = nodeUfd_.find(u);
         NIFTY_ASSERT(aliveNode==u || aliveNode==v);
-        const auto deadNode = aliveNode == u ? v : u;       
+        const auto deadNode = aliveNode == u ? v : u;
         NIFTY_ASSERT_OP(nodeUfd_.find(aliveNode),==,aliveNode);
         NIFTY_ASSERT_OP(nodeUfd_.find(deadNode),!=,deadNode);
 
@@ -638,10 +638,10 @@ namespace graph{
         // get the adjacency sets of both nodes
         auto & adjAlive = nodes_[aliveNode];
         auto & adjDead = nodes_[deadNode];
-        
+
         // remove them from each other
-        // 
-        // 
+        //
+        //
         NIFTY_ASSERT(adjAlive.find(NodeAdjacency(deadNode)) != adjAlive.end());
         NIFTY_ASSERT(adjDead.find(NodeAdjacency(aliveNode)) != adjDead.end());
 
@@ -657,7 +657,7 @@ namespace graph{
             const auto adjToDeadNodeEdge = adj.edge();
 
 
-            // check if adjToDeadNode is also in 
+            // check if adjToDeadNode is also in
             // aliveNodes adjacency  => double edge
             const auto findResIter = adjAlive.find(NodeAdjacency(adjToDeadNode));
             if(findResIter != adjAlive.end()){ // we found a double edge
@@ -667,18 +667,14 @@ namespace graph{
                     //NIFTY_ASSERT(pq_.contains(edgeInAlive));
                         //  const auto wEdgeInAlive = pq_.priority(edgeInAlive);
                         //  const auto wEdgeInDead = pq_.priority(adjToDeadNodeEdge);
-           
-                // erase the deadNodeEdge 
+
+                // erase the deadNodeEdge
                         //  pq_.deleteItem(adjToDeadNodeEdge);
                         //  pq_.changePriority(edgeInAlive, wEdgeInAlive + wEdgeInDead);
-                
+
 
                 if(!WITH_EDGE_UFD){
-
                         callback_.mergeEdges(edgeInAlive, adjToDeadNodeEdge);
-                       
-
-                        
                 }
                 else{
                     const auto ret = this->edgeUfdMerge(edgeInAlive, adjToDeadNodeEdge);
@@ -697,7 +693,7 @@ namespace graph{
                         nodes_[adjToDeadNode].find(NodeAdjacency(aliveNode))->changeEdgeIndex(aliveEdge);
                         callback_.mergeEdges(aliveEdge, deadEdge);
                     }
-                }   
+                }
                 // relabel adjacency
                 --currentEdgeNum_;
                 auto & s = nodes_[adjToDeadNode];
@@ -709,12 +705,12 @@ namespace graph{
                 // shift adjacency from dead to alive
                 adjAlive.insert(NodeAdjacency(adjToDeadNode, adjToDeadNodeEdge));
 
-                // relabel adjacency 
+                // relabel adjacency
                 auto & s = nodes_[adjToDeadNode];
 
                 NIFTY_ASSERT(s.find(NodeAdjacency(deadNode)) != s.end());
                 NIFTY_ASSERT(s.find(NodeAdjacency(aliveNode)) == s.end());
-                
+
                 s.erase(NodeAdjacency(deadNode));
                 s.insert(NodeAdjacency(aliveNode, adjToDeadNodeEdge));
                 // relabel edge
@@ -735,7 +731,7 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline uint64_t 
+    inline uint64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     findRepresentativeNode(
         const uint64_t node
@@ -744,7 +740,7 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline uint64_t 
+    inline uint64_t
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     nodeOfDeadEdge(
         const uint64_t deadEdge
@@ -755,14 +751,14 @@ namespace graph{
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline const typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::GraphType & 
+    inline const typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::GraphType &
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     baseGraph()const{
         return graph_;
     }
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline const typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::GraphType & 
+    inline const typename EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::GraphType &
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     graph()const{
         return graph_;
@@ -770,11 +766,11 @@ namespace graph{
 
 
     template<class GRAPH, class CALLBACK, bool WITH_EDGE_UFD>
-    inline void 
+    inline void
     EdgeContractionGraph<GRAPH, CALLBACK, WITH_EDGE_UFD>::
     relabelEdge(
         const uint64_t edge,
-        const uint64_t deadNode, 
+        const uint64_t deadNode,
         const uint64_t aliveNode
     ){
         // auto & uv = edges_[edge];
@@ -786,7 +782,7 @@ namespace graph{
         // }
         // else{
         //     NIFTY_ASSERT(false);
-        // } 
+        // }
     }
 
 

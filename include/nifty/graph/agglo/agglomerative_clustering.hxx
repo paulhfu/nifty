@@ -20,7 +20,7 @@ template<class AGGLOMERATIVE_CLUSTERING>
 class DendrogramAgglomerativeClusteringVisitor{
 private:
 
-    typedef std::tuple<uint64_t,uint64_t, double, double> MergeEncodingType; 
+    typedef std::tuple<uint64_t,uint64_t, double, double> MergeEncodingType;
 
 public:
     typedef AGGLOMERATIVE_CLUSTERING AgglomerativeClusteringType;
@@ -247,9 +247,70 @@ public:
     }
 
 
-    // for each n
+    template<class DOUBLE_VEC>
+    void runAndGetLinkageMatrix(
+        DOUBLE_VEC & us,
+        DOUBLE_VEC & vs,
+        DOUBLE_VEC & distances,
+        DOUBLE_VEC & sizes,
+        const bool verbose=false
+    ) {
+        auto & cgraph = clusterPolicy_.edgeContractionGraph();
+        const auto & ufd = cgraph.nodeUfd();
+
+        std::vector<uint64_t> representativesToClusters(cgraph.numberOfNodes());
+        std::iota(representativesToClusters.begin(), representativesToClusters.end(), 0);
+
+        std::vector<double> clusterSizes(cgraph.numberOfNodes(), 1.);
+
+        uint64_t nextCluster = cgraph.numberOfNodes();
+
+        while(!clusterPolicy_.isDone()){
+
+            if(clusterPolicy_.edgeContractionGraph().numberOfEdges() == 0)
+                break;
+
+            const auto edgeToContractNextAndPriority = clusterPolicy_.edgeToContractNext();
+            const auto edgeToContractNext = edgeToContractNextAndPriority.first;
+            const auto priority = edgeToContractNextAndPriority.second;
+
+            const auto uv = cgraph.uv(edgeToContractNext);
+            const auto u = uv.first;
+            const auto v = uv.second;
+
+            if(verbose){
+                std::cout<<"Nodes "<<cgraph.numberOfNodes()<<" p="<<priority<<"\n";
+            }
+            cgraph.contractEdge(edgeToContractNext);
+
+            const uint64_t clusterU = representativesToClusters[u];
+            const uint64_t clusterV = representativesToClusters[v];
+
+            const auto repr = ufd.find(u);
+            const auto other = (repr == u) ? v : u;
+
+            clusterSizes[repr] += clusterSizes[other];
+            const double clusterSize = clusterSizes[repr];
+
+            representativesToClusters[repr] = nextCluster;
+            ++nextCluster;
+
+            if(verbose){
+                std::cout<<"cluster-u "<<clusterU<<" cluster-v "<<clusterV<<"\n";
+                std::cout<<"cluster-size "<<clusterSize<<"\n";
+            }
+
+            us.push_back(static_cast<double>(clusterU));
+            vs.push_back(static_cast<double>(clusterV));
+            distances.push_back(static_cast<double>(priority));
+            sizes.push_back(clusterSize);
+        }
+
+    }
+
+
     template<class EDGE_DENDROGRAM_HEIGHT>
-    void runAndGetDendrogramHeight(EDGE_DENDROGRAM_HEIGHT & dendrogramHeight,const bool verbose=false){
+    void runAndGetDendrogramHeight(EDGE_DENDROGRAM_HEIGHT & dendrogramHeight, const bool verbose=false){
 
 
         while(!clusterPolicy_.isDone()){
@@ -314,4 +375,3 @@ private:
 } // namespace agglo
 } // namespace nifty::graph
 } // namespace nifty
-

@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 #include "nifty/python/graph/undirected_list_graph.hxx"
 #include "nifty/graph/agglo/agglomerative_clustering.hxx"
@@ -91,6 +92,45 @@ namespace agglo{
                 }
                 ,
                     py::arg("verbose") = false
+                )
+
+                .def("runAndGetLinkageMatrix", [](
+                    AGGLO_CLUSTER_TYPE * self, const bool verbose
+                ){
+                    std::vector<double> us;
+                    std::vector<double> vs;
+                    std::vector<double> distances;
+                    std::vector<double> sizes;
+                    {
+                        py::gil_scoped_release allowThreads;
+                        self->runAndGetLinkageMatrix(us, vs, distances, sizes, verbose);
+                    }
+
+                    return std::make_tuple(us, vs, distances, sizes);
+                    // something is going wrong here; I don't get it
+                    /*
+                    typedef typename xt::pytensor<double, 2>::shape_type ShapeType;
+                    ShapeType shape = {static_cast<int64_t>(us.size()), 4};
+                    xt::pytensor<double, 2> linkage = xt::zeros<double>(shape);
+
+                    std::cout << std::endl;
+                    for(int64_t ii = 0; ii < us.size(); ++ii) {
+                        std::cout << ii << std::endl;
+                        linkage[ii, 0] = us[ii];
+                        std::cout << us[ii] << " " << vs[ii] << std::endl;
+                        linkage[ii, 1] = vs[ii];
+                        linkage[ii, 2] = distances[ii];
+                        linkage[ii, 3] = sizes[ii];
+                        std::cout << linkage[ii, 0] << " " << linkage[ii, 1] << std::endl;
+                        std::cout << std::endl;
+                    }
+                    for(int64_t ii = 0; ii < us.size(); ++ii) {
+                        std::cout << ii << std::endl;
+                        std::cout << linkage[ii, 0] << " " << linkage[ii, 1] << std::endl;
+                    }
+                    return linkage;
+                    */
+                }, py::arg("verbose")=false
                 )
 
                 .def("ucmTransform", [](
