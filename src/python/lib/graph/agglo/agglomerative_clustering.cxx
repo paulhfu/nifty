@@ -11,6 +11,7 @@
 #include "nifty/graph/agglo/cluster_policies/mala_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/edge_weighted_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/node_and_edge_weighted_cluster_policy.hxx"
+#include "nifty/graph/agglo/cluster_policies/cos_dist_node_and_edge_weighted_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/minimum_node_size_cluster_policy.hxx"
 #include "nifty/graph/agglo/cluster_policies/lifted_graph_edge_weighted_cluster_policy.hxx"
 
@@ -259,6 +260,68 @@ namespace agglo{
         }
     }
 
+    template<class GRAPH, bool WITH_UCM>
+    void exportCosineDistNodeAndEdgeWeightedClusterPolicy(py::module & aggloModule) {
+
+        typedef GRAPH GraphType;
+        const auto graphName = GraphName<GraphType>::name();
+        typedef xt::pytensor<float, 1> PyViewFloat1;
+        typedef xt::pytensor<float, 2> PyViewFloat2;
+
+        const std::string withUcmStr =  WITH_UCM ? std::string("WithUcm") :  std::string() ;
+
+        {
+            // name and type of cluster operator
+            typedef CosineDistNodeAndEdgeWeightedClusterPolicy<GraphType,WITH_UCM> ClusterPolicyType;
+            const auto clusterPolicyBaseName = std::string("CosineDistNodeAndEdgeWeightedClusterPolicy") +  withUcmStr;
+            const auto clusterPolicyClsName = clusterPolicyBaseName + graphName;
+            const auto clusterPolicyFacName = lowerFirst(clusterPolicyBaseName);
+
+            // the cluster operator cls
+            py::class_<ClusterPolicyType>(aggloModule, clusterPolicyClsName.c_str())
+                .def_property_readonly("edgeIndicators", &ClusterPolicyType::edgeIndicators)
+                .def_property_readonly("edgeSizes", &ClusterPolicyType::edgeSizes)
+            ;
+
+            // factory
+            aggloModule.def(clusterPolicyFacName.c_str(),
+                [](
+                    const GraphType & graph,
+                    const PyViewFloat1 & edgeIndicators,
+                    const PyViewFloat1 & edgeSizes,
+                    const PyViewFloat2 & nodeFeatures,
+                    const PyViewFloat1 & nodeSizes,
+                    const float beta,
+                    const uint64_t numberOfNodesStop,
+                    const float sizeRegularizer
+                ){
+                    typename ClusterPolicyType::SettingsType s;
+                    s.numberOfNodesStop = numberOfNodesStop;
+                    s.sizeRegularizer = sizeRegularizer;
+                    s.beta = beta;
+
+                    // create a MultibandArrayViewNodeMap
+                    nifty::graph::graph_maps::MultibandArrayViewNodeMap<PyViewFloat2> nodeFeaturesView(nodeFeatures);
+
+                    auto ptr = new ClusterPolicyType(graph, edgeIndicators, edgeSizes, nodeFeaturesView, nodeSizes, s);
+                    return ptr;
+                },
+                py::return_value_policy::take_ownership,
+                py::keep_alive<0,1>(), // graph
+                py::arg("graph"),
+                py::arg("edgeIndicators"),
+                py::arg("edgeSizes"),
+                py::arg("nodeFeatures"),
+                py::arg("nodeSizes"),
+                py::arg("beta") = 0.5f,
+                py::arg("numberOfNodesStop") = 1,
+                py::arg("sizeRegularizer") = 0.5f
+            );
+
+            // export the agglomerative clustering functionality for this cluster operator
+            exportAgglomerativeClusteringTClusterPolicy<ClusterPolicyType>(aggloModule, clusterPolicyBaseName);
+        }
+    }
 
     template<class GRAPH>
     void exportMinimumNodeSizeClusterPolicy(py::module & aggloModule) {
@@ -330,6 +393,9 @@ namespace agglo{
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
+            exportCosineDistNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
+            exportCosineDistNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
+
             exportMinimumNodeSizeClusterPolicy<GraphType>(aggloModule);
 
             exportLiftedGraphEdgeWeightedPolicy<GraphType, false>(aggloModule);
@@ -348,6 +414,9 @@ namespace agglo{
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
+            exportCosineDistNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
+            exportCosineDistNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
+
             exportMinimumNodeSizeClusterPolicy<GraphType>(aggloModule);
 
             exportLiftedGraphEdgeWeightedPolicy<GraphType, false>(aggloModule);
@@ -365,6 +434,9 @@ namespace agglo{
 
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
             exportNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
+
+			exportCosineDistNodeAndEdgeWeightedClusterPolicy<GraphType, false>(aggloModule);
+            exportCosineDistNodeAndEdgeWeightedClusterPolicy<GraphType, true>(aggloModule);
 
             exportMinimumNodeSizeClusterPolicy<GraphType>(aggloModule);
 
