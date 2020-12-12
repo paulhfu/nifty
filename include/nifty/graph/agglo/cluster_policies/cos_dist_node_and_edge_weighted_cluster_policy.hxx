@@ -215,7 +215,7 @@ weightFromNodes(
     for(auto c=0; c<nChannels_; ++c){
         d += featU[c] * featV[c];
     }
-    return 2 - d;
+    return 1 - d;
 }
 
 
